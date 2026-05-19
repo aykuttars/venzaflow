@@ -4,7 +4,21 @@ default:
     @just --list
 
 up:
-    cd docker && docker compose up --build
+    docker compose -f docker/docker-compose.yml --env-file .env up --build -d
+
+down:
+    docker compose -f docker/docker-compose.yml --env-file .env down
+
+rebuild:
+    docker compose -f docker/docker-compose.yml --env-file .env down
+    DOCKER_BUILDKIT=0 docker compose -f docker/docker-compose.yml --env-file .env build --no-cache
+    docker compose -f docker/docker-compose.yml --env-file .env up -d --force-recreate
+
+logs:
+    docker compose -f docker/docker-compose.yml --env-file .env logs -f --tail=200
+
+docker-seed:
+    docker compose -f docker/docker-compose.yml --env-file .env exec backend python manage.py seed_demo
 
 migrate:
     cd backend && export DJANGO_SETTINGS_MODULE=config.settings.dev && . .venv/bin/activate 2>/dev/null || true; python manage.py migrate

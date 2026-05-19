@@ -14,6 +14,7 @@ class ActivityLogView(ListAPIView):
     serializer_class = LogEntrySerializer
     permission_classes = [IsAuthenticated, HasViewPermission]
     required_permission = "audit.read"
+    pagination_class = None
 
     def get_queryset(self):
         tid = self.request.user.tenant_id

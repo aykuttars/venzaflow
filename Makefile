@@ -1,7 +1,15 @@
 .PHONY: up migrate seed test smoke
 
 up:
-	cd docker && docker compose up --build
+	docker compose -f docker/docker-compose.yml --env-file .env up --build -d
+
+down:
+	docker compose -f docker/docker-compose.yml --env-file .env down
+
+rebuild:
+	docker compose -f docker/docker-compose.yml --env-file .env down
+	DOCKER_BUILDKIT=0 docker compose -f docker/docker-compose.yml --env-file .env build --no-cache
+	docker compose -f docker/docker-compose.yml --env-file .env up -d --force-recreate
 
 migrate:
 	cd backend && DJANGO_SETTINGS_MODULE=config.settings.dev python manage.py migrate

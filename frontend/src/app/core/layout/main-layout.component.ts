@@ -76,7 +76,8 @@ const NAV: NavItem[] = [
           <span>Business Management</span>
           <span class="spacer"></span>
           <span style="font-size:13px; margin-right:12px">
-            Tenant {{ auth.me()?.user?.tenant_code }} —
+            {{ auth.me()?.user?.tenant_name || 'Tenant' }}
+            ({{ auth.me()?.user?.tenant_code }}) —
             {{ auth.me()?.user?.department?.name }}
           </span>
           <button mat-icon-button [matMenuTriggerFor]="userMenu">

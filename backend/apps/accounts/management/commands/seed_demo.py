@@ -38,7 +38,7 @@ def mk_department(
 
 
 class Command(BaseCommand):
-    help = "Seed demo tenants (1000, 3000), RBAC, and users from the project specification."
+    help = "Seed demo tenants (1000, 3000), RBAC, and staff users."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -95,14 +95,15 @@ class Command(BaseCommand):
         d3000_sec = mk_department(t3000, "security", "Security", security_codes, perm_index)
         d3000_doc = mk_department(t3000, "doctor", "Doctor", doctor_codes, perm_index)
 
+        demo_pw = "abcd12345"
         users = [
-            (t1000, d1000_admin, "test@example.com", "daeqwe3rt4yasd"),
-            (t1000, d1000_tech, "test3@example.com", "daeqwsae3rt4yasd"),
-            (t1000, d1000_cash, "test4@example.com", "daeqwsasae3rt4yasd"),
-            (t3000, d3000_admin, "123@example.com", "das123"),
-            (t3000, d3000_acc, "avcd@abcd.com", "123asdad"),
-            (t3000, d3000_sec, "abcd1@example.com", "aasdasdasd"),
-            (t3000, d3000_doc, "deneme@abcd.com", "aerr324"),
+            (t1000, d1000_admin, "test@example.com", demo_pw),
+            (t1000, d1000_tech, "test3@example.com", demo_pw),
+            (t1000, d1000_cash, "test4@example.com", demo_pw),
+            (t3000, d3000_admin, "123@example.com", demo_pw),
+            (t3000, d3000_acc, "avcd@abcd.com", demo_pw),
+            (t3000, d3000_sec, "abcd1@example.com", demo_pw),
+            (t3000, d3000_doc, "deneme@abcd.com", demo_pw),
         ]
 
         for tenant, dept, email, password in users:

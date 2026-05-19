@@ -14,6 +14,7 @@ export interface MeUser {
   id: number;
   email: string;
   tenant_code: string;
+  tenant_name?: string;
   first_name: string;
   last_name: string;
   is_active: boolean;
@@ -64,6 +65,14 @@ export class AuthService {
           this.persist(res);
         })
       );
+  }
+
+  refreshMe(): Observable<{
+    user: MeUser;
+    permissions: string[];
+    enabled_modules: string[];
+  }> {
+    return this.loadMe();
   }
 
   loadMe(): Observable<{

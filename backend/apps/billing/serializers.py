@@ -14,6 +14,7 @@ class InvoiceLineSerializer(serializers.ModelSerializer):
 
 class InvoiceSerializer(serializers.ModelSerializer):
     lines = InvoiceLineSerializer(many=True, required=False)
+    customer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -21,12 +22,17 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "id",
             "number",
             "customer",
+            "customer_name",
             "issued_at",
             "due_date",
             "status",
             "total",
             "lines",
         )
+
+    def get_customer_name(self, obj):
+        c = obj.customer
+        return f"{c.first_name} {c.last_name}".strip()
         read_only_fields = ("total",)
 
     def create(self, validated_data):
@@ -59,6 +65,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    invoice_number = serializers.CharField(source="invoice.number", read_only=True)
+
     class Meta:
         model = Payment
-        fields = ("id", "invoice", "amount", "paid_at", "method")
+        fields = ("id", "invoice", "invoice_number", "amount", "paid_at", "method")

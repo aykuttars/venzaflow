@@ -88,6 +88,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    extra_permissions = models.ManyToManyField(
+        Permission,
+        related_name="users_with_extra",
+        blank=True,
+        help_text="Additional permissions on top of the user's department.",
+    )
 
     objects = UserManager()
     all_tenants = AllUsersManager()
@@ -112,11 +118,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self) -> str:
         return f"{self.email} @ {self.tenant.customer_code}"
 
+    def effective_permission_codenames(self) -> set[str]:
+        codes: set[str] = set()
+        if self.department_id:
+            codes.update(
+                self.department.permissions.values_list("codename", flat=True)
+            )
+        codes.update(self.extra_permissions.values_list("codename", flat=True))
+        return codes
+
     def has_permission_codename(self, codename: str) -> bool:
         if not self.is_active:
             return False
         if self.is_superuser:
             return True
-        if self.department_id:
-            return self.department.permissions.filter(codename=codename).exists()
-        return False
+        return codename in self.effective_permission_codenames()

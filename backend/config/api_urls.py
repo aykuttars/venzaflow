@@ -10,7 +10,7 @@ from apps.billing.views import InvoiceViewSet, PaymentViewSet
 from apps.common.views import health
 from apps.customers.views import CustomerViewSet, MedicalRecordViewSet
 from apps.dashboard.views import DashboardSummaryView
-from apps.employees.views import EmployeeViewSet
+from apps.accounts.views_employees import EmployeeViewSet
 from apps.inventory.views import StockMovementViewSet, StockViewSet, WarehouseViewSet
 from apps.products.views import CategoryViewSet, ProductViewSet
 

@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     "auditlog",
     "apps.tenants",
     "apps.accounts",
-    "apps.employees",
     "apps.products",
     "apps.inventory",
     "apps.customers",
@@ -112,6 +111,9 @@ CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS",
     default=["http://localhost:4200", "http://127.0.0.1:4200", "http://localhost"],
 )
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

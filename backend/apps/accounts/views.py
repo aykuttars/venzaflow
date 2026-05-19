@@ -23,9 +23,7 @@ class LoginView(APIView):
         ser.is_valid(raise_exception=True)
         user = ser.validated_data["user"]
         refresh, access = build_tokens_for_user(user)
-        perm_codenames = []
-        if user.department_id:
-            perm_codenames = list(user.department.permissions.values_list("codename", flat=True))
+        perm_codenames = sorted(user.effective_permission_codenames())
         return Response(
             {
                 "access": access,
@@ -56,9 +54,7 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
-        perm_codenames = []
-        if user.department_id:
-            perm_codenames = list(user.department.permissions.values_list("codename", flat=True))
+        perm_codenames = sorted(user.effective_permission_codenames())
         return Response(
             {
                 "user": UserSerializer(user).data,

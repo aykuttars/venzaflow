@@ -55,6 +55,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     tenant_code = serializers.CharField(source="tenant.customer_code", read_only=True)
+    tenant_name = serializers.CharField(source="tenant.name", read_only=True)
 
     class Meta:
         model = User
@@ -62,6 +63,7 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "email",
             "tenant_code",
+            "tenant_name",
             "first_name",
             "last_name",
             "department",
