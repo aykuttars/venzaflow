@@ -1,0 +1,52 @@
+erDiagram
+  Tenant ||--o{ User : has
+  Tenant ||--o{ Department : has
+  Tenant ||--o{ Product : has
+  Tenant ||--o{ Category : has
+  Tenant ||--o{ Warehouse : has
+  Tenant ||--o{ Stock : has
+  Tenant ||--o{ Customer : has
+  Tenant ||--o{ MedicalRecord : has
+  Tenant ||--o{ Appointment : has
+  Tenant ||--o{ Invoice : has
+  Tenant ||--o{ Payment : has
+  Tenant ||--o{ Expense : has
+  Tenant ||--o{ Transaction : has
+  Tenant ||--o{ Account : has
+  Tenant ||--o{ Employee : has
+
+  Department ||--o{ User : assigns
+  Department }o--o{ Permission : grants
+
+  User ||--o| Employee : profile
+  Customer ||--o{ MedicalRecord : owns
+  Customer ||--o{ Appointment : booked
+  Customer ||--o{ Invoice : billed
+  Invoice ||--o{ InvoiceLine : contains
+  Invoice ||--o{ Payment : settled_by
+  Product ||--o{ InvoiceLine : sells
+  Category ||--o{ Product : groups
+  Warehouse ||--o{ Stock : holds
+  Stock ||--o{ StockMovement : journaled
+
+  Tenant {
+    string customer_code
+    string name
+    bool is_active
+    jsonb enabled_modules
+  }
+  User {
+    int tenant_id
+    string email
+    string password
+    int department_id
+  }
+  Department {
+    int tenant_id
+    string key
+    string name
+  }
+  Permission {
+    string codename
+    string name
+  }

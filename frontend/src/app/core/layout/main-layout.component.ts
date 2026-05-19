@@ -1,0 +1,121 @@
+import { CommonModule } from '@angular/common';
+import { Component, inject, signal } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatIconModule } from '@angular/material/icon';
+import { MatListModule } from '@angular/material/list';
+import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+
+import { AuthService } from '../auth.service';
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+  module: string;
+  permission: string;
+}
+
+const NAV: NavItem[] = [
+  { path: '/dashboard', label: 'Dashboard', icon: 'dashboard', module: 'dashboard', permission: 'dashboard.read' },
+  { path: '/products', label: 'Products', icon: 'inventory_2', module: 'products', permission: 'products.read' },
+  { path: '/inventory', label: 'Inventory', icon: 'warehouse', module: 'inventory', permission: 'inventory.read' },
+  { path: '/employees', label: 'Employees', icon: 'badge', module: 'employees', permission: 'employees.read' },
+  { path: '/customers', label: 'Customers', icon: 'people', module: 'customers', permission: 'customers.read' },
+  { path: '/appointments', label: 'Appointments', icon: 'event', module: 'appointments', permission: 'appointments.read' },
+  { path: '/billing', label: 'Billing', icon: 'receipt_long', module: 'billing', permission: 'billing.read' },
+  { path: '/accounting', label: 'Accounting', icon: 'savings', module: 'accounting', permission: 'accounting.read' },
+  { path: '/audit-logs', label: 'Audit Logs', icon: 'history', module: 'audit', permission: 'audit.read' },
+  { path: '/departments', label: 'Departments', icon: 'admin_panel_settings', module: 'settings', permission: 'settings.read' },
+  { path: '/settings', label: 'Settings', icon: 'settings', module: 'settings', permission: 'settings.read' },
+];
+
+@Component({
+  selector: 'app-main-layout',
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatToolbarModule,
+    MatSidenavModule,
+    MatIconModule,
+    MatListModule,
+    MatButtonModule,
+    MatMenuModule,
+    MatDividerModule,
+  ],
+  template: `
+    <mat-sidenav-container style="height:100vh">
+      <mat-sidenav mode="side" opened style="width:240px">
+        <div style="padding:16px; display:flex; align-items:center; gap:8px">
+          <mat-icon>business</mat-icon>
+          <strong>Tenancysoft</strong>
+        </div>
+        <mat-divider></mat-divider>
+        <mat-nav-list>
+          @for (item of visibleNav; track item.path) {
+          <a
+            mat-list-item
+            [routerLink]="item.path"
+            routerLinkActive="active-link"
+          >
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+            <span matListItemTitle>{{ item.label }}</span>
+          </a>
+          }
+        </mat-nav-list>
+      </mat-sidenav>
+
+      <mat-sidenav-content>
+        <mat-toolbar color="primary">
+          <span>Business Management</span>
+          <span class="spacer"></span>
+          <span style="font-size:13px; margin-right:12px">
+            Tenant {{ auth.me()?.user?.tenant_code }} —
+            {{ auth.me()?.user?.department?.name }}
+          </span>
+          <button mat-icon-button [matMenuTriggerFor]="userMenu">
+            <mat-icon>account_circle</mat-icon>
+          </button>
+          <mat-menu #userMenu>
+            <button mat-menu-item disabled>
+              {{ auth.me()?.user?.email }}
+            </button>
+            <mat-divider></mat-divider>
+            <button mat-menu-item (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              <span>Logout</span>
+            </button>
+          </mat-menu>
+        </mat-toolbar>
+        <router-outlet />
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  `,
+  styles: [
+    `
+      .active-link {
+        background: rgba(63, 81, 181, 0.08);
+      }
+    `,
+  ],
+})
+export class MainLayoutComponent {
+  protected auth = inject(AuthService);
+
+  protected get visibleNav(): NavItem[] {
+    return NAV.filter(
+      (n) =>
+        this.auth.hasModule(n.module) && this.auth.hasPermission(n.permission)
+    );
+  }
+
+  protected logout() {
+    this.auth.logout();
+  }
+}

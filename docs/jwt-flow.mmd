@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant U as User
+  participant A as Angular
+  participant API as Django/DRF
+  participant DB as PostgreSQL
+
+  U->>A: Submit (customer_code, email, password)
+  A->>API: POST /api/v1/auth/login/
+  API->>DB: SELECT Tenant WHERE customer_code
+  API->>DB: SELECT User WHERE tenant_id+email, verify password
+  API-->>A: { access, refresh, user, permissions, enabled_modules }
+  A->>A: decode JWT, store tokens, set signals
+  A->>API: GET /api/v1/* (Authorization: Bearer access)
+  API->>API: TenantJWTAuth -> match user.tenant_id == jwt.tenant_id
+  API->>API: TenantContextMiddleware: set_current_tenant_id(tenant_id)
+  API->>DB: queryset filter(tenant_id = current)
+  API-->>A: tenant-scoped rows
+  Note over A,API: On 401, A calls /auth/refresh/ once, retries
+  A->>API: POST /auth/refresh/ { refresh }
+  API-->>A: { access (claims re-stamped) }
