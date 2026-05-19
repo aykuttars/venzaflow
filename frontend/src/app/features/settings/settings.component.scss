@@ -1,0 +1,143 @@
+.settings-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  width: 100%;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.settings-card {
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.settings-card mat-card-header {
+  padding-bottom: 8px;
+}
+
+.settings-card-subtitle {
+  margin: 0 0 16px;
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.settings-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+
+  dt {
+    margin: 0;
+    color: rgba(0, 0, 0, 0.55);
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    color: rgba(0, 0, 0, 0.87);
+  }
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.settings-section-title {
+  margin: 20px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.settings-section-title:first-of-type {
+  margin-top: 8px;
+}
+
+.settings-chips {
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 4px 0;
+
+  mat-chip-set {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.settings-module-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+.settings-module-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.settings-module-slug {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(63, 81, 181, 0.1);
+  color: #3f51b5;
+}
+
+.settings-module-input {
+  width: 100%;
+  min-width: 140px;
+}

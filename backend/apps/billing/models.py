@@ -22,6 +22,7 @@ class Invoice(TenantOwnedModel):
     total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     class Meta:
+        db_table = "invoice"
         unique_together = [("tenant", "number")]
         ordering = ["-issued_at"]
 
@@ -37,6 +38,7 @@ class InvoiceLine(TenantOwnedModel):
     line_total = models.DecimalField(max_digits=14, decimal_places=2)
 
     class Meta:
+        db_table = "invoice_line"
         ordering = ["id"]
 
 
@@ -47,4 +49,5 @@ class Payment(TenantOwnedModel):
     method = models.CharField(max_length=64, default="cash")
 
     class Meta:
+        db_table = "payment"
         ordering = ["-paid_at"]

@@ -6,7 +6,7 @@ All endpoints are prefixed with `/api/v1/` and require `Authorization: Bearer <a
 
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
-| POST | `/auth/login/` | `{ customer_code, email, password }` | Returns `access`, `refresh`, `user`, `permissions`, `enabled_modules`. |
+| POST | `/auth/login/` | `{ customer_code, email, password }` | Tenant code + email (no separate username). Returns `access`, `refresh`, `user`, `permissions`, `enabled_modules`, `default_language`. |
 | POST | `/auth/refresh/` | `{ refresh }` | Returns a fresh `access` with tenant claims re-applied. |
 | POST | `/auth/logout/` | `{ refresh }` | Blacklists the refresh token. |
 | GET | `/auth/me/` |  | Current user + permissions + enabled modules. |

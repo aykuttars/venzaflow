@@ -11,6 +11,7 @@ class Warehouse(TenantOwnedModel):
     name = models.CharField(max_length=255)
 
     class Meta:
+        db_table = "warehouse"
         unique_together = [("tenant", "code")]
 
     def __str__(self) -> str:
@@ -24,6 +25,7 @@ class Stock(TenantOwnedModel):
     reorder_level = models.IntegerField(default=0)
 
     class Meta:
+        db_table = "stock"
         unique_together = [("tenant", "product", "warehouse")]
 
     def __str__(self) -> str:
@@ -38,4 +40,5 @@ class StockMovement(TenantOwnedModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "stock_movement"
         ordering = ["-created_at"]

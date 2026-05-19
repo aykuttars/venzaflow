@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -52,7 +53,7 @@ class EmployeeViewSet(TenantScopedViewSet):
         instance = self.get_object()
         if instance.pk == request.user.pk:
             return Response(
-                {"detail": "You cannot delete your own account."},
+                {"detail": _("You cannot delete your own account.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if (
@@ -67,7 +68,7 @@ class EmployeeViewSet(TenantScopedViewSet):
             ).exclude(pk=instance.pk)
             if not others.exists():
                 return Response(
-                    {"detail": "Cannot delete the last admin for this tenant."},
+                    {"detail": _("Cannot delete the last admin for this tenant.")},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         return super().destroy(request, *args, **kwargs)

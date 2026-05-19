@@ -4,8 +4,7 @@ import {
   EventEmitter,
   Input,
   Output,
-  computed,
-  signal,
+  TemplateRef,
 } from '@angular/core';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -59,15 +58,15 @@ export interface ColumnDef<T = unknown> {
       <ng-container matColumnDef="__actions__">
         <th mat-header-cell *matHeaderCellDef style="width:100px"></th>
         <td mat-cell *matCellDef="let row">
-          <ng-container *ngTemplateOutlet="actionsTpl || empty; context: { $implicit: row }"></ng-container>
+          @if (actionsTpl) {
+            <ng-container *ngTemplateOutlet="actionsTpl; context: { $implicit: row }"></ng-container>
+          }
         </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayColumns"></tr>
     </table>
-
-    <ng-template #empty></ng-template>
 
     <mat-paginator
       [length]="total"
@@ -82,7 +81,7 @@ export class DataTableComponent {
   @Input() rows: unknown[] = [];
   @Input() total = 0;
   @Input() pageSize = 25;
-  @Input() actionsTpl: unknown = null;
+  @Input() actionsTpl?: TemplateRef<{ $implicit: unknown }>;
   @Output() pageChange = new EventEmitter<{ offset: number; limit: number }>();
   @Output() sortChange = new EventEmitter<string>();
   @Output() searchChange = new EventEmitter<string>();

@@ -8,17 +8,33 @@ from apps.tenants.context import get_current_tenant_id
 class Tenant(models.Model):
     """Company / tenant root. Lives in shared schema (not TenantOwnedModel)."""
 
+    class Language(models.TextChoices):
+        TR = "tr", "Türkçe"
+        EN = "en", "English"
+
     customer_code = models.CharField(max_length=32, unique=True, db_index=True)
     name = models.CharField(max_length=255)
+    default_language = models.CharField(
+        max_length=5,
+        choices=Language.choices,
+        default=Language.TR,
+        help_text="Default UI and API message language for this tenant.",
+    )
     is_active = models.BooleanField(default=True)
     enabled_modules = models.JSONField(
         default=list,
         help_text="Module slugs this tenant can use, e.g. ['products', 'billing'].",
     )
+    module_labels = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Display names keyed by module slug, e.g. {"customers": "Hastalar"}.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "tenant"
         ordering = ["customer_code"]
 
     def __str__(self) -> str:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
@@ -56,6 +57,10 @@ class UserSerializer(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
     tenant_code = serializers.CharField(source="tenant.customer_code", read_only=True)
     tenant_name = serializers.CharField(source="tenant.name", read_only=True)
+    tenant_default_language = serializers.CharField(
+        source="tenant.default_language",
+        read_only=True,
+    )
 
     class Meta:
         model = User
@@ -64,6 +69,7 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "tenant_code",
             "tenant_name",
+            "tenant_default_language",
             "first_name",
             "last_name",
             "department",
@@ -72,6 +78,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    """Authenticate with tenant customer_code + email + password (no username)."""
+
     customer_code = serializers.CharField()
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -85,7 +93,7 @@ class LoginSerializer(serializers.Serializer):
 
         tenant = Tenant.objects.filter(customer_code=code, is_active=True).first()
         if not tenant:
-            raise serializers.ValidationError({"detail": "Invalid credentials."})
+            raise serializers.ValidationError({"detail": _("Invalid credentials.")})
 
         user = (
             User.all_tenants
@@ -93,6 +101,6 @@ class LoginSerializer(serializers.Serializer):
             .first()
         )
         if not user or not user.check_password(password):
-            raise serializers.ValidationError({"detail": "Invalid credentials."})
+            raise serializers.ValidationError({"detail": _("Invalid credentials.")})
         attrs["user"] = user
         return attrs

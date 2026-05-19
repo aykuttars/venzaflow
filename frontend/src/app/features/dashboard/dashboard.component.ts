@@ -4,6 +4,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { BaseChartDirective } from 'ng2-charts';
 
 import { API_BASE } from '../../core/api';
@@ -55,51 +56,47 @@ interface DashboardSummary {
     MatCardModule,
     MatTableModule,
     MatIconModule,
+    TranslateModule,
     BaseChartDirective,
     PageHeaderComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Dashboard" icon="dashboard"></app-page-header>
+      <app-page-header moduleSlug="dashboard" icon="dashboard"></app-page-header>
 
       @if (data(); as d) {
       <div class="card-grid">
         <div class="metric-card">
-          <span class="label">Daily Sales</span>
+          <span class="label">{{ 'dashboard.dailySales' | translate }}</span>
           <span class="value">{{ d.daily_sales | number: '1.2-2' }}</span>
         </div>
         <div class="metric-card">
-          <span class="label">Customers</span>
+          <span class="label">{{ 'dashboard.customers' | translate }}</span>
           <span class="value">{{ d.customer_count }}</span>
         </div>
         <div class="metric-card">
-          <span class="label">Patients</span>
+          <span class="label">{{ 'dashboard.patients' | translate }}</span>
           <span class="value">{{ d.patient_count }}</span>
         </div>
         <div class="metric-card">
-          <span class="label">Open Invoices</span>
+          <span class="label">{{ 'dashboard.openInvoices' | translate }}</span>
           <span class="value">{{ d.open_invoices_count }}</span>
         </div>
       </div>
 
       <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px">
         <mat-card>
-          <mat-card-header><mat-card-title>Recent payments</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ 'dashboard.recentPayments' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
-            <canvas
-              baseChart
-              [data]="paymentsChart()"
-              [type]="'bar'"
-              [options]="chartOpts"
-            ></canvas>
+            <canvas baseChart [data]="paymentsChart()" [type]="'bar'" [options]="chartOpts"></canvas>
           </mat-card-content>
         </mat-card>
 
         <mat-card>
-          <mat-card-header><mat-card-title>Critical stock</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ 'dashboard.criticalStock' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @if (d.critical_stock.length === 0) {
-              <p>Nothing below reorder level.</p>
+              <p>{{ 'dashboard.nothingBelowReorder' | translate }}</p>
             } @else {
               <ul>
                 @for (s of d.critical_stock; track s.id) {
@@ -116,10 +113,10 @@ interface DashboardSummary {
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px">
         <mat-card>
-          <mat-card-header><mat-card-title>Upcoming appointments</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ 'dashboard.upcomingAppointments' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @if (d.upcoming_appointments.length === 0) {
-              <p>No upcoming appointments.</p>
+              <p>{{ 'dashboard.noUpcoming' | translate }}</p>
             } @else {
               <ul>
                 @for (a of d.upcoming_appointments; track a.id) {
@@ -130,10 +127,10 @@ interface DashboardSummary {
           </mat-card-content>
         </mat-card>
         <mat-card>
-          <mat-card-header><mat-card-title>Recent transactions</mat-card-title></mat-card-header>
+          <mat-card-header><mat-card-title>{{ 'dashboard.recentTransactions' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
             @if (d.recent_transactions.length === 0) {
-              <p>No recent transactions.</p>
+              <p>{{ 'dashboard.noRecentTransactions' | translate }}</p>
             } @else {
               <ul>
                 @for (t of d.recent_transactions; track t.id) {
@@ -152,6 +149,7 @@ interface DashboardSummary {
 })
 export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
+  private translate = inject(TranslateService);
   protected data = signal<DashboardSummary | null>(null);
   protected chartOpts = { responsive: true, maintainAspectRatio: false };
 
@@ -160,14 +158,14 @@ export class DashboardComponent implements OnInit {
     if (!d)
       return {
         labels: [],
-        datasets: [{ label: 'Payments', data: [] }],
+        datasets: [{ label: this.translate.instant('dashboard.paymentsChart'), data: [] }],
       };
     const items = [...d.recent_payments].reverse();
     return {
       labels: items.map((p) => p.invoice_number),
       datasets: [
         {
-          label: 'Recent payments',
+          label: this.translate.instant('dashboard.recentPayments'),
           data: items.map((p) => Number(p.amount)),
           backgroundColor: '#3f51b5',
         },

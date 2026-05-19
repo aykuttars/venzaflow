@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
@@ -28,20 +29,21 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
     MatSelectModule,
     MatSnackBarModule,
     MatTabsModule,
+    TranslateModule,
     PageHeaderComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Envanter" icon="warehouse">
+      <app-page-header moduleSlug="inventory" icon="warehouse">
         @if (canWrite()) {
-        <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> Yeni</button>
+        <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> {{ 'common.new' | translate }}</button>
         }
       </app-page-header>
 
       <mat-tab-group (selectedIndexChange)="tab.set($event)">
-        <mat-tab label="Depolar">
+        <mat-tab [label]="'inventory.warehouses' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>Kod</th><th>Ad</th>@if (canWrite()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'inventory.code' | translate }}</th><th>{{ 'products.name' | translate }}</th>@if (canWrite()) {<th></th>}</tr></thead>
             <tbody>
               @for (w of warehouses(); track w.id) {
               <tr>
@@ -57,9 +59,9 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
             </tbody>
           </table>
         </mat-tab>
-        <mat-tab label="Stok">
+        <mat-tab [label]="'inventory.stock' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>SKU</th><th>Depo</th><th>Miktar</th><th>Min</th>@if (canWrite()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'products.sku' | translate }}</th><th>{{ 'inventory.warehouse' | translate }}</th><th>{{ 'inventory.quantity' | translate }}</th><th>{{ 'inventory.reorderLevel' | translate }}</th>@if (canWrite()) {<th></th>}</tr></thead>
             <tbody>
               @for (s of stock(); track s.id) {
               <tr>
@@ -75,9 +77,9 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
             </tbody>
           </table>
         </mat-tab>
-        <mat-tab label="Hareketler">
+        <mat-tab [label]="'inventory.movements' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>Stok</th><th>Delta</th><th>Sebep</th><th>Ref</th>@if (canWrite()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'inventory.stockId' | translate }}</th><th>{{ 'inventory.delta' | translate }}</th><th>{{ 'inventory.reason' | translate }}</th><th>{{ 'inventory.reference' | translate }}</th>@if (canWrite()) {<th></th>}</tr></thead>
             <tbody>
               @for (m of movements(); track m.id) {
               <tr>
@@ -101,26 +103,26 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
         <h2>{{ dialogTitle() }}</h2>
         <form [formGroup]="activeForm" (ngSubmit)="save()" style="display:flex;flex-direction:column;gap:8px">
           @if (tab() === 0) {
-            <mat-form-field appearance="outline"><mat-label>Kod</mat-label><input matInput formControlName="code" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Ad</mat-label><input matInput formControlName="name" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.code' | translate }}</mat-label><input matInput formControlName="code" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
           } @else if (tab() === 1) {
-            <mat-form-field appearance="outline"><mat-label>Ürün</mat-label>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.product' | translate }}</mat-label>
               <mat-select formControlName="product">@for (p of products(); track p.id) {<mat-option [value]="p.id">{{ p.sku }}</mat-option>}</mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Depo</mat-label>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.warehouse' | translate }}</mat-label>
               <mat-select formControlName="warehouse">@for (w of warehouses(); track w.id) {<mat-option [value]="w.id">{{ w.code }}</mat-option>}</mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Miktar</mat-label><input matInput type="number" formControlName="quantity" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Min seviye</mat-label><input matInput type="number" formControlName="reorder_level" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.quantity' | translate }}</mat-label><input matInput type="number" formControlName="quantity" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.reorderLevel' | translate }}</mat-label><input matInput type="number" formControlName="reorder_level" /></mat-form-field>
           } @else {
-            <mat-form-field appearance="outline"><mat-label>Stok ID</mat-label><input matInput type="number" formControlName="stock" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Delta</mat-label><input matInput type="number" formControlName="delta" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Sebep</mat-label><input matInput formControlName="reason" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Referans</mat-label><input matInput formControlName="reference" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.stockId' | translate }}</mat-label><input matInput type="number" formControlName="stock" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.delta' | translate }}</mat-label><input matInput type="number" formControlName="delta" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.reason' | translate }}</mat-label><input matInput formControlName="reason" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.reference' | translate }}</mat-label><input matInput formControlName="reference" /></mat-form-field>
           }
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="editing.set(false)">İptal</button>
-            <button mat-flat-button color="primary" type="submit">Kaydet</button>
+            <button mat-button type="button" (click)="editing.set(false)">{{ 'common.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
           </div>
         </form>
       </div>
@@ -132,6 +134,7 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
 export class InventoryComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
+  private translate = inject(TranslateService);
   protected auth = inject(AuthService);
 
   tab = signal(0);
@@ -189,14 +192,14 @@ export class InventoryComponent implements OnInit {
 
   openForm(w?: any): void {
     this.tab.set(0);
-    this.dialogTitle.set(w ? 'Depo düzenle' : 'Yeni depo');
+    this.dialogTitle.set(this.translate.instant(w ? 'inventory.editWarehouse' : 'inventory.newWarehouse'));
     this.warehouseForm.reset(w ? { id: w.id, code: w.code, name: w.name } : { id: null, code: '', name: '' });
     this.editing.set(true);
   }
 
   openStockForm(s?: any): void {
     this.tab.set(1);
-    this.dialogTitle.set(s ? 'Stok düzenle' : 'Yeni stok');
+    this.dialogTitle.set(this.translate.instant(s ? 'inventory.editStock' : 'inventory.newStock'));
     this.stockForm.reset(
       s
         ? { id: s.id, product: s.product, warehouse: s.warehouse, quantity: s.quantity, reorder_level: s.reorder_level }
@@ -207,7 +210,7 @@ export class InventoryComponent implements OnInit {
 
   openMovementForm(m?: any): void {
     this.tab.set(2);
-    this.dialogTitle.set(m ? 'Hareket düzenle' : 'Yeni hareket');
+    this.dialogTitle.set(this.translate.instant(m ? 'inventory.editMovement' : 'inventory.newMovement'));
     this.movementForm.reset(
       m ? { id: m.id, stock: m.stock, delta: m.delta, reason: m.reason, reference: m.reference } : { id: null, stock: null, delta: 0, reason: '', reference: '' }
     );
@@ -235,15 +238,15 @@ export class InventoryComponent implements OnInit {
   }
 
   remove(w: any): void {
-    if (!confirm('Silinsin mi?')) return;
+    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
     this.whCrud.remove(w.id).subscribe(() => this.reloadAll());
   }
   removeStock(s: any): void {
-    if (!confirm('Silinsin mi?')) return;
+    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
     this.stockCrud.remove(s.id).subscribe(() => this.reloadAll());
   }
   removeMovement(m: any): void {
-    if (!confirm('Silinsin mi?')) return;
+    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
     this.movCrud.remove(m.id).subscribe(() => this.reloadAll());
   }
 }

@@ -39,12 +39,13 @@ services:
       - ../.env
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
+      SKIP_MIGRATE: "true"
     command: ["celery", "-A", "config", "worker", "-l", "info"]
     volumes:
       - backend_media:/app/media
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

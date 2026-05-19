@@ -1,0 +1,53 @@
+# Turkish translations for Tenancysoft API
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: tr\n"
+
+msgid "Password must be at least 12 characters."
+msgstr "Şifre en az 12 karakter olmalıdır."
+
+msgid "Password must contain at least one uppercase letter."
+msgstr "Şifre en az bir büyük harf içermelidir."
+
+msgid "Password must contain at least one lowercase letter."
+msgstr "Şifre en az bir küçük harf içermelidir."
+
+msgid "Password must contain at least one digit."
+msgstr "Şifre en az bir rakam içermelidir."
+
+msgid "Password must contain at least one special character."
+msgstr "Şifre en az bir özel karakter içermelidir."
+
+msgid "Invalid credentials."
+msgstr "Geçersiz kimlik bilgileri."
+
+msgid "Password is required."
+msgstr "Şifre gerekli."
+
+msgid "Password confirmation is required."
+msgstr "Şifre doğrulama gerekli."
+
+msgid "Passwords do not match."
+msgstr "Şifreler eşleşmiyor."
+
+msgid "Department is required."
+msgstr "Departman gerekli."
+
+msgid "Department must belong to your tenant."
+msgstr "Departman kiracınıza ait olmalıdır."
+
+msgid "Cannot remove or deactivate the last admin for this tenant."
+msgstr "Bu kiracı için son yönetici kaldırılamaz veya devre dışı bırakılamaz."
+
+msgid "You cannot delete your own account."
+msgstr "Kendi hesabınızı silemezsiniz."
+
+msgid "Cannot delete the last admin for this tenant."
+msgstr "Bu kiracı için son yönetici silinemez."
+
+msgid "You do not have permission to update tenant settings."
+msgstr "Kiracı ayarlarını güncelleme yetkiniz yok."
+
+msgid "You do not have permission to list permissions."
+msgstr "Yetkileri listeleme yetkiniz yok."

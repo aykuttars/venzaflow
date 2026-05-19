@@ -10,6 +10,7 @@ class Category(TenantOwnedModel):
     slug = models.SlugField(max_length=128)
 
     class Meta:
+        db_table = "category"
         unique_together = [("tenant", "slug")]
         ordering = ["name"]
 
@@ -29,6 +30,7 @@ class Product(TenantOwnedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
+        db_table = "product"
         unique_together = [("tenant", "sku")]
         ordering = ["sku"]
 
@@ -42,4 +44,5 @@ class PriceHistory(TenantOwnedModel):
     effective_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "price_history"
         ordering = ["-effective_at"]

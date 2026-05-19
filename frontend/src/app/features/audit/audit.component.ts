@@ -4,6 +4,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
 import { PageHeaderComponent } from '../../shared/page-header.component';
@@ -16,22 +17,29 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
+    TranslateModule,
     PageHeaderComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Denetim kayıtları" icon="history"></app-page-header>
-      <p style="color:rgba(0,0,0,.6);margin-bottom:12px">Salt okuma — son 200 kayıt</p>
+      <app-page-header moduleSlug="audit" icon="history"></app-page-header>
+      <p style="color:rgba(0,0,0,.6);margin-bottom:12px">{{ 'audit.readOnly' | translate }}</p>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:280px">
-        <mat-label>Ara</mat-label>
+        <mat-label>{{ 'common.search' | translate }}</mat-label>
         <input matInput (input)="filter.set($any($event.target).value)" />
         <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
 
       <table class="bms-table">
         <thead>
-          <tr><th>Tarih</th><th>Kullanıcı</th><th>İşlem</th><th>Nesne</th><th>Değişiklik</th></tr>
+          <tr>
+            <th>{{ 'audit.timestamp' | translate }}</th>
+            <th>{{ 'audit.user' | translate }}</th>
+            <th>{{ 'audit.action' | translate }}</th>
+            <th>{{ 'audit.object' | translate }}</th>
+            <th>{{ 'audit.changes' | translate }}</th>
+          </tr>
         </thead>
         <tbody>
           @for (row of filtered(); track row.id) {
@@ -44,7 +52,7 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
           </tr>
           }
           @if (filtered().length === 0) {
-          <tr><td colspan="5" style="text-align:center;padding:24px">Kayıt yok.</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
           }
         </tbody>
       </table>

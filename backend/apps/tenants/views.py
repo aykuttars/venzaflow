@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from apps.tenants.serializers import TenantProfileSerializer
 
 
 class TenantProfileView(APIView):
-    """GET/PATCH current tenant profile (name only)."""
+    """GET/PATCH current tenant profile (name, default_language). Admin only for PATCH."""
 
     permission_classes = [IsAuthenticated]
 
@@ -28,7 +29,7 @@ class TenantProfileView(APIView):
     def patch(self, request):
         if not self._can_manage(request.user):
             return Response(
-                {"detail": "You do not have permission to update tenant settings."},
+                {"detail": _("You do not have permission to update tenant settings.")},
                 status=status.HTTP_403_FORBIDDEN,
             )
         tenant = Tenant.objects.get(pk=request.user.tenant_id)

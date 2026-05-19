@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
@@ -83,15 +84,15 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
 
         if creating:
             if not password:
-                raise serializers.ValidationError({"password": "Password is required."})
+                raise serializers.ValidationError({"password": _("Password is required.")})
             if not password_confirm:
                 raise serializers.ValidationError(
-                    {"password_confirm": "Password confirmation is required."}
+                    {"password_confirm": _("Password confirmation is required.")}
                 )
         elif password or password_confirm:
             if password != password_confirm:
                 raise serializers.ValidationError(
-                    {"password_confirm": "Passwords do not match."}
+                    {"password_confirm": _("Passwords do not match.")}
                 )
         else:
             attrs.pop("password", None)
@@ -99,7 +100,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
             return attrs
 
         if password != password_confirm:
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
+            raise serializers.ValidationError({"password_confirm": _("Passwords do not match.")})
         validate_password_policy(password)
         attrs["password"] = password
         attrs.pop("password_confirm", None)
@@ -108,7 +109,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = self._validate_passwords(attrs)
         if self.instance is None and attrs.get("department") is None:
-            raise serializers.ValidationError({"department": "Department is required."})
+            raise serializers.ValidationError({"department": _("Department is required.")})
         return attrs
 
     def validate_email(self, value):
@@ -120,7 +121,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         tenant_id = getattr(request.user, "tenant_id", None) if request else None
         if tenant_id and dept.tenant_id != tenant_id:
-            raise serializers.ValidationError("Department must belong to your tenant.")
+            raise serializers.ValidationError(_("Department must belong to your tenant."))
         return dept
 
     def _check_last_admin(self, instance: User, *, deactivating: bool, new_dept: Department | None):
@@ -141,7 +142,7 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         remaining = _active_admin_count(instance.tenant_id, exclude_user_id=instance.pk)
         if remaining == 0:
             raise serializers.ValidationError(
-                {"detail": "Cannot remove or deactivate the last admin for this tenant."}
+                {"detail": _("Cannot remove or deactivate the last admin for this tenant.")}
             )
 
     def create(self, validated_data):

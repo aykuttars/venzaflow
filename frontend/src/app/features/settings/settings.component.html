@@ -1,0 +1,137 @@
+<div class="page">
+  <app-page-header moduleSlug="settings" icon="settings"></app-page-header>
+
+  <div class="settings-layout">
+    <div class="settings-column">
+      <mat-card class="settings-card">
+        <mat-card-header>
+          <mat-card-title>{{ 'settings.tenantInfo' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          @if (canEditTenant()) {
+          <form class="settings-form" [formGroup]="tenantForm" (ngSubmit)="saveTenant()">
+            <dl class="settings-dl">
+              <dt>{{ 'settings.tenantCode' | translate }}</dt>
+              <dd>{{ tenant?.customer_code || auth.me()?.user?.tenant_code }}</dd>
+            </dl>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+              <mat-label>{{ 'settings.tenantName' | translate }}</mat-label>
+              <input matInput formControlName="name" required />
+            </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full-width">
+              <mat-label>{{ 'settings.defaultLanguage' | translate }}</mat-label>
+              <mat-select formControlName="default_language">
+                <mat-option value="tr">{{ 'common.turkish' | translate }}</mat-option>
+                <mat-option value="en">{{ 'common.english' | translate }}</mat-option>
+              </mat-select>
+              <mat-hint>{{ 'settings.defaultLanguageHint' | translate }}</mat-hint>
+            </mat-form-field>
+            <div class="settings-actions">
+              <button mat-flat-button color="primary" type="submit" [disabled]="tenantForm.invalid">
+                {{ 'common.save' | translate }}
+              </button>
+            </div>
+          </form>
+          } @else {
+          <dl class="settings-dl">
+            <dt>{{ 'settings.tenantCode' | translate }}</dt>
+            <dd>{{ tenant?.customer_code || auth.me()?.user?.tenant_code }}</dd>
+            <dt>{{ 'settings.tenantName' | translate }}</dt>
+            <dd>{{ tenant?.name || auth.me()?.user?.tenant_name }}</dd>
+            <dt>{{ 'settings.defaultLanguage' | translate }}</dt>
+            <dd>{{ tenant?.default_language || auth.me()?.user?.tenant_default_language }}</dd>
+          </dl>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      @if (canEditTenant() && moduleLabelRows.length) {
+      <mat-card class="settings-card">
+        <mat-card-header>
+          <mat-card-title>{{ 'settings.moduleLabels' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="settings-card-subtitle">{{ 'settings.moduleLabelsHint' | translate }}</p>
+          <form [formGroup]="moduleLabelsForm" (ngSubmit)="saveModuleLabels()">
+            <div class="settings-module-scroll">
+              <table class="settings-module-table">
+                <thead>
+                  <tr>
+                    <th>{{ 'settings.moduleSlug' | translate }}</th>
+                    <th>{{ 'settings.customName' | translate }}</th>
+                    <th style="width: 56px"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (slug of moduleLabelRows; track slug) {
+                  <tr>
+                    <td><span class="settings-module-slug">{{ slug }}</span></td>
+                    <td>
+                      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="settings-module-input">
+                        <input
+                          matInput
+                          [formControlName]="slug"
+                          [placeholder]="defaultLabel(slug)"
+                        />
+                        <mat-hint>{{ defaultLabel(slug) }}</mat-hint>
+                      </mat-form-field>
+                    </td>
+                    <td>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        (click)="resetModuleName(slug)"
+                        [matTooltip]="'settings.resetModuleName' | translate"
+                      >
+                        <mat-icon>restart_alt</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="settings-actions">
+              <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+      }
+    </div>
+
+    <mat-card class="settings-card">
+      <mat-card-header>
+        <mat-card-title>{{ 'settings.myAccount' | translate }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <dl class="settings-dl">
+          <dt>{{ 'auth.email' | translate }}</dt>
+          <dd>{{ auth.me()?.user?.email }}</dd>
+          <dt>{{ 'settings.role' | translate }}</dt>
+          <dd>{{ auth.me()?.user?.department?.name }}</dd>
+        </dl>
+
+        <mat-divider></mat-divider>
+        <h3 class="settings-section-title">{{ 'settings.modules' | translate }}</h3>
+        <div class="settings-chips">
+          <mat-chip-set>
+            @for (m of auth.me()?.enabled_modules || []; track m) {
+            <mat-chip>{{ moduleLabels.label(m) }}</mat-chip>
+            }
+          </mat-chip-set>
+        </div>
+
+        <mat-divider></mat-divider>
+        <h3 class="settings-section-title">{{ 'settings.permissions' | translate }}</h3>
+        <div class="settings-chips">
+          <mat-chip-set>
+            @for (p of auth.me()?.permissions || []; track p) {
+            <mat-chip>{{ p }}</mat-chip>
+            }
+          </mat-chip-set>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

@@ -17,6 +17,7 @@ class Customer(TenantOwnedModel):
     email = models.EmailField(blank=True)
 
     class Meta:
+        db_table = "customer"
         ordering = ["last_name", "first_name"]
         indexes = [
             models.Index(fields=["tenant", "last_name"]),
@@ -37,4 +38,5 @@ class MedicalRecord(TenantOwnedModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = "medical_record"
         ordering = ["-updated_at"]

@@ -6,11 +6,11 @@ export function passwordPolicyValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const v = control.value as string;
     if (!v) return null;
-    if (v.length < 12) return { passwordPolicy: 'En az 12 karakter olmalı.' };
-    if (!/[A-Z]/.test(v)) return { passwordPolicy: 'En az bir büyük harf gerekli.' };
-    if (!/[a-z]/.test(v)) return { passwordPolicy: 'En az bir küçük harf gerekli.' };
-    if (!/\d/.test(v)) return { passwordPolicy: 'En az bir rakam gerekli.' };
-    if (!SPECIAL.test(v)) return { passwordPolicy: 'En az bir özel karakter gerekli.' };
+    if (v.length < 12) return { passwordPolicy: 'password.minLength' };
+    if (!/[A-Z]/.test(v)) return { passwordPolicy: 'password.uppercase' };
+    if (!/[a-z]/.test(v)) return { passwordPolicy: 'password.lowercase' };
+    if (!/\d/.test(v)) return { passwordPolicy: 'password.digit' };
+    if (!SPECIAL.test(v)) return { passwordPolicy: 'password.special' };
     return null;
   };
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Group, PermissionsMixin
+from django.contrib.auth.models import Permission as AuthPermission
 from django.db import models
 
 from apps.tenants.context import get_current_tenant_id
@@ -14,6 +15,7 @@ class Permission(models.Model):
     name = models.CharField(max_length=128)
 
     class Meta:
+        db_table = "permission"
         ordering = ["codename"]
 
     def __str__(self) -> str:
@@ -23,9 +25,15 @@ class Permission(models.Model):
 class Department(TenantOwnedModel):
     key = models.SlugField(max_length=64, help_text="Stable key e.g. admin, cashier.")
     name = models.CharField(max_length=128)
-    permissions = models.ManyToManyField(Permission, related_name="departments", blank=True)
+    permissions = models.ManyToManyField(
+        Permission,
+        related_name="departments",
+        blank=True,
+        db_table="department_permission",
+    )
 
     class Meta:
+        db_table = "department"
         unique_together = [("tenant", "key")]
         ordering = ["tenant_id", "key"]
 
@@ -47,7 +55,6 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
-        # username filled in save usually
         user.save(using=self._db)
         return user
 
@@ -65,7 +72,11 @@ class AllUsersManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Tenant-scoped user. Emails may duplicate across tenants."""
+    """Tenant-scoped staff user.
+
+    Login identity is (tenant customer_code, email, password) — see LoginSerializer.
+    The same email may exist on different tenants; uniqueness is per tenant.
+    """
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="users")
     department = models.ForeignKey(
@@ -76,11 +87,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="users",
     )
     email = models.EmailField()
-    username = models.CharField(
+    login_key = models.CharField(
         max_length=191,
         unique=True,
+        editable=False,
         db_index=True,
-        help_text="Opaque unique login identifier (tenant-bound composite).",
+        help_text="Internal unique key (tenant_id + email); login uses customer_code + email.",
     )
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
@@ -92,16 +104,36 @@ class User(AbstractBaseUser, PermissionsMixin):
         Permission,
         related_name="users_with_extra",
         blank=True,
+        db_table="user_extra_permission",
         help_text="Additional permissions on top of the user's department.",
+    )
+    groups = models.ManyToManyField(
+        Group,
+        verbose_name="groups",
+        blank=True,
+        help_text="The groups this user belongs to.",
+        related_name="user_set",
+        related_query_name="user",
+        db_table="user_group",
+    )
+    user_permissions = models.ManyToManyField(
+        AuthPermission,
+        verbose_name="user permissions",
+        blank=True,
+        help_text="Specific permissions for this user.",
+        related_name="user_set",
+        related_query_name="user",
+        db_table="user_auth_permission",
     )
 
     objects = UserManager()
     all_tenants = AllUsersManager()
 
-    USERNAME_FIELD = "username"
+    USERNAME_FIELD = "login_key"
     REQUIRED_FIELDS: list[str] = ["email", "tenant_id"]
 
     class Meta:
+        db_table = "user"
         unique_together = [("tenant", "email")]
         indexes = [
             models.Index(fields=["tenant", "email"]),
@@ -110,9 +142,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     def save(self, *args, **kwargs):
         if self.email:
             self.email = BaseUserManager.normalize_email(self.email)
-        # Deterministic unique username for Django auth
         if self.tenant_id and self.email:
-            self.username = f"{self.tenant_id}_{self.email}"
+            self.login_key = f"{self.tenant_id}:{self.email}"
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

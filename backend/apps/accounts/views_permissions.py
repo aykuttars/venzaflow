@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -23,4 +24,4 @@ class PermissionListView(ListAPIView):
             user.has_permission_codename("settings.read")
             or user.has_permission_codename("employees.write")
         ):
-            raise PermissionDenied("You do not have permission to list permissions.")
+            raise PermissionDenied(_("You do not have permission to list permissions."))

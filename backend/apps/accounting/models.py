@@ -18,6 +18,7 @@ class Account(TenantOwnedModel):
     kind = models.CharField(max_length=16, choices=Kind.choices)
 
     class Meta:
+        db_table = "account"
         unique_together = [("tenant", "code")]
         ordering = ["code"]
 
@@ -35,6 +36,7 @@ class Expense(TenantOwnedModel):
     incurred_on = models.DateField()
 
     class Meta:
+        db_table = "expense"
         ordering = ["-incurred_on"]
 
 
@@ -50,4 +52,5 @@ class Transaction(TenantOwnedModel):
     occurred_at = models.DateTimeField()
 
     class Meta:
+        db_table = "transaction"
         ordering = ["-occurred_at"]

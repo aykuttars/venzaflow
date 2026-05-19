@@ -11,6 +11,7 @@ class Schedule(TenantOwnedModel):
     resource = models.CharField(max_length=128, blank=True)
 
     class Meta:
+        db_table = "schedule"
         ordering = ["name"]
 
 
@@ -27,4 +28,5 @@ class Appointment(TenantOwnedModel):
     notes = models.TextField(blank=True)
 
     class Meta:
+        db_table = "appointment"
         ordering = ["start_at"]

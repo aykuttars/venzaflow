@@ -1,0 +1,53 @@
+# English translations for Tenancysoft API
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "Password must be at least 12 characters."
+msgstr "Password must be at least 12 characters."
+
+msgid "Password must contain at least one uppercase letter."
+msgstr "Password must contain at least one uppercase letter."
+
+msgid "Password must contain at least one lowercase letter."
+msgstr "Password must contain at least one lowercase letter."
+
+msgid "Password must contain at least one digit."
+msgstr "Password must contain at least one digit."
+
+msgid "Password must contain at least one special character."
+msgstr "Password must contain at least one special character."
+
+msgid "Invalid credentials."
+msgstr "Invalid credentials."
+
+msgid "Password is required."
+msgstr "Password is required."
+
+msgid "Password confirmation is required."
+msgstr "Password confirmation is required."
+
+msgid "Passwords do not match."
+msgstr "Passwords do not match."
+
+msgid "Department is required."
+msgstr "Department is required."
+
+msgid "Department must belong to your tenant."
+msgstr "Department must belong to your tenant."
+
+msgid "Cannot remove or deactivate the last admin for this tenant."
+msgstr "Cannot remove or deactivate the last admin for this tenant."
+
+msgid "You cannot delete your own account."
+msgstr "You cannot delete your own account."
+
+msgid "Cannot delete the last admin for this tenant."
+msgstr "Cannot delete the last admin for this tenant."
+
+msgid "You do not have permission to update tenant settings."
+msgstr "You do not have permission to update tenant settings."
+
+msgid "You do not have permission to list permissions."
+msgstr "You do not have permission to list permissions."

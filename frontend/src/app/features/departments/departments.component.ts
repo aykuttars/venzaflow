@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
@@ -37,28 +38,34 @@ interface Department {
     MatInputModule,
     MatIconModule,
     MatSnackBarModule,
+    TranslateModule,
     PageHeaderComponent,
     PermissionPickerComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Departmanlar" icon="admin_panel_settings">
+      <app-page-header titleKey="departments.title" icon="admin_panel_settings">
         @if (canWrite()) {
         <button mat-flat-button color="primary" (click)="openForm()">
-          <mat-icon>add</mat-icon> Yeni departman
+          <mat-icon>add</mat-icon> {{ 'departments.new' | translate }}
         </button>
         }
       </app-page-header>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:280px">
-        <mat-label>Ara</mat-label>
+        <mat-label>{{ 'common.search' | translate }}</mat-label>
         <input matInput (input)="onSearch($any($event.target).value)" />
         <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
 
       <table class="bms-table">
         <thead>
-          <tr><th>Anahtar</th><th>Ad</th><th>Yetkiler</th>@if (canWrite()) {<th></th>}</tr>
+          <tr>
+            <th>{{ 'departments.key' | translate }}</th>
+            <th>{{ 'departments.name' | translate }}</th>
+            <th>{{ 'permissions.title' | translate }}</th>
+            @if (canWrite()) {<th></th>}
+          </tr>
         </thead>
         <tbody>
           @for (d of items(); track d.id) {
@@ -75,7 +82,7 @@ interface Department {
           </tr>
           }
           @if (items().length === 0) {
-          <tr><td [attr.colspan]="canWrite() ? 4 : 3" style="text-align:center;padding:24px">Kayıt yok.</td></tr>
+          <tr><td [attr.colspan]="canWrite() ? 4 : 3" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
           }
         </tbody>
       </table>
@@ -83,21 +90,21 @@ interface Department {
       @if (editing()) {
       <div class="overlay" (click)="cancel()"></div>
       <div class="dialog">
-        <h2>{{ form.value.id ? 'Departman düzenle' : 'Yeni departman' }}</h2>
+        <h2>{{ (form.value.id ? 'departments.edit' : 'departments.new') | translate }}</h2>
         <form [formGroup]="form" (ngSubmit)="save()" style="display:flex;flex-direction:column;gap:8px">
           <mat-form-field appearance="outline">
-            <mat-label>Anahtar</mat-label>
+            <mat-label>{{ 'departments.key' | translate }}</mat-label>
             <input matInput formControlName="key" [readonly]="!!form.value.id" />
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Ad</mat-label>
+            <mat-label>{{ 'departments.name' | translate }}</mat-label>
             <input matInput formControlName="name" required />
           </mat-form-field>
-          <h3>Yetkiler</h3>
+          <h3>{{ 'permissions.title' | translate }}</h3>
           <app-permission-picker [control]="permControl" />
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="cancel()">İptal</button>
-            <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">Kaydet</button>
+            <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">{{ 'common.save' | translate }}</button>
           </div>
         </form>
       </div>
@@ -110,6 +117,7 @@ export class DepartmentsComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
+  private translate = inject(TranslateService);
   protected auth = inject(AuthService);
   private crud = new CrudService<Department>(this.http, 'departments');
 
@@ -173,22 +181,22 @@ export class DepartmentsComponent implements OnInit {
       next: () => {
         this.editing.set(false);
         this.reload();
-        this.snack.open('Kaydedildi', 'Tamam', { duration: 1500 });
+        this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
       },
       error: (e) =>
-        this.snack.open(e?.error?.detail || 'Hata', 'Tamam', { duration: 3000 }),
+        this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
     });
   }
 
   remove(d: Department): void {
-    if (!confirm(`${d.name} silinsin mi?`)) return;
+    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${d.name})`)) return;
     this.crud.remove(d.id).subscribe({
       next: () => {
         this.reload();
-        this.snack.open('Silindi', 'Tamam', { duration: 1500 });
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
       },
       error: (e) =>
-        this.snack.open(e?.error?.detail || 'Silinemedi', 'Tamam', { duration: 3000 }),
+        this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
     });
   }
 }

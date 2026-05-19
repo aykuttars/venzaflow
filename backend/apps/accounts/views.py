@@ -31,6 +31,8 @@ class LoginView(APIView):
                 "user": UserSerializer(user).data,
                 "permissions": perm_codenames,
                 "enabled_modules": user.tenant.enabled_modules or [],
+                "default_language": user.tenant.default_language,
+                "module_labels": user.tenant.module_labels or {},
             }
         )
 
@@ -60,6 +62,8 @@ class MeView(APIView):
                 "user": UserSerializer(user).data,
                 "permissions": perm_codenames,
                 "enabled_modules": user.tenant.enabled_modules or [],
+                "default_language": user.tenant.default_language,
+                "module_labels": user.tenant.module_labels or {},
             }
         )
 

@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput 2>/dev/null || true
+# Only the API container should migrate. Worker sets SKIP_MIGRATE=true to avoid
+# concurrent migrate races (django_migrations / sequence conflicts).
+if [ "${SKIP_MIGRATE:-false}" != "true" ]; then
+  python manage.py migrate --noinput
+fi
+
+if [ "${SKIP_MIGRATE:-false}" != "true" ]; then
+  python manage.py collectstatic --noinput 2>/dev/null || true
+fi
 
 if [ "${RUN_SEED:-false}" = "true" ]; then
   python manage.py seed_demo

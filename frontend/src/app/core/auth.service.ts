@@ -5,6 +5,7 @@ import { Observable, tap } from 'rxjs';
 
 import { API_BASE } from './api';
 import { decodeJwt, isExpired, JwtClaims } from './jwt';
+import { AppLanguage, LanguageService } from './language.service';
 
 const ACCESS_KEY = 'bms.access';
 const REFRESH_KEY = 'bms.refresh';
@@ -15,6 +16,7 @@ export interface MeUser {
   email: string;
   tenant_code: string;
   tenant_name?: string;
+  tenant_default_language?: AppLanguage;
   first_name: string;
   last_name: string;
   is_active: boolean;
@@ -27,12 +29,15 @@ export interface LoginResponse {
   user: MeUser;
   permissions: string[];
   enabled_modules: string[];
+  default_language?: AppLanguage;
+  module_labels?: Record<string, string>;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private language = inject(LanguageService);
 
   readonly access = signal<string | null>(localStorage.getItem(ACCESS_KEY));
   readonly refresh = signal<string | null>(localStorage.getItem(REFRESH_KEY));
@@ -40,6 +45,8 @@ export class AuthService {
     user: MeUser;
     permissions: string[];
     enabled_modules: string[];
+    default_language?: AppLanguage;
+    module_labels?: Record<string, string>;
   } | null>(this.readMe());
 
   readonly claims = computed<JwtClaims | null>(() => decodeJwt(this.access()));
@@ -71,6 +78,7 @@ export class AuthService {
     user: MeUser;
     permissions: string[];
     enabled_modules: string[];
+    module_labels?: Record<string, string>;
   }> {
     return this.loadMe();
   }
@@ -79,17 +87,24 @@ export class AuthService {
     user: MeUser;
     permissions: string[];
     enabled_modules: string[];
+    default_language?: AppLanguage;
+    module_labels?: Record<string, string>;
   }> {
     return this.http
       .get<{
         user: MeUser;
         permissions: string[];
         enabled_modules: string[];
+        default_language?: AppLanguage;
+        module_labels?: Record<string, string>;
       }>(`${API_BASE}/auth/me/`)
       .pipe(
         tap((res) => {
           this.me.set(res);
           localStorage.setItem(ME_KEY, JSON.stringify(res));
+          this.language.initFromTenant(
+            res.default_language || res.user.tenant_default_language
+          );
         })
       );
   }
@@ -120,6 +135,7 @@ export class AuthService {
     this.access.set(null);
     this.refresh.set(null);
     this.me.set(null);
+    this.language.resetOnLogout();
     if (navigate) this.router.navigate(['/login']);
   }
 
@@ -144,6 +160,8 @@ export class AuthService {
         user: res.user,
         permissions: res.permissions,
         enabled_modules: res.enabled_modules,
+        default_language: res.default_language,
+        module_labels: res.module_labels ?? {},
       })
     );
     this.access.set(res.access);
@@ -152,6 +170,11 @@ export class AuthService {
       user: res.user,
       permissions: res.permissions,
       enabled_modules: res.enabled_modules,
+      default_language: res.default_language,
+      module_labels: res.module_labels ?? {},
     });
+    this.language.initFromTenant(
+      res.default_language || res.user.tenant_default_language
+    );
   }
 }

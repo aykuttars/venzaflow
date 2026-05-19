@@ -6,6 +6,7 @@ from django.db import transaction
 
 from apps.accounts.models import Department, Permission
 from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
+from apps.products.models import Category
 from apps.tenants.models import Tenant
 
 User = get_user_model()
@@ -17,6 +18,19 @@ def ensure_permissions() -> dict[str, Permission]:
         obj, _ = Permission.objects.get_or_create(codename=codename, defaults={"name": name})
         perms[codename] = obj
     return perms
+
+
+def ensure_product_categories(tenant: Tenant) -> None:
+    for name, slug in (
+        ("Genel", "general"),
+        ("Sarf malzeme", "supplies"),
+        ("Cihaz", "equipment"),
+    ):
+        Category.objects.get_or_create(
+            tenant=tenant,
+            slug=slug,
+            defaults={"name": name},
+        )
 
 
 def mk_department(
@@ -48,6 +62,7 @@ class Command(BaseCommand):
             customer_code="1000",
             defaults={
                 "name": "Demo Clinic 1000",
+                "default_language": Tenant.Language.TR,
                 "is_active": True,
                 "enabled_modules": ALL_MODULES,
             },
@@ -56,6 +71,7 @@ class Command(BaseCommand):
             customer_code="3000",
             defaults={
                 "name": "Demo Enterprise 3000",
+                "default_language": Tenant.Language.TR,
                 "is_active": True,
                 "enabled_modules": ALL_MODULES,
             },
@@ -95,15 +111,18 @@ class Command(BaseCommand):
         d3000_sec = mk_department(t3000, "security", "Security", security_codes, perm_index)
         d3000_doc = mk_department(t3000, "doctor", "Doctor", doctor_codes, perm_index)
 
-        demo_pw = "abcd12345"
+        for tenant in (t1000, t3000):
+            ensure_product_categories(tenant)
+
+        demo_pw = "X7@qL9#vT2!mZ4$k"
         users = [
-            (t1000, d1000_admin, "test@example.com", demo_pw),
-            (t1000, d1000_tech, "test3@example.com", demo_pw),
-            (t1000, d1000_cash, "test4@example.com", demo_pw),
-            (t3000, d3000_admin, "123@example.com", demo_pw),
-            (t3000, d3000_acc, "avcd@abcd.com", demo_pw),
-            (t3000, d3000_sec, "abcd1@example.com", demo_pw),
-            (t3000, d3000_doc, "deneme@abcd.com", demo_pw),
+            (t1000, d1000_admin, "admin@admin.com", demo_pw),
+            (t1000, d1000_tech, "tech@admin.com", demo_pw),
+            (t1000, d1000_cash, "cash@admin.com", demo_pw),
+            (t3000, d3000_admin, "admin@admin.com", demo_pw),
+            (t3000, d3000_acc, "accounting@admin.com", demo_pw),
+            (t3000, d3000_sec, "security@admin.com", demo_pw),
+            (t3000, d3000_doc, "doctor@admin.com", demo_pw),
         ]
 
         for tenant, dept, email, password in users:

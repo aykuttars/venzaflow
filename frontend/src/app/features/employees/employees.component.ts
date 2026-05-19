@@ -14,10 +14,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
-import { CrudService, Page } from '../../shared/crud.service';
+import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { PasswordFieldsComponent } from '../../shared/password-fields.component';
 import {
@@ -56,94 +57,19 @@ interface StaffUser {
     MatSelectModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    TranslateModule,
     PageHeaderComponent,
     PasswordFieldsComponent,
     PermissionPickerComponent,
   ],
-  template: `
-    <div class="page">
-      <app-page-header title="Çalışanlar" icon="badge">
-        @if (canWrite()) {
-        <button mat-flat-button color="primary" (click)="openForm()">
-          <mat-icon>person_add</mat-icon> Yeni çalışan
-        </button>
-        }
-      </app-page-header>
-
-      <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:280px">
-        <mat-label>Ara</mat-label>
-        <input matInput (input)="onSearch($any($event.target).value)" />
-        <mat-icon matSuffix>search</mat-icon>
-      </mat-form-field>
-
-      <table class="bms-table">
-        <thead>
-          <tr>
-            <th>E-posta</th><th>Ad</th><th>Soyad</th><th>Departman</th><th>Ek yetkiler</th><th>Aktif</th>
-            @if (canWrite()) { <th></th> }
-          </tr>
-        </thead>
-        <tbody>
-          @for (u of items(); track u.id) {
-          <tr>
-            <td>{{ u.email }}</td>
-            <td>{{ u.first_name }}</td>
-            <td>{{ u.last_name }}</td>
-            <td>{{ u.department_name || '—' }}</td>
-            <td>{{ (u.extra_permission_codenames || []).join(', ') }}</td>
-            <td>{{ u.is_active ? 'Evet' : 'Hayır' }}</td>
-            @if (canWrite()) {
-            <td style="text-align:right">
-              <button mat-icon-button (click)="openForm(u)"><mat-icon>edit</mat-icon></button>
-              <button mat-icon-button (click)="remove(u)"><mat-icon>delete</mat-icon></button>
-            </td>
-            }
-          </tr>
-          }
-          @if (items().length === 0) {
-          <tr><td [attr.colspan]="canWrite() ? 7 : 6" style="text-align:center;padding:24px">Kayıt yok.</td></tr>
-          }
-        </tbody>
-      </table>
-
-      @if (editing()) {
-      <div class="overlay" (click)="cancel()"></div>
-      <div class="dialog">
-        <h2>{{ form.value.id ? 'Çalışan düzenle' : 'Yeni çalışan' }}</h2>
-        <form [formGroup]="form" (ngSubmit)="save()" style="display:flex;flex-direction:column;gap:8px">
-          <mat-form-field appearance="outline">
-            <mat-label>E-posta</mat-label>
-            <input matInput type="email" formControlName="email" required />
-          </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Ad</mat-label><input matInput formControlName="first_name" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Soyad</mat-label><input matInput formControlName="last_name" /></mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Departman</mat-label>
-            <mat-select formControlName="department" required>
-              @for (d of departments(); track d.id) {
-              <mat-option [value]="d.id">{{ d.name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <h3>Ek yetkiler (departman yetkilerine eklenir)</h3>
-          <app-permission-picker [control]="extraPermControl" />
-          <app-password-fields [group]="passwordGroup" [editMode]="!!form.value.id" />
-          <mat-slide-toggle formControlName="is_active">Aktif</mat-slide-toggle>
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="cancel()">İptal</button>
-            <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || passwordGroup.invalid">Kaydet</button>
-          </div>
-        </form>
-      </div>
-      }
-    </div>
-  `,
+  templateUrl: './employees.component.html',
   styles: [CRUD_DIALOG_STYLES],
 })
 export class EmployeesComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
+  private translate = inject(TranslateService);
   protected auth = inject(AuthService);
   private staffCrud = new CrudService<StaffUser>(this.http, 'employees');
   private deptCrud = new CrudService<Department>(this.http, 'departments');
@@ -241,7 +167,7 @@ export class EmployeesComponent implements OnInit {
       payload['password'] = pw.password;
       payload['password_confirm'] = pw.password_confirm;
     } else if (!v.id) {
-      this.snack.open('Yeni kullanıcı için şifre gerekli', 'Tamam', { duration: 2500 });
+      this.snack.open(this.translate.instant('employees.passwordRequired'), 'OK', { duration: 2500 });
       return;
     }
 
@@ -252,25 +178,25 @@ export class EmployeesComponent implements OnInit {
       next: () => {
         this.editing.set(false);
         this.reload();
-        this.snack.open('Kaydedildi', 'Tamam', { duration: 1500 });
+        this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
       },
       error: (e) =>
         this.snack.open(
-          e?.error?.detail || e?.error?.password?.[0] || e?.error?.password_confirm?.[0] || 'Hata',
-          'Tamam',
+          e?.error?.detail || e?.error?.password?.[0] || e?.error?.password_confirm?.[0] || this.translate.instant('common.error'),
+          'OK',
           { duration: 4000 }
         ),
     });
   }
 
   remove(u: StaffUser): void {
-    if (!confirm(`${u.email} silinsin mi?`)) return;
+    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${u.email})`)) return;
     this.staffCrud.remove(u.id).subscribe({
       next: () => {
         this.reload();
-        this.snack.open('Silindi', 'Tamam', { duration: 1500 });
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
       },
-      error: (e) => this.snack.open(e?.error?.detail || 'Silinemedi', 'Tamam', { duration: 3000 }),
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
     });
   }
 }

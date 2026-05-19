@@ -9,11 +9,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
-import { CrudService, Page } from '../../shared/crud.service';
+import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
+import { PhoneInputDirective } from '../../shared/phone-input.directive';
+import { emailOptionalValidator, phoneValidator } from '../../shared/form-validators';
 
 @Component({
   selector: 'app-customers',
@@ -28,34 +31,36 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
     MatSelectModule,
     MatSnackBarModule,
     MatTabsModule,
+    TranslateModule,
     PageHeaderComponent,
+    PhoneInputDirective,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Müşteriler" icon="people">
+      <app-page-header moduleSlug="customers" icon="people">
         @if (canWriteCustomers() && tab() === 0) {
-        <button mat-flat-button color="primary" (click)="openCustomerForm()"><mat-icon>add</mat-icon> Yeni</button>
+        <button mat-flat-button color="primary" (click)="openCustomerForm()"><mat-icon>add</mat-icon> {{ 'common.new' | translate }}</button>
         }
         @if (canWritePatients() && tab() === 1) {
-        <button mat-flat-button color="primary" (click)="openRecordForm()"><mat-icon>add</mat-icon> Yeni kayıt</button>
+        <button mat-flat-button color="primary" (click)="openRecordForm()"><mat-icon>add</mat-icon> {{ 'customers.newRecord' | translate }}</button>
         }
       </app-page-header>
 
       <mat-tab-group (selectedIndexChange)="tab.set($event)">
-        <mat-tab label="Müşteriler">
+        <mat-tab [label]="'customers.customersTab' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>Ad</th><th>Tür</th><th>Telefon</th><th>E-posta</th>@if (canWriteCustomers()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'customers.name' | translate }}</th><th>{{ 'customers.kind' | translate }}</th><th>{{ 'customers.phone' | translate }}</th><th>{{ 'customers.email' | translate }}</th>@if (canWriteCustomers()) {<th></th>}</tr></thead>
             <tbody>
               @for (c of customers(); track c.id) {
               <tr>
                 <td>{{ c.full_name || (c.first_name + ' ' + c.last_name) }}</td>
-                <td>{{ c.kind }}</td>
+                <td>{{ ('customers.' + c.kind) | translate }}</td>
                 <td>{{ c.phone }}</td>
                 <td>{{ c.email }}</td>
                 @if (canWriteCustomers()) {
                 <td style="text-align:right">
-                  <button mat-icon-button (click)="openCustomerForm(c)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button (click)="removeCustomer(c)"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button (click)="openCustomerForm(c)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button (click)="removeCustomer(c)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
                 }
               </tr>
@@ -64,9 +69,9 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
           </table>
         </mat-tab>
         @if (auth.hasPermission('patients.read')) {
-        <mat-tab label="Tıbbi kayıtlar">
+        <mat-tab [label]="'customers.medicalRecords' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>Hasta</th><th>Özet</th><th>Güncelleme</th>@if (canWritePatients()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'customers.patient' | translate }}</th><th>{{ 'customers.summary' | translate }}</th><th>{{ 'customers.updated' | translate }}</th>@if (canWritePatients()) {<th></th>}</tr></thead>
             <tbody>
               @for (r of records(); track r.id) {
               <tr>
@@ -75,8 +80,8 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
                 <td>{{ r.updated_at }}</td>
                 @if (canWritePatients()) {
                 <td style="text-align:right">
-                  <button mat-icon-button (click)="openRecordForm(r)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button (click)="removeRecord(r)"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button (click)="openRecordForm(r)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button (click)="removeRecord(r)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
                 }
               </tr>
@@ -90,18 +95,30 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
       @if (editingCustomer()) {
       <div class="overlay" (click)="editingCustomer.set(false)"></div>
       <div class="dialog">
-        <h2>{{ customerForm.value.id ? 'Düzenle' : 'Yeni müşteri' }}</h2>
+        <h2>{{ (customerForm.value.id ? 'common.edit' : 'customers.newCustomer') | translate }}</h2>
         <form [formGroup]="customerForm" (ngSubmit)="saveCustomer()" style="display:flex;flex-direction:column;gap:8px">
-          <mat-form-field appearance="outline"><mat-label>Tür</mat-label>
-            <mat-select formControlName="kind"><mat-option value="customer">Müşteri</mat-option><mat-option value="patient">Hasta</mat-option></mat-select>
+          <mat-form-field appearance="outline"><mat-label>{{ 'customers.kind' | translate }}</mat-label>
+            <mat-select formControlName="kind"><mat-option value="customer">{{ 'customers.customer' | translate }}</mat-option><mat-option value="patient">{{ 'customers.patient' | translate }}</mat-option></mat-select>
           </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Ad</mat-label><input matInput formControlName="first_name" required /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Soyad</mat-label><input matInput formControlName="last_name" required /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Telefon</mat-label><input matInput formControlName="phone" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>E-posta</mat-label><input matInput formControlName="email" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ 'employees.firstName' | translate }}</mat-label><input matInput formControlName="first_name" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ 'employees.lastName' | translate }}</mat-label><input matInput formControlName="last_name" required /></mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ 'customers.phone' | translate }}</mat-label>
+            <input matInput appPhoneInput formControlName="phone" />
+            @if (customerForm.get('phone')?.hasError('phoneInvalid')) {
+            <mat-error>{{ 'validation.phoneInvalid' | translate }}</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ 'customers.email' | translate }}</mat-label>
+            <input matInput type="email" formControlName="email" autocomplete="email" />
+            @if (customerForm.get('email')?.hasError('email') || customerForm.get('email')?.hasError('emailInvalid')) {
+            <mat-error>{{ 'validation.emailInvalid' | translate }}</mat-error>
+            }
+          </mat-form-field>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="editingCustomer.set(false)">İptal</button>
-            <button mat-flat-button color="primary" type="submit">Kaydet</button>
+            <button mat-button type="button" (click)="editingCustomer.set(false)">{{ 'common.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
           </div>
         </form>
       </div>
@@ -110,17 +127,17 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
       @if (editingRecord()) {
       <div class="overlay" (click)="editingRecord.set(false)"></div>
       <div class="dialog">
-        <h2>{{ recordForm.value.id ? 'Düzenle' : 'Yeni tıbbi kayıt' }}</h2>
+        <h2>{{ (recordForm.value.id ? 'common.edit' : 'customers.newMedicalRecord') | translate }}</h2>
         <form [formGroup]="recordForm" (ngSubmit)="saveRecord()" style="display:flex;flex-direction:column;gap:8px">
-          <mat-form-field appearance="outline"><mat-label>Hasta</mat-label>
+          <mat-form-field appearance="outline"><mat-label>{{ 'customers.patient' | translate }}</mat-label>
             <mat-select formControlName="patient" required>
               @for (p of patients(); track p.id) { <mat-option [value]="p.id">{{ p.full_name || p.first_name }}</mat-option> }
             </mat-select>
           </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Özet</mat-label><textarea matInput rows="4" formControlName="summary"></textarea></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ 'customers.summary' | translate }}</mat-label><textarea matInput rows="4" formControlName="summary"></textarea></mat-form-field>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="editingRecord.set(false)">İptal</button>
-            <button mat-flat-button color="primary" type="submit">Kaydet</button>
+            <button mat-button type="button" (click)="editingRecord.set(false)">{{ 'common.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
           </div>
         </form>
       </div>
@@ -133,6 +150,7 @@ export class CustomersComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
+  private translate = inject(TranslateService);
   protected auth = inject(AuthService);
   private customerCrud = new CrudService<any>(this.http, 'customers');
   private recordCrud = new CrudService<any>(this.http, 'medical-records');
@@ -149,8 +167,8 @@ export class CustomersComponent implements OnInit {
     kind: ['customer', Validators.required],
     first_name: ['', Validators.required],
     last_name: ['', Validators.required],
-    phone: [''],
-    email: [''],
+    phone: ['', phoneValidator()],
+    email: ['', emailOptionalValidator()],
   });
 
   recordForm = this.fb.group({
@@ -197,12 +215,26 @@ export class CustomersComponent implements OnInit {
     const v = this.customerForm.getRawValue();
     const payload = { kind: v.kind, first_name: v.first_name, last_name: v.last_name, phone: v.phone, email: v.email };
     const op = v.id ? this.customerCrud.update(v.id!, payload) : this.customerCrud.create(payload);
-    op.subscribe({ next: () => { this.editingCustomer.set(false); this.reloadCustomers(); } });
+    op.subscribe({
+      next: () => {
+        this.editingCustomer.set(false);
+        this.reloadCustomers();
+        this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
 
   removeCustomer(c: any): void {
-    if (!confirm('Silinsin mi?')) return;
-    this.customerCrud.remove(c.id).subscribe(() => this.reloadCustomers());
+    const name = c.full_name || `${c.first_name} ${c.last_name}`;
+    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${name})`)) return;
+    this.customerCrud.remove(c.id).subscribe({
+      next: () => {
+        this.reloadCustomers();
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
 
   openRecordForm(r?: any): void {
@@ -215,11 +247,24 @@ export class CustomersComponent implements OnInit {
     const v = this.recordForm.getRawValue();
     const payload = { patient: v.patient, summary: v.summary };
     const op = v.id ? this.recordCrud.update(v.id!, payload) : this.recordCrud.create(payload);
-    op.subscribe({ next: () => { this.editingRecord.set(false); this.reloadRecords(); } });
+    op.subscribe({
+      next: () => {
+        this.editingRecord.set(false);
+        this.reloadRecords();
+        this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
 
   removeRecord(r: any): void {
-    if (!confirm('Silinsin mi?')) return;
-    this.recordCrud.remove(r.id).subscribe(() => this.reloadRecords());
+    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
+    this.recordCrud.remove(r.id).subscribe({
+      next: () => {
+        this.reloadRecords();
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
 }

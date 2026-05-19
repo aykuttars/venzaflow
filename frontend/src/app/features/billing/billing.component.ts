@@ -7,12 +7,17 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
+import { DateFieldComponent } from '../../shared/date-field.component';
+import { DateTimeFieldComponent } from '../../shared/date-time-field.component';
+import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-utils';
 
 @Component({
   selector: 'app-billing',
@@ -25,26 +30,30 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
     MatInputModule,
     MatIconModule,
     MatSelectModule,
+    MatSnackBarModule,
     MatTabsModule,
+    TranslateModule,
     PageHeaderComponent,
+    DateFieldComponent,
+    DateTimeFieldComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header title="Faturalama" icon="receipt_long">
-        @if (canWrite()) { <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> Yeni</button> }
+      <app-page-header moduleSlug="billing" icon="receipt_long">
+        @if (canWrite()) { <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> {{ 'common.new' | translate }}</button> }
       </app-page-header>
       <mat-tab-group (selectedIndexChange)="tab.set($event)">
-        <mat-tab label="Faturalar">
+        <mat-tab [label]="'billing.invoices' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>No</th><th>Müşteri</th><th>Tarih</th><th>Durum</th><th>Toplam</th>@if (canWrite()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'billing.number' | translate }}</th><th>{{ 'appointments.customer' | translate }}</th><th>{{ 'billing.issuedAt' | translate }}</th><th>{{ 'appointments.status' | translate }}</th><th>{{ 'billing.total' | translate }}</th>@if (canWrite()) {<th></th>}</tr></thead>
             <tbody>
               @for (i of invoices(); track i.id) {
               <tr>
-                <td>{{ i.number }}</td><td>{{ i.customer_name }}</td><td>{{ i.issued_at }}</td><td>{{ i.status }}</td><td>{{ i.total }}</td>
+                <td>{{ i.number }}</td><td>{{ i.customer_name }}</td><td>{{ i.issued_at }}</td><td>{{ ('billing.' + i.status) | translate }}</td><td>{{ i.total }}</td>
                 @if (canWrite()) {
                 <td style="text-align:right">
-                  <button mat-icon-button (click)="openInvoice(i)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button (click)="removeInvoice(i)"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button (click)="openInvoice(i)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button (click)="removeInvoice(i)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
                 }
               </tr>
@@ -52,17 +61,17 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
             </tbody>
           </table>
         </mat-tab>
-        <mat-tab label="Ödemeler">
+        <mat-tab [label]="'billing.payments' | translate">
           <table class="bms-table" style="margin-top:16px">
-            <thead><tr><th>Fatura</th><th>Tutar</th><th>Tarih</th><th>Yöntem</th>@if (canWrite()) {<th></th>}</tr></thead>
+            <thead><tr><th>{{ 'billing.invoice' | translate }}</th><th>{{ 'billing.amount' | translate }}</th><th>{{ 'billing.paidAt' | translate }}</th><th>{{ 'billing.method' | translate }}</th>@if (canWrite()) {<th></th>}</tr></thead>
             <tbody>
               @for (p of payments(); track p.id) {
               <tr>
                 <td>{{ p.invoice_number }}</td><td>{{ p.amount }}</td><td>{{ p.paid_at }}</td><td>{{ p.method }}</td>
                 @if (canWrite()) {
                 <td style="text-align:right">
-                  <button mat-icon-button (click)="openPayment(p)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button (click)="removePayment(p)"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button (click)="openPayment(p)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button (click)="removePayment(p)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
                 }
               </tr>
@@ -77,29 +86,29 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
       <div class="dialog">
         <form [formGroup]="activeForm" (ngSubmit)="save()" style="display:flex;flex-direction:column;gap:8px">
           @if (tab() === 0) {
-            <mat-form-field appearance="outline"><mat-label>No</mat-label><input matInput formControlName="number" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Müşteri</mat-label>
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.number' | translate }}</mat-label><input matInput formControlName="number" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'appointments.customer' | translate }}</mat-label>
               <mat-select formControlName="customer">@for (c of customers(); track c.id) {<mat-option [value]="c.id">{{ c.first_name }}</mat-option>}</mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Kesim tarihi</mat-label><input matInput type="date" formControlName="issued_at" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Vade</mat-label><input matInput type="date" formControlName="due_date" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Durum</mat-label>
+            <app-date-field formControlName="issued_at" labelKey="billing.issuedAt" [required]="true" />
+            <app-date-field formControlName="due_date" labelKey="billing.dueDate" />
+            <mat-form-field appearance="outline"><mat-label>{{ 'appointments.status' | translate }}</mat-label>
               <mat-select formControlName="status">
-                <mat-option value="draft">Taslak</mat-option><mat-option value="sent">Gönderildi</mat-option>
-                <mat-option value="paid">Ödendi</mat-option><mat-option value="overdue">Gecikmiş</mat-option>
+                <mat-option value="draft">{{ 'billing.draft' | translate }}</mat-option><mat-option value="sent">{{ 'billing.sent' | translate }}</mat-option>
+                <mat-option value="paid">{{ 'billing.paid' | translate }}</mat-option><mat-option value="overdue">{{ 'billing.overdue' | translate }}</mat-option>
               </mat-select>
             </mat-form-field>
           } @else {
-            <mat-form-field appearance="outline"><mat-label>Fatura</mat-label>
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.invoice' | translate }}</mat-label>
               <mat-select formControlName="invoice">@for (i of invoices(); track i.id) {<mat-option [value]="i.id">{{ i.number }}</mat-option>}</mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Tutar</mat-label><input matInput type="number" step="0.01" formControlName="amount" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Tarih</mat-label><input matInput type="datetime-local" formControlName="paid_at" /></mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>Yöntem</mat-label><input matInput formControlName="method" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.amount' | translate }}</mat-label><input matInput type="number" step="0.01" formControlName="amount" /></mat-form-field>
+            <app-date-time-field formControlName="paid_at" labelKey="billing.paidAt" [required]="true" />
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.method' | translate }}</mat-label><input matInput formControlName="method" /></mat-form-field>
           }
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button mat-button type="button" (click)="editing.set(false)">İptal</button>
-            <button mat-flat-button color="primary" type="submit">Kaydet</button>
+            <button mat-button type="button" (click)="editing.set(false)">{{ 'common.cancel' | translate }}</button>
+            <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
           </div>
         </form>
       </div>
@@ -111,6 +120,8 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
 export class BillingComponent implements OnInit {
   private http = inject(HttpClient);
   private fb = inject(FormBuilder);
+  private snack = inject(MatSnackBar);
+  private translate = inject(TranslateService);
   protected auth = inject(AuthService);
   tab = signal(0);
   editing = signal(false);
@@ -158,7 +169,14 @@ export class BillingComponent implements OnInit {
     this.tab.set(0);
     this.invoiceForm.reset(
       i
-        ? { id: i.id, number: i.number, customer: i.customer, issued_at: i.issued_at, due_date: i.due_date || '', status: i.status }
+        ? {
+            id: i.id,
+            number: i.number,
+            customer: i.customer,
+            issued_at: normalizeDateInput(i.issued_at),
+            due_date: normalizeDateInput(i.due_date),
+            status: i.status,
+          }
         : { id: null, number: '', customer: null, issued_at: '', due_date: '', status: 'draft' }
     );
     this.editing.set(true);
@@ -166,10 +184,15 @@ export class BillingComponent implements OnInit {
 
   openPayment(p?: any): void {
     this.tab.set(1);
-    const fmt = (v: string) => (v ? v.slice(0, 16) : '');
     this.paymentForm.reset(
       p
-        ? { id: p.id, invoice: p.invoice, amount: p.amount, paid_at: fmt(p.paid_at), method: p.method }
+        ? {
+            id: p.id,
+            invoice: p.invoice,
+            amount: p.amount,
+            paid_at: normalizeDateTimeInput(p.paid_at),
+            method: p.method,
+          }
         : { id: null, invoice: null, amount: '0', paid_at: '', method: 'cash' }
     );
     this.editing.set(true);
@@ -177,23 +200,54 @@ export class BillingComponent implements OnInit {
 
   save(): void {
     if (this.tab() === 0) {
+      if (this.invoiceForm.invalid) return;
       const v = this.invoiceForm.getRawValue();
       const payload: any = { number: v.number, customer: v.customer, issued_at: v.issued_at, status: v.status };
       if (v.due_date) payload.due_date = v.due_date;
       const op = v.id ? this.invCrud.update(v.id!, payload) : this.invCrud.create(payload);
-      op.subscribe(() => { this.editing.set(false); this.reload(); });
+      op.subscribe({
+        next: () => {
+          this.editing.set(false);
+          this.reload();
+          this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     } else {
+      if (this.paymentForm.invalid) return;
       const v = this.paymentForm.getRawValue();
       const payload = { invoice: v.invoice, amount: v.amount, paid_at: new Date(v.paid_at!).toISOString(), method: v.method };
       const op = v.id ? this.payCrud.update(v.id!, payload) : this.payCrud.create(payload);
-      op.subscribe(() => { this.editing.set(false); this.reload(); });
+      op.subscribe({
+        next: () => {
+          this.editing.set(false);
+          this.reload();
+          this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     }
   }
 
   removeInvoice(i: any): void {
-    if (confirm('Silinsin mi?')) this.invCrud.remove(i.id).subscribe(() => this.reload());
+    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${i.number})`)) return;
+    this.invCrud.remove(i.id).subscribe({
+      next: () => {
+        this.reload();
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
+
   removePayment(p: any): void {
-    if (confirm('Silinsin mi?')) this.payCrud.remove(p.id).subscribe(() => this.reload());
+    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
+    this.payCrud.remove(p.id).subscribe({
+      next: () => {
+        this.reload();
+        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+      },
+      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
   }
 }
