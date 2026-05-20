@@ -126,7 +126,9 @@
     "passwordRequired": "Password is required for new users",
     "permissionsCol": "Extra permissions",
     "sectionGeneral": "General information",
-    "sectionSecurity": "Security"
+    "sectionSecurity": "Security",
+    "userLimit": "User limit",
+    "userLimitReached": "User limit reached. Contact your provider for more seats."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -288,6 +290,48 @@
     "modulesAccess": "Module access",
     "moduleLabels": "Module labels (optional)",
     "moduleLabelsHint": "Modules left blank use the default translation.",
-    "initialAdmin": "Initial admin user"
+    "initialAdmin": "Initial admin user",
+    "maxUsers": "Max users",
+    "userUsage": "Users",
+    "extraModule": "Extra module",
+    "billingPeriod": "Billing period",
+    "billingMonthly": "Monthly",
+    "billingYearly": "Yearly",
+    "paymentCurrency": "Payment currency",
+    "yearlyDiscount": "Yearly discount %",
+    "invoices": "Invoices",
+    "billing": {
+      "title": "Platform billing",
+      "settings": "Settings",
+      "modulePrices": "Module prices",
+      "exchangeRates": "Exchange rates",
+      "taxes": "Taxes",
+      "yearlyDiscount": "Yearly discount (%)",
+      "invoicePrefix": "Invoice prefix",
+      "companyName": "Company name",
+      "module": "Module",
+      "pricePerUserMonth": "Per user/month",
+      "currency": "Currency",
+      "rateToTry": "Rate to TRY",
+      "source": "Source",
+      "fetchedAt": "Updated",
+      "setManualRate": "Save manual rate",
+      "taxCode": "Tax code",
+      "taxRate": "Rate",
+      "validFrom": "Valid from",
+      "taxesHint": "Tax rates are managed via the platform API."
+    },
+    "invoice": {
+      "title": "Subscription invoices",
+      "generate": "Generate invoice",
+      "generated": "Invoice generated",
+      "number": "Invoice no",
+      "period": "Period",
+      "total": "Total",
+      "status": "Status",
+      "pdf": "Download PDF",
+      "markPaid": "Mark paid",
+      "paid": "Marked as paid"
+    }
   }
 }

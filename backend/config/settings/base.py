@@ -29,7 +29,11 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "auditlog",
+    "django_celery_results",
+    "django_celery_beat",
+    "channels",
     "apps.tenants",
+    "apps.platform_billing",
     "apps.accounts",
     "apps.products",
     "apps.inventory",
@@ -101,7 +105,7 @@ LANGUAGES = [
     ("en", "English"),
 ]
 LOCALE_PATHS = [BASE_DIR / "locale"]
-TIME_ZONE = "UTC"
+TIME_ZONE = env("TIME_ZONE", default="Europe/Istanbul")
 USE_I18N = True
 USE_TZ = True
 
@@ -155,7 +159,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-def _default_broker_url() -> str:
+def _broker_url_from_env() -> str:
     host = env("RABBITMQ_HOST", default="")
     if not host:
         return env("CELERY_BROKER_URL", default="amqp://guest:guest@localhost:5672//")
@@ -166,22 +170,70 @@ def _default_broker_url() -> str:
     return f"amqp://{user}:{pwd}@{host}:{port}/{vhost.lstrip('/')}"
 
 
-def _default_result_backend() -> str:
-    host = env("REDIS_HOST", default="")
-    if not host:
-        return env("CELERY_RESULT_BACKEND", default="redis://localhost:6379/1")
-    pwd = env("REDIS_PASSWORD", default="")
-    port = env("REDIS_PORT", default="6379")
-    db = env("REDIS_DB", default="2")
-    auth = f":{pwd}@" if pwd else ""
-    return f"redis://{auth}{host}:{port}/{db}"
-
-
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=_default_broker_url())
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=_default_result_backend())
+# Broker: RabbitMQ via RABBITMQ_* when set.
+CELERY_BROKER_URL = _broker_url_from_env()
+# Results: django-celery-results (Postgres). Override with e.g. redis://... if needed.
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="django-db")
+CELERY_RESULT_EXTENDED = True
+CELERY_CACHE_BACKEND = "django-cache"
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
+# Deployment environment: image/container suffix + Celery queue isolation (dev vs prod).
+ENVIRONMENT = env("ENVIRONMENT", default="prod").lower()
+CELERY_QUEUE_PREFIX = ENVIRONMENT
+CELERY_TASK_DEFAULT_QUEUE = f"{ENVIRONMENT}_default"
+
+
+# Channels (WebSocket) — Redis-backed channel layer; routing currently empty.
+ASGI_APPLICATION = "config.asgi.application"
+
+
+def _redis_url_from_env() -> str:
+    host = env("REDIS_HOST", default="")
+    if not host:
+        return "redis://localhost:6379/0"
+    pwd = env("REDIS_PASSWORD", default="")
+    port = env("REDIS_PORT", default="6379")
+    db = env("REDIS_DB", default="0")
+    auth = f":{pwd}@" if pwd else ""
+    return f"redis://{auth}{host}:{port}/{db}"
+
+
+REDIS_URL = _redis_url_from_env()
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [REDIS_URL]},
+    },
+}
+
+
+# django-auditlog (explicit settings; package conf.py setattr is unreliable on Django 5)
 AUDITLOG_INCLUDE_ALL_MODELS = False
+AUDITLOG_EXCLUDE_TRACKING_MODELS = ()
+AUDITLOG_INCLUDE_TRACKING_MODELS = ()
+AUDITLOG_EXCLUDE_TRACKING_FIELDS = ()
+AUDITLOG_MASK_TRACKING_FIELDS = ()
+AUDITLOG_DISABLE_ON_RAW_SAVE = False
+AUDITLOG_CID_HEADER = "x-correlation-id"
+AUDITLOG_CID_GETTER = None
+AUDITLOG_TWO_STEP_MIGRATION = False
+AUDITLOG_USE_TEXT_CHANGES_IF_JSON_IS_NOT_PRESENT = False
+AUDITLOG_DISABLE_REMOTE_ADDR = False
+AUDITLOG_CHANGE_DISPLAY_TRUNCATE_LENGTH = 140
+AUDITLOG_STORE_JSON_CHANGES = False
+AUDITLOG_MASK_CALLABLE = None
+AUDITLOG_LOGENTRY_MODEL = "auditlog.LogEntry"
+AUDITLOG_USE_BASE_MANAGER = False
+AUDITLOG_USE_FK_STRING_REPRESENTATION = False

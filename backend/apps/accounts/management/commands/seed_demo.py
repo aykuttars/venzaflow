@@ -5,9 +5,22 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.accounts.models import Department, Permission
+from apps.common.celery_setup import ensure_periodic_tasks
 from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
+from datetime import date
+from decimal import Decimal
+
+from apps.platform_billing.models import (
+    Currency,
+    ExchangeRate,
+    ModulePrice,
+    PlatformBillingSettings,
+    TaxRate,
+    TaxType,
+)
 from apps.products.models import Category
 from apps.tenants.models import Tenant
+from apps.tenants.subscription_service import set_module_subscriptions
 
 User = get_user_model()
 
@@ -18,6 +31,54 @@ def ensure_permissions() -> dict[str, Permission]:
         obj, _ = Permission.objects.get_or_create(codename=codename, defaults={"name": name})
         perms[codename] = obj
     return perms
+
+
+def ensure_platform_billing_master() -> dict[str, Currency]:
+    currencies = {}
+    for code, name, symbol, tcmb in (
+        ("TRY", "Turkish Lira", "₺", None),
+        ("EUR", "Euro", "€", "EUR"),
+        ("GBP", "British Pound", "£", "GBP"),
+        ("USD", "US Dollar", "$", "USD"),
+    ):
+        cur, _ = Currency.objects.update_or_create(
+            code=code,
+            defaults={"name": name, "symbol": symbol, "tcmb_code": tcmb, "is_active": True},
+        )
+        currencies[code] = cur
+    # Legacy: USDT removed in favour of USD (TCMB)
+    usdt = Currency.objects.filter(code="USDT").first()
+    if usdt:
+        Tenant.objects.filter(payment_currency=usdt).update(payment_currency=currencies["USD"])
+        usdt.is_active = False
+        usdt.save(update_fields=["is_active"])
+    from django.utils import timezone
+
+    now = timezone.now()
+    ExchangeRate.objects.create(
+        currency=currencies["TRY"], rate_to_try=Decimal("1"), source="manual", fetched_at=now
+    )
+    ExchangeRate.objects.create(
+        currency=currencies["EUR"], rate_to_try=Decimal("52.863100"), source="manual", fetched_at=now
+    )
+    ExchangeRate.objects.create(
+        currency=currencies["GBP"], rate_to_try=Decimal("61.144600"), source="manual", fetched_at=now
+    )
+    # USD/EUR/GBP: updated hourly from TCMB via Celery (see ensure_periodic_tasks)
+    tax_type, _ = TaxType.objects.get_or_create(code="KDV", defaults={"name": "Katma Değer Vergisi"})
+    TaxRate.objects.get_or_create(
+        tax_type=tax_type,
+        rate_percent=Decimal("20"),
+        valid_from=date(2020, 1, 1),
+        defaults={"is_active": True},
+    )
+    PlatformBillingSettings.get_solo()
+    for slug in ALL_MODULES:
+        ModulePrice.objects.get_or_create(
+            module_slug=slug,
+            defaults={"price_per_user_monthly": Decimal("50.00")},
+        )
+    return currencies
 
 
 def ensure_product_categories(tenant: Tenant) -> None:
@@ -57,6 +118,8 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         perm_index = ensure_permissions()
+        ensure_periodic_tasks()
+        currencies = ensure_platform_billing_master()
 
         t1000, _ = Tenant.objects.update_or_create(
             customer_code="1000",
@@ -65,6 +128,9 @@ class Command(BaseCommand):
                 "default_language": Tenant.Language.TR,
                 "is_active": True,
                 "enabled_modules": ALL_MODULES,
+                "max_users": 10,
+                "billing_period": Tenant.BillingPeriod.MONTHLY,
+                "payment_currency": currencies["TRY"],
             },
         )
         t3000, _ = Tenant.objects.update_or_create(
@@ -74,8 +140,14 @@ class Command(BaseCommand):
                 "default_language": Tenant.Language.TR,
                 "is_active": True,
                 "enabled_modules": ALL_MODULES,
+                "max_users": 10,
+                "billing_period": Tenant.BillingPeriod.YEARLY,
+                "payment_currency": currencies["EUR"],
+                "yearly_discount_percent": Decimal("10"),
             },
         )
+        for tenant in (t1000, t3000):
+            set_module_subscriptions(tenant, list(ALL_MODULES), extra_modules=set())
 
         admin_codes = [c[0] for c in PERMISSION_CODENAMES]
         tech_codes = [
@@ -141,7 +213,7 @@ class Command(BaseCommand):
             status = "created" if created else "updated"
             self.stdout.write(self.style.SUCCESS(f"{status} user {email} @ {tenant.customer_code}"))
 
-        platform_email = "admin@platform.local"
+        platform_email = "aykutt.ars@gmail.com"
         platform_pw = demo_pw
         pu, pcreated = User.all_tenants.get_or_create(
             tenant=None,

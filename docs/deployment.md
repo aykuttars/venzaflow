@@ -8,29 +8,37 @@ The default deployment targets shared infrastructure on `10.0.0.3` (Postgres 16,
 flowchart LR
   Client[Browser]
   Proxy[nginx :80/:443]
-  FE[Angular static via nginx]
-  BE[Uvicorn :8000 Django ASGI]
-  Worker[Celery worker]
-  DB[(PostgreSQL 16 10.0.0.3)]
-  Redis[(Redis 10.0.0.3)]
-  RMQ[(RabbitMQ 10.0.0.3)]
+  Web[web Angular nginx]
+  Api[api Uvicorn ASGI]
+  Celery[celery worker]
+  Beat[celery-beat DatabaseScheduler]
+  DB[(PostgreSQL)]
+  RMQ[(RabbitMQ)]
 
   Client --> Proxy
-  Proxy --> FE
-  Proxy --> BE
-  BE --> DB
-  BE --> Redis
-  BE --> RMQ
-  Worker --> RMQ
-  Worker --> Redis
-  Worker --> DB
+  Proxy --> Web
+  Proxy --> Api
+  Api --> DB
+  Celery --> RMQ
+  Beat --> RMQ
+  Celery --> DB
+  Beat --> DB
 ```
 
-## Docker compose
+## Docker compose (famlotto-style 3 machines)
 
-`docker/docker-compose.yml` wires: `backend` (uvicorn ASGI server, entrypoint runs `migrate` + optional `seed_demo` and picks `uvicorn_{dev,prod}.conf.py` from `ENVIRONMENT`), `worker` (Celery), `frontend` (nginx with Angular dist), `proxy` (front nginx). All point at the shared infra via `.env`.
+| Service | Role | Image / container suffix |
+|---------|------|---------------------------|
+| **api** | Uvicorn, migrate, optional seed | `tenancysoft-api_${ENVIRONMENT}` |
+| **celery** | Worker (`${ENV}_default`, `${ENV}_billing` queues) | `tenancysoft-celery_${ENVIRONMENT}` |
+| **celery-beat** | Periodic tasks (django-celery-beat DB) | `tenancysoft-celery-beat_${ENVIRONMENT}` |
+| **web** | Angular static (nginx) | `tenancysoft-web_${ENVIRONMENT}` |
 
-To switch between dev/prod uvicorn configs, set `ENVIRONMENT=dev` or `ENVIRONMENT=prod` in `.env`. The entrypoint copies `uvicorn_dev.conf.py` or `uvicorn_prod.conf.py` to `uvicorn.conf.py` and `run_uvicorn.py` reads it.
+Set `ENVIRONMENT=dev` or `ENVIRONMENT=prod` in `.env`. Compose adds `_dev` / `_prod` to image and container names. Celery queues are isolated per environment (`dev_default`, `prod_billing`, etc.) on the shared RabbitMQ broker.
+
+`docker/docker-compose.yml` runs all four services; api/celery/celery-beat share the same backend Dockerfile. The API image installs WeasyPrint for subscription invoice PDFs.
+
+To switch uvicorn config, the entrypoint copies `uvicorn_dev.conf.py` or `uvicorn_prod.conf.py` based on `ENVIRONMENT`.
 
 Bring up (shared infra):
 
@@ -66,11 +74,17 @@ RABBITMQ_PASS=ayk55577ayk
 RABBITMQ_PORT=5672
 ```
 
-Celery uses RabbitMQ as broker and Redis as result backend. `config/settings/base.py` computes the URLs automatically from the host/user/password variables; `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` can still be set explicitly to override.
+Celery uses RabbitMQ as broker (`RABBITMQ_*` in `.env`). Task results and beat schedules are stored in **Postgres** via `django-celery-results` and `django-celery-beat` (no Redis required for Celery). Run `seed_demo` (or Django admin → *Periodic tasks*) to register the hourly TCMB job.
 
 ## Migrations & seed
 
-`backend/docker-entrypoint.sh` runs `python manage.py migrate` on every container start. To seed demo tenants and example users, set `RUN_SEED=true` in `.env` (dev only) or run `docker compose exec backend python manage.py seed_demo`.
+`backend/docker-entrypoint.sh` runs `python manage.py migrate` on every **api** container start. To seed demo tenants, billing master data (currencies, KDV, module prices), periodic tasks, and example users, set `RUN_SEED=true` in `.env` (dev only) or:
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file .env exec api python manage.py seed_demo
+```
+
+After changing `backend/requirements.txt` or `Dockerfile`, rebuild images: `docker compose ... up --build`.
 
 ## Backups
 

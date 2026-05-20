@@ -6,9 +6,9 @@
 name: tenancysoft
 
 services:
-  backend:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-api:${TAG:-latest}
-    container_name: tenancysoft-api
+  api:
+    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -26,31 +26,58 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  worker:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-worker:${TAG:-latest}
-    container_name: tenancysoft-worker
+  celery:
+    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       SKIP_MIGRATE: "true"
-    command: ["celery", "-A", "config", "worker", "-l", "info"]
+    entrypoint: []
+    command: >
+      sh -c "ENV=$${ENVIRONMENT:-prod} && ENV=$$(echo $$ENV | tr '[:upper:]' '[:lower:]') &&
+      celery -A config worker -l info --queues=$${ENV}_default,$${ENV}_billing"
     volumes:
       - backend_media:/app/media
     depends_on:
-      backend:
+      api:
         condition: service_healthy
     restart: unless-stopped
 
-  frontend:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-web:${TAG:-latest}
-    container_name: tenancysoft-web
+  celery-beat:
+    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
+    env_file:
+      - ../.env
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
+      SKIP_MIGRATE: "true"
+    entrypoint: []
+    command:
+      [
+        "celery",
+        "-A",
+        "config",
+        "beat",
+        "-l",
+        "info",
+        "--scheduler=django_celery_beat.schedulers:DatabaseScheduler",
+      ]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     ports:
       - "${FRONTEND_PORT:-8081}:80"
     depends_on:
-      - backend
+      - api
     restart: unless-stopped
 
 volumes:

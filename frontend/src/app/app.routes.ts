@@ -29,6 +29,20 @@ export const APP_ROUTES: Routes = [
             (m) => m.PlatformTenantsComponent
           ),
       },
+      {
+        path: 'tenants/:id/invoices',
+        loadComponent: () =>
+          import('./features/platform/platform-tenant-invoices.component').then(
+            (m) => m.PlatformTenantInvoicesComponent
+          ),
+      },
+      {
+        path: 'billing',
+        loadComponent: () =>
+          import('./features/platform/platform-billing.component').then(
+            (m) => m.PlatformBillingComponent
+          ),
+      },
     ],
   },
   {

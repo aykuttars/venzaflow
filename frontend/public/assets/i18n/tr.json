@@ -126,7 +126,9 @@
     "passwordRequired": "Yeni kullanıcı için şifre gerekli",
     "permissionsCol": "Ek yetkiler",
     "sectionGeneral": "Genel bilgiler",
-    "sectionSecurity": "Güvenlik"
+    "sectionSecurity": "Güvenlik",
+    "userLimit": "Kullanıcı limiti",
+    "userLimitReached": "Kullanıcı limitine ulaşıldı. Daha fazla kota için sağlayıcınıza başvurun."
   },
   "dashboard": {
     "title": "Panel",
@@ -288,6 +290,48 @@
     "modulesAccess": "Modül erişimi",
     "moduleLabels": "Modül adları (opsiyonel)",
     "moduleLabelsHint": "Boş bırakılan modüller varsayılan çeviriyi kullanır.",
-    "initialAdmin": "İlk yönetici kullanıcı"
+    "initialAdmin": "İlk yönetici kullanıcı",
+    "maxUsers": "Maks. kullanıcı",
+    "userUsage": "Kullanıcı",
+    "extraModule": "Ek modül",
+    "billingPeriod": "Abonelik dönemi",
+    "billingMonthly": "Aylık",
+    "billingYearly": "Yıllık",
+    "paymentCurrency": "Ödeme para birimi",
+    "yearlyDiscount": "Yıllık iskonto %",
+    "invoices": "Faturalar",
+    "billing": {
+      "title": "Platform faturalama",
+      "settings": "Ayarlar",
+      "modulePrices": "Modül fiyatları",
+      "exchangeRates": "Kurlar",
+      "taxes": "Vergiler",
+      "yearlyDiscount": "Yıllık iskonto (%)",
+      "invoicePrefix": "Fatura öneki",
+      "companyName": "Şirket adı",
+      "module": "Modül",
+      "pricePerUserMonth": "Kullanıcı/ay",
+      "currency": "Para birimi",
+      "rateToTry": "TRY karşılığı",
+      "source": "Kaynak",
+      "fetchedAt": "Güncelleme",
+      "setManualRate": "Manuel kur kaydet",
+      "taxCode": "Vergi kodu",
+      "taxRate": "Oran",
+      "validFrom": "Geçerlilik",
+      "taxesHint": "Vergi oranları platform API üzerinden yönetilir."
+    },
+    "invoice": {
+      "title": "Abonelik faturaları",
+      "generate": "Fatura oluştur",
+      "generated": "Fatura oluşturuldu",
+      "number": "Fatura no",
+      "period": "Dönem",
+      "total": "Toplam",
+      "status": "Durum",
+      "pdf": "PDF indir",
+      "markPaid": "Ödendi işaretle",
+      "paid": "Ödendi olarak kaydedildi"
+    }
   }
 }

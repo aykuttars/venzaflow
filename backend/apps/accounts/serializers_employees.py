@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
 from apps.common.password_policy import validate_password_policy
+from apps.tenants.subscription_service import validate_user_capacity
 
 User = get_user_model()
 
@@ -149,6 +150,10 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
         extra_codes = validated_data.pop("extra_permission_codenames", [])
         tenant_id = validated_data.pop("tenant_id")
+        from apps.tenants.models import Tenant
+
+        tenant = Tenant.objects.get(pk=tenant_id)
+        validate_user_capacity(tenant)
         user = User(tenant_id=tenant_id, **validated_data)
         user.set_password(password)
         user.save()
@@ -160,6 +165,10 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         extra_codes = validated_data.pop("extra_permission_codenames", None)
         new_active = validated_data.get("is_active", instance.is_active)
         new_dept = validated_data.get("department", instance.department)
+
+        activating = not instance.is_active and new_active
+        if activating:
+            validate_user_capacity(instance.tenant, excluding_user_id=instance.pk)
 
         deactivating = instance.is_active and not new_active
         demoting_admin = (

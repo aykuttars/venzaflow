@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import permissions
 
 
@@ -17,7 +19,7 @@ class HasViewPermission(permissions.BasePermission):
 
 
 class HasModule(permissions.BasePermission):
-    """Uses `required_module` slug on view; tenant must have enabled_modules containing it."""
+    """Tenant must be active and have an active module subscription for required_module."""
 
     def has_permission(self, request, view):
         module = getattr(view, "required_module", None)
@@ -29,10 +31,15 @@ class HasModule(permissions.BasePermission):
         if getattr(user, "is_platform_admin", False):
             return False
         tenant = getattr(user, "tenant", None)
-        if not tenant:
+        if not tenant or not tenant.is_active:
             return False
-        enabled = tenant.enabled_modules or []
-        return module in enabled
+        now = timezone.now()
+        if tenant.module_subscriptions.filter(
+            module_slug=module,
+            is_active=True,
+        ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now)).exists():
+            return True
+        return module in (tenant.enabled_modules or [])
 
 
 class IsPlatformAdmin(permissions.BasePermission):

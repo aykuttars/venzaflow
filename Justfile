@@ -18,7 +18,7 @@ logs:
     docker compose -f docker/docker-compose.yml --env-file .env logs -f --tail=200
 
 docker-seed:
-    docker compose -f docker/docker-compose.yml --env-file .env exec backend python manage.py seed_demo
+    docker compose -f docker/docker-compose.yml --env-file .env exec api python manage.py seed_demo
 
 migrate:
     cd backend && export DJANGO_SETTINGS_MODULE=config.settings.dev && . .venv/bin/activate 2>/dev/null || true; python manage.py migrate
@@ -48,4 +48,4 @@ prod-logs:
     docker compose -f docker/docker-compose.prod.yml --env-file .env logs -f --tail=200
 
 prod-seed:
-    docker compose -f docker/docker-compose.prod.yml --env-file .env exec backend python manage.py seed_demo
+    docker compose -f docker/docker-compose.prod.yml --env-file .env exec api python manage.py seed_demo

@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   FormBuilder,
   FormControl,
@@ -21,7 +22,17 @@ import { API_BASE } from '../../core/api';
 import { AppLanguage } from '../../core/language.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { ALL_MODULE_SLUGS } from '../../shared/module-slugs';
-import { passwordPolicyValidator } from '../../shared/password-validators';
+import { PasswordFieldsComponent } from '../../shared/password-fields.component';
+import {
+  passwordMatchValidator,
+  passwordPolicyValidator,
+} from '../../shared/password-validators';
+
+interface ModuleSubscriptionRow {
+  module_slug: string;
+  is_active: boolean;
+  is_extra: boolean;
+}
 
 interface TenantRow {
   id: number;
@@ -29,9 +40,21 @@ interface TenantRow {
   name: string;
   default_language: AppLanguage;
   is_active: boolean;
+  max_users: number;
+  active_user_count: number;
   enabled_modules: string[];
+  subscribed_modules?: string[];
   module_labels: Record<string, string>;
+  module_subscriptions?: ModuleSubscriptionRow[];
+  billing_period?: string;
+  payment_currency?: string;
+  yearly_discount_percent?: string | null;
   created_at?: string;
+}
+
+interface CurrencyOption {
+  code: string;
+  name: string;
 }
 
 interface Page<T> {
@@ -53,6 +76,8 @@ interface Page<T> {
     MatCheckboxModule,
     MatSnackBarModule,
     TranslateModule,
+    PasswordFieldsComponent,
+    RouterLink,
   ],
   template: `
     <div class="page">
@@ -69,6 +94,7 @@ interface Page<T> {
           <tr>
             <th>{{ 'platform.customerCode' | translate }}</th>
             <th>{{ 'products.name' | translate }}</th>
+            <th>{{ 'platform.userUsage' | translate }}</th>
             <th>{{ 'common.language' | translate }}</th>
             <th>{{ 'common.active' | translate }}</th>
             <th>{{ 'platform.modulesCount' | translate }}</th>
@@ -80,10 +106,14 @@ interface Page<T> {
           <tr>
             <td>{{ t.customer_code }}</td>
             <td>{{ t.name }}</td>
+            <td>{{ t.active_user_count }}/{{ t.max_users }}</td>
             <td>{{ t.default_language | uppercase }}</td>
             <td>{{ (t.is_active ? 'common.yes' : 'common.no') | translate }}</td>
-            <td>{{ t.enabled_modules?.length || 0 }}</td>
+            <td>{{ t.enabled_modules.length }}</td>
             <td style="text-align:right">
+              <a mat-icon-button [routerLink]="['/admin/tenants', t.id, 'invoices']" [attr.aria-label]="'platform.invoices' | translate">
+                <mat-icon>receipt_long</mat-icon>
+              </a>
               <button mat-icon-button (click)="openForm(t)" [attr.aria-label]="'common.edit' | translate">
                 <mat-icon>edit</mat-icon>
               </button>
@@ -95,7 +125,7 @@ interface Page<T> {
           }
           @if (items().length === 0) {
           <tr>
-            <td colspan="6" style="text-align:center; padding:24px">{{ 'common.noRecords' | translate }}</td>
+            <td colspan="7" style="text-align:center; padding:24px">{{ 'common.noRecords' | translate }}</td>
           </tr>
           }
         </tbody>
@@ -115,6 +145,13 @@ interface Page<T> {
             <input matInput formControlName="name" required />
           </mat-form-field>
           <mat-form-field appearance="outline">
+            <mat-label>{{ 'platform.maxUsers' | translate }}</mat-label>
+            <input matInput type="number" min="1" formControlName="max_users" required />
+            @if (editingTenant()) {
+            <mat-hint>{{ 'platform.userUsage' | translate }}: {{ editingTenant()!.active_user_count }}/{{ form.value.max_users }}</mat-hint>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
             <mat-label>{{ 'common.language' | translate }}</mat-label>
             <mat-select formControlName="default_language">
               <mat-option value="tr">{{ 'common.turkish' | translate }}</mat-option>
@@ -123,15 +160,47 @@ interface Page<T> {
           </mat-form-field>
           <mat-slide-toggle formControlName="is_active">{{ 'common.active' | translate }}</mat-slide-toggle>
 
+          <h3 class="dialog__section-title">{{ 'platform.billingPeriod' | translate }}</h3>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'platform.billingPeriod' | translate }}</mat-label>
+            <mat-select formControlName="billing_period">
+              <mat-option value="monthly">{{ 'platform.billingMonthly' | translate }}</mat-option>
+              <mat-option value="yearly">{{ 'platform.billingYearly' | translate }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'platform.paymentCurrency' | translate }}</mat-label>
+            <mat-select formControlName="payment_currency">
+              @for (c of currencies(); track c.code) {
+              <mat-option [value]="c.code">{{ c.code }} — {{ c.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'platform.yearlyDiscount' | translate }}</mat-label>
+            <input matInput type="number" min="0" max="100" formControlName="yearly_discount_percent" />
+          </mat-form-field>
+
           <h3 class="dialog__section-title">{{ 'platform.modulesAccess' | translate }}</h3>
           <div class="module-grid">
             @for (slug of moduleSlugs; track slug) {
-            <mat-checkbox
-              [checked]="isModuleEnabled(slug)"
-              (change)="toggleModule(slug, $event.checked)"
-            >
-              {{ ('modules.' + slug) | translate }}
-            </mat-checkbox>
+            <div class="module-row" [class.module-row--disabled]="!isModuleEnabled(slug)">
+              <mat-checkbox
+                [checked]="isModuleEnabled(slug)"
+                (change)="toggleModule(slug, $event.checked)"
+              >
+                {{ ('modules.' + slug) | translate }}
+              </mat-checkbox>
+              @if (isModuleEnabled(slug)) {
+              <mat-checkbox
+                class="extra-flag"
+                [checked]="isExtraModule(slug)"
+                (change)="toggleExtra(slug, $event.checked)"
+              >
+                {{ 'platform.extraModule' | translate }}
+              </mat-checkbox>
+              }
+            </div>
             }
           </div>
 
@@ -152,15 +221,12 @@ interface Page<T> {
             <mat-label>{{ 'auth.email' | translate }}</mat-label>
             <input matInput type="email" formControlName="initial_admin_email" required />
           </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'auth.password' | translate }}</mat-label>
-            <input matInput type="password" formControlName="initial_admin_password" required />
-          </mat-form-field>
+          <app-password-fields [group]="initialAdminPasswordGroup" />
           }
 
           <div class="dialog__footer-inline">
             <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
-            <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid">
+            <button mat-flat-button color="primary" type="submit" [disabled]="!canSave()">
               {{ 'common.save' | translate }}
             </button>
           </div>
@@ -193,10 +259,24 @@ interface Page<T> {
         gap: 8px;
       }
       .module-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         margin-bottom: 12px;
+      }
+      .module-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 24px;
+        padding: 4px 0;
+      }
+      .module-row--disabled .extra-flag {
+        display: none;
+      }
+      .extra-flag {
+        margin-left: auto;
+        font-size: 13px;
       }
       .hint {
         font-size: 13px;
@@ -220,22 +300,36 @@ export class PlatformTenantsComponent implements OnInit {
 
   readonly moduleSlugs = ALL_MODULE_SLUGS;
   items = signal<TenantRow[]>([]);
+  currencies = signal<CurrencyOption[]>([]);
   editing = signal(false);
+  editingTenant = signal<TenantRow | null>(null);
   private enabledModules = signal<string[]>([]);
+  private extraModules = signal<string[]>([]);
   private labelControls = new Map<string, FormControl<string>>();
 
   form = this.fb.group({
     id: this.fb.control<number | null>(null),
     customer_code: ['', Validators.required],
     name: ['', Validators.required],
+    max_users: [5, [Validators.required, Validators.min(1)]],
     default_language: this.fb.control<AppLanguage>('tr', Validators.required),
     is_active: [true],
+    billing_period: ['monthly' as 'monthly' | 'yearly'],
+    payment_currency: ['TRY'],
+    yearly_discount_percent: this.fb.control<string | null>(null),
     initial_admin_email: [''],
-    initial_admin_password: [''],
   });
+
+  initialAdminPasswordGroup = this.fb.group(
+    { password: [''], password_confirm: [''] },
+    { validators: passwordMatchValidator('password', 'password_confirm') }
+  );
 
   ngOnInit(): void {
     this.reload();
+    this.http
+      .get<Page<CurrencyOption>>(`${API_BASE}/platform/billing/currencies/?limit=20`)
+      .subscribe((p) => this.currencies.set(p.results));
   }
 
   labelControl(slug: string): FormControl<string> {
@@ -249,12 +343,28 @@ export class PlatformTenantsComponent implements OnInit {
     return this.enabledModules().includes(slug);
   }
 
+  isExtraModule(slug: string): boolean {
+    return this.extraModules().includes(slug);
+  }
+
   toggleModule(slug: string, checked: boolean): void {
     const current = [...this.enabledModules()];
+    const extra = [...this.extraModules()];
     if (checked && !current.includes(slug)) {
       this.enabledModules.set([...current, slug]);
     } else if (!checked) {
       this.enabledModules.set(current.filter((s) => s !== slug));
+      this.extraModules.set(extra.filter((s) => s !== slug));
+    }
+  }
+
+  toggleExtra(slug: string, checked: boolean): void {
+    if (!this.isModuleEnabled(slug)) return;
+    const extra = [...this.extraModules()];
+    if (checked && !extra.includes(slug)) {
+      this.extraModules.set([...extra, slug]);
+    } else if (!checked) {
+      this.extraModules.set(extra.filter((s) => s !== slug));
     }
   }
 
@@ -265,21 +375,52 @@ export class PlatformTenantsComponent implements OnInit {
       .subscribe((p) => this.items.set(p.results));
   }
 
+  canSave(): boolean {
+    if (this.form.invalid) return false;
+    if (!this.form.value.id && this.initialAdminPasswordGroup.invalid) return false;
+    return true;
+  }
+
+  private setInitialAdminPasswordValidators(required: boolean): void {
+    const pw = this.initialAdminPasswordGroup.get('password')!;
+    const confirm = this.initialAdminPasswordGroup.get('password_confirm')!;
+    if (required) {
+      pw.setValidators([Validators.required, passwordPolicyValidator()]);
+      confirm.setValidators([Validators.required]);
+    } else {
+      pw.clearValidators();
+      confirm.clearValidators();
+    }
+    pw.updateValueAndValidity();
+    confirm.updateValueAndValidity();
+    this.initialAdminPasswordGroup.updateValueAndValidity();
+  }
+
   openForm(t?: TenantRow): void {
     this.labelControls.clear();
+    this.editingTenant.set(t ?? null);
+    this.initialAdminPasswordGroup.reset({ password: '', password_confirm: '' });
     if (t) {
       this.form.reset({
         id: t.id,
         customer_code: t.customer_code,
         name: t.name,
+        max_users: t.max_users,
         default_language: t.default_language,
         is_active: t.is_active,
+        billing_period: (t.billing_period as 'monthly' | 'yearly') || 'monthly',
+        payment_currency: t.payment_currency || 'TRY',
+        yearly_discount_percent: t.yearly_discount_percent ?? null,
         initial_admin_email: '',
-        initial_admin_password: '',
       });
       this.form.get('initial_admin_email')?.clearValidators();
-      this.form.get('initial_admin_password')?.clearValidators();
-      this.enabledModules.set([...(t.enabled_modules || [])]);
+      this.setInitialAdminPasswordValidators(false);
+      const subs = t.subscribed_modules ?? t.enabled_modules ?? [];
+      this.enabledModules.set([...subs]);
+      const extra = (t.module_subscriptions ?? [])
+        .filter((s) => s.is_extra)
+        .map((s) => s.module_slug);
+      this.extraModules.set(extra);
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue(t.module_labels?.[slug] || '');
       }
@@ -288,16 +429,18 @@ export class PlatformTenantsComponent implements OnInit {
         id: null,
         customer_code: '',
         name: '',
+        max_users: 5,
         default_language: 'tr',
         is_active: true,
+        billing_period: 'monthly',
+        payment_currency: 'TRY',
+        yearly_discount_percent: null,
         initial_admin_email: '',
-        initial_admin_password: '',
       });
       this.form.get('initial_admin_email')?.setValidators([Validators.required, Validators.email]);
-      this.form
-        .get('initial_admin_password')
-        ?.setValidators([Validators.required, passwordPolicyValidator()]);
+      this.setInitialAdminPasswordValidators(true);
       this.enabledModules.set([...ALL_MODULE_SLUGS]);
+      this.extraModules.set([]);
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue('');
       }
@@ -308,6 +451,7 @@ export class PlatformTenantsComponent implements OnInit {
 
   cancel(): void {
     this.editing.set(false);
+    this.editingTenant.set(null);
   }
 
   private buildModuleLabels(): Record<string, string> {
@@ -320,19 +464,25 @@ export class PlatformTenantsComponent implements OnInit {
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (!this.canSave()) return;
     const v = this.form.getRawValue();
     const payload: Record<string, unknown> = {
       customer_code: v.customer_code,
       name: v.name,
+      max_users: v.max_users,
       default_language: v.default_language,
       is_active: v.is_active,
-      enabled_modules: this.enabledModules(),
+      subscribed_modules: this.enabledModules(),
+      extra_modules: this.extraModules(),
       module_labels: this.buildModuleLabels(),
+      billing_period: v.billing_period,
+      payment_currency: v.payment_currency,
+      yearly_discount_percent: v.yearly_discount_percent || null,
     };
     if (!v.id) {
+      const pw = this.initialAdminPasswordGroup.getRawValue();
       payload['initial_admin_email'] = v.initial_admin_email;
-      payload['initial_admin_password'] = v.initial_admin_password;
+      payload['initial_admin_password'] = pw.password;
     }
     const req = v.id
       ? this.http.patch<TenantRow>(`${API_BASE}/platform/tenants/${v.id}/`, payload)
@@ -340,6 +490,7 @@ export class PlatformTenantsComponent implements OnInit {
     req.subscribe({
       next: () => {
         this.editing.set(false);
+        this.editingTenant.set(null);
         this.reload();
         this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
       },

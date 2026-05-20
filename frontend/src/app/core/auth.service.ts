@@ -23,6 +23,12 @@ export interface MeUser {
   department: { id: number; key: string; name: string } | null;
 }
 
+export interface TenantSubscription {
+  max_users: number;
+  active_users: number;
+  subscribed_modules: string[];
+}
+
 export interface LoginResponse {
   access: string;
   refresh: string;
@@ -31,6 +37,7 @@ export interface LoginResponse {
   enabled_modules: string[];
   default_language?: AppLanguage;
   module_labels?: Record<string, string>;
+  subscription?: TenantSubscription;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -47,7 +54,22 @@ export class AuthService {
     enabled_modules: string[];
     default_language?: AppLanguage;
     module_labels?: Record<string, string>;
+    subscription?: TenantSubscription;
   } | null>(this.readMe());
+
+  readonly subscription = computed(() => this.me()?.subscription ?? null);
+
+  canAddUser(): boolean {
+    const sub = this.subscription();
+    if (!sub) return true;
+    return sub.active_users < sub.max_users;
+  }
+
+  userUsageLabel(): string {
+    const sub = this.subscription();
+    if (!sub) return '';
+    return `${sub.active_users}/${sub.max_users}`;
+  }
 
   readonly claims = computed<JwtClaims | null>(() => decodeJwt(this.access()));
   readonly isAuthenticated = computed(() => {
@@ -79,6 +101,7 @@ export class AuthService {
     permissions: string[];
     enabled_modules: string[];
     module_labels?: Record<string, string>;
+    subscription?: TenantSubscription;
   }> {
     return this.loadMe();
   }
@@ -89,6 +112,7 @@ export class AuthService {
     enabled_modules: string[];
     default_language?: AppLanguage;
     module_labels?: Record<string, string>;
+    subscription?: TenantSubscription;
   }> {
     return this.http
       .get<{
@@ -97,6 +121,7 @@ export class AuthService {
         enabled_modules: string[];
         default_language?: AppLanguage;
         module_labels?: Record<string, string>;
+        subscription?: TenantSubscription;
       }>(`${API_BASE}/auth/me/`)
       .pipe(
         tap((res) => {
@@ -162,6 +187,7 @@ export class AuthService {
         enabled_modules: res.enabled_modules,
         default_language: res.default_language,
         module_labels: res.module_labels ?? {},
+        subscription: res.subscription,
       })
     );
     this.access.set(res.access);
@@ -172,6 +198,7 @@ export class AuthService {
       enabled_modules: res.enabled_modules,
       default_language: res.default_language,
       module_labels: res.module_labels ?? {},
+      subscription: res.subscription,
     });
     this.language.initFromTenant(
       res.default_language || res.user.tenant_default_language

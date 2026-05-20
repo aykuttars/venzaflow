@@ -40,6 +40,7 @@ urlpatterns = [
     path("v1/", include(router.urls)),
     path("v1/platform/", include(platform_router.urls)),
     path("v1/platform/", include("apps.accounts.urls_platform")),
+    path("v1/platform/", include("apps.platform_billing.urls")),
     path("v1/", include("apps.accounts.urls_api")),
     path("v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("v1/audit/", ActivityLogView.as_view(), name="audit-activity"),

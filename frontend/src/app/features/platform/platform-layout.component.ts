@@ -35,6 +35,10 @@ import { PlatformAuthService } from '../../core/platform-auth.service';
             <mat-icon matListItemIcon>business</mat-icon>
             <span matListItemTitle>{{ 'platform.tenants' | translate }}</span>
           </a>
+          <a mat-list-item routerLink="/admin/billing" routerLinkActive="active">
+            <mat-icon matListItemIcon>payments</mat-icon>
+            <span matListItemTitle>{{ 'platform.billing.title' | translate }}</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
       <mat-sidenav-content>

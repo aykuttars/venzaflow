@@ -6,12 +6,12 @@
 name: tenancysoft
 
 services:
-  backend:
-    image: tenancysoft-api:${TAG:-latest}
+  api:
+    image: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: tenancysoft-api
+    container_name: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -29,37 +29,67 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  worker:
-    image: tenancysoft-worker:${TAG:-latest}
+  celery:
+    image: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: tenancysoft-worker
+    container_name: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       SKIP_MIGRATE: "true"
-    command: ["celery", "-A", "config", "worker", "-l", "info"]
+    entrypoint: []
+    command: >
+      sh -c "ENV=$${ENVIRONMENT:-prod} && ENV=$$(echo $$ENV | tr '[:upper:]' '[:lower:]') &&
+      celery -A config worker -l info --queues=$${ENV}_default,$${ENV}_billing"
     volumes:
       - backend_media:/app/media
     depends_on:
-      backend:
+      api:
         condition: service_healthy
     restart: unless-stopped
 
-  frontend:
-    image: tenancysoft-web:${TAG:-latest}
+  celery-beat:
+    image: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
+    env_file:
+      - ../.env
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
+      SKIP_MIGRATE: "true"
+    entrypoint: []
+    command:
+      [
+        "celery",
+        "-A",
+        "config",
+        "beat",
+        "-l",
+        "info",
+        "--scheduler=django_celery_beat.schedulers:DatabaseScheduler",
+      ]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../frontend
       dockerfile: Dockerfile
-    container_name: tenancysoft-web
+    container_name: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     ports:
       - "${FRONTEND_PORT:-8081}:80"
     depends_on:
-      - backend
+      - api
     restart: unless-stopped
 
   # --- Optional local infra (`--profile local-infra`) ---

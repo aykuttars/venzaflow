@@ -26,7 +26,8 @@ backend/
 
 - ASGI app exposed at `config.asgi:application`.
 - Served by **uvicorn** (`backend/run_uvicorn.py` loads `uvicorn.conf.py` which is copied from `uvicorn_prod.conf.py` or `uvicorn_dev.conf.py` based on `ENVIRONMENT`). Multi-worker in prod, single-worker autoreload in dev.
-- Celery worker uses RabbitMQ (broker) + Redis (result backend), URLs computed in `config/settings/base.py` from `RABBITMQ_*` / `REDIS_*` env vars.
+- Celery (3 processes, famlotto-style): **api** (HTTP), **celery** (worker), **celery-beat** (scheduler). Broker: RabbitMQ (`RABBITMQ_*`). Results + beat schedules: Postgres via **django-celery-results** / **django-celery-beat**. Queue prefix from `ENVIRONMENT` (`prod_default`, `prod_billing`; `platform_billing.*` routes to `${ENV}_billing`). Periodic tasks in Django admin; `seed_demo` registers hourly TCMB on the billing queue.
+- WebSocket: **Django Channels** wired into the same uvicorn ASGI app. `config/routing.py` holds `websocket_urlpatterns` (empty for now). Redis-backed channel layer via `REDIS_*` env vars; ready for real-time features (invoice notifications, dashboard pushes) without further infra changes.
 
 ## Layers
 

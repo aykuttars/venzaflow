@@ -30,6 +30,38 @@ class Tenant(models.Model):
         blank=True,
         help_text='Display names keyed by module slug, e.g. {"customers": "Hastalar"}.',
     )
+    max_users = models.PositiveIntegerField(
+        default=5,
+        help_text="Maximum active staff users allowed for this tenant.",
+    )
+
+    class BillingPeriod(models.TextChoices):
+        MONTHLY = "monthly", "Monthly"
+        YEARLY = "yearly", "Yearly"
+
+    billing_period = models.CharField(
+        max_length=16,
+        choices=BillingPeriod.choices,
+        default=BillingPeriod.MONTHLY,
+    )
+    payment_currency = models.ForeignKey(
+        "platform_billing.Currency",
+        on_delete=models.PROTECT,
+        related_name="tenants",
+        null=True,
+        blank=True,
+    )
+    yearly_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Override platform default yearly discount; null uses global setting.",
+    )
+    billing_anchor_day = models.PositiveSmallIntegerField(
+        default=1,
+        help_text="Day of month (1-28) for billing period anchor.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -39,6 +71,57 @@ class Tenant(models.Model):
 
     def __str__(self) -> str:
         return f"{self.customer_code} — {self.name}"
+
+    def active_user_count(self) -> int:
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        return User.all_tenants.filter(tenant_id=self.pk, is_active=True).count()
+
+    def can_add_user(self) -> bool:
+        return self.active_user_count() < self.max_users
+
+    def sync_enabled_modules_from_subscriptions(self) -> None:
+        slugs = list(
+            self.module_subscriptions.filter(is_active=True)
+            .order_by("module_slug")
+            .values_list("module_slug", flat=True)
+        )
+        self.enabled_modules = slugs
+        self.save(update_fields=["enabled_modules", "updated_at"])
+
+    def subscription_payload(self) -> dict:
+        return {
+            "max_users": self.max_users,
+            "active_users": self.active_user_count(),
+            "subscribed_modules": list(self.enabled_modules or []),
+        }
+
+
+class TenantModuleSubscription(models.Model):
+    """Per-tenant module entitlement (subscription row for future billing)."""
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="module_subscriptions",
+    )
+    module_slug = models.CharField(max_length=64)
+    is_active = models.BooleanField(default=True)
+    is_extra = models.BooleanField(
+        default=False,
+        help_text="Granted beyond the base package by platform admin.",
+    )
+    activated_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "tenant_module_subscription"
+        unique_together = [("tenant", "module_slug")]
+        ordering = ["tenant_id", "module_slug"]
+
+    def __str__(self) -> str:
+        return f"{self.tenant.customer_code}:{self.module_slug}"
 
 
 class TenantScopedManager(models.Manager):

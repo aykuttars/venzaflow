@@ -6,7 +6,7 @@ All endpoints are prefixed with `/api/v1/` and require `Authorization: Bearer <a
 
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
-| POST | `/auth/login/` | `{ customer_code, email, password }` | Tenant code + email (no separate username). Returns `access`, `refresh`, `user`, `permissions`, `enabled_modules`, `default_language`. |
+| POST | `/auth/login/` | `{ customer_code, email, password }` | Returns `access`, `refresh`, `user`, `permissions`, `enabled_modules`, `default_language`, `subscription` (`max_users`, `active_users`, `subscribed_modules`). |
 | POST | `/auth/refresh/` | `{ refresh }` | Returns a fresh `access` with tenant claims re-applied. |
 | POST | `/auth/logout/` | `{ refresh }` | Blacklists the refresh token. |
 | GET | `/auth/me/` |  | Current user + permissions + enabled modules. |
@@ -21,10 +21,19 @@ Requires a platform JWT (`is_platform` claim). Sign in at UI `/admin/login`.
 | POST | `/platform/auth/refresh/` | `{ refresh }` | Refresh platform access token. |
 | POST | `/platform/auth/logout/` | `{ refresh }` | Blacklist refresh token. |
 | GET | `/platform/auth/me/` |  | Platform user profile. |
-| GET/POST | `/platform/tenants/` | create: `customer_code`, `name`, `default_language`, `is_active`, `enabled_modules`, `module_labels`, `initial_admin_email`, `initial_admin_password` | Tenant CRUD; create provisions admin department + user. |
-| GET/PATCH/DELETE | `/platform/tenants/{id}/` |  | Update modules, labels, active flag. |
+| GET/POST | `/platform/tenants/` | create: `customer_code`, `name`, `max_users` (default 5), `default_language`, `is_active`, `subscribed_modules`, `extra_modules`, `module_labels`, `initial_admin_email`, `initial_admin_password` | Tenant CRUD; module subscriptions + user limit. |
+| GET/PATCH/DELETE | `/platform/tenants/{id}/` |  | Update `max_users`, subscriptions, labels, `billing_period`, `payment_currency`, `yearly_discount_percent`. Response includes `active_user_count`. |
+| GET/POST | `/platform/tenants/{id}/subscription-invoices/` | POST: optional `period_start`, `period_end`, `issue` | Generate/list tenant subscription invoices. |
+| GET | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/` |  | Invoice detail + lines + tax summary. |
+| POST | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/mark-paid/` | `{ method?, reference? }` | Mark invoice paid. |
+| GET | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/pdf/` |  | PDF download (e-arşiv-style). |
+| GET/POST/PATCH | `/platform/billing/currencies/` |  | TRY, EUR, GBP, USD. |
+| GET | `/platform/billing/exchange-rates/latest/` |  | Latest rate per active currency. |
+| POST | `/platform/billing/exchange-rates/manual/` | `{ currency_code, rate_to_try }` | Manual rate override (e.g. USD). |
+| CRUD | `/platform/billing/tax-types/`, `/tax-rates/`, `/module-prices/` |  | Master data. |
+| GET/PATCH | `/platform/billing/settings/` |  | Yearly discount %, invoice prefix, company info. |
 
-See [super-admin.md](super-admin.md).
+See [super-admin.md](super-admin.md), [subscriptions.md](subscriptions.md), and [platform-billing.md](platform-billing.md).
 
 ## Core CRUD endpoints
 

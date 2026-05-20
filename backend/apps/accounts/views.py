@@ -33,6 +33,7 @@ class LoginView(APIView):
                 "enabled_modules": user.tenant.enabled_modules or [],
                 "default_language": user.tenant.default_language,
                 "module_labels": user.tenant.module_labels or {},
+                "subscription": user.tenant.subscription_payload(),
             }
         )
 
@@ -64,6 +65,7 @@ class MeView(APIView):
                 "enabled_modules": user.tenant.enabled_modules or [],
                 "default_language": user.tenant.default_language,
                 "module_labels": user.tenant.module_labels or {},
+                "subscription": user.tenant.subscription_payload(),
             }
         )
 

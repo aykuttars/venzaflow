@@ -14,6 +14,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
@@ -57,13 +58,23 @@ interface StaffUser {
     MatSelectModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    MatTooltipModule,
     TranslateModule,
     PageHeaderComponent,
     PasswordFieldsComponent,
     PermissionPickerComponent,
   ],
   templateUrl: './employees.component.html',
-  styles: [CRUD_DIALOG_STYLES],
+  styles: [
+    CRUD_DIALOG_STYLES,
+    `
+      .user-limit-badge {
+        margin-right: 12px;
+        font-size: 14px;
+        opacity: 0.85;
+      }
+    `,
+  ],
 })
 export class EmployeesComponent implements OnInit {
   private http = inject(HttpClient);
@@ -97,6 +108,9 @@ export class EmployeesComponent implements OnInit {
   ngOnInit(): void {
     this.deptCrud.list({ limit: 100 }).subscribe((p) => this.departments.set(p.results));
     this.reload();
+    if (!this.auth.subscription()) {
+      this.auth.loadMe().subscribe({ error: () => undefined });
+    }
   }
 
   canWrite(): boolean {
@@ -178,6 +192,7 @@ export class EmployeesComponent implements OnInit {
       next: () => {
         this.editing.set(false);
         this.reload();
+        this.auth.loadMe().subscribe({ error: () => undefined });
         this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
       },
       error: (e) =>
@@ -194,6 +209,7 @@ export class EmployeesComponent implements OnInit {
     this.staffCrud.remove(u.id).subscribe({
       next: () => {
         this.reload();
+        this.auth.loadMe().subscribe({ error: () => undefined });
         this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
       },
       error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),

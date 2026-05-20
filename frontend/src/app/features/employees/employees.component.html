@@ -1,7 +1,16 @@
 <div class="page">
   <app-page-header moduleSlug="employees" icon="badge">
+    @if (auth.subscription(); as sub) {
+    <span class="user-limit-badge">{{ 'employees.userLimit' | translate }}: {{ sub.active_users }}/{{ sub.max_users }}</span>
+    }
     @if (canWrite()) {
-    <button mat-flat-button color="primary" (click)="openForm()">
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="openForm()"
+      [disabled]="!auth.canAddUser()"
+      [matTooltip]="!auth.canAddUser() ? ('employees.userLimitReached' | translate) : ''"
+    >
       <mat-icon>person_add</mat-icon> {{ 'employees.new' | translate }}
     </button>
     }

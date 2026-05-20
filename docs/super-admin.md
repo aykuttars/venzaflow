@@ -23,7 +23,7 @@ DJANGO_SETTINGS_MODULE=config.settings.dev python manage.py create_platform_admi
   --password 'YourSecurePass1!'
 ```
 
-Or run demo seed (includes `admin@platform.local` with the same password as demo tenant users):
+Or run demo seed (includes `aykutt.ars@gmail.com` with the same password as demo tenant users):
 
 ```bash
 python manage.py seed_demo

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ invoice.number }}</title>
+  <style>
+    body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #222; margin: 24px; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .muted { color: #666; font-size: 10px; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .box { width: 48%; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+    th { background: #f4f4f4; }
+    td.num, th.num { text-align: right; }
+    .totals { margin-top: 16px; width: 100%; }
+    .totals td { border: none; padding: 4px 8px; }
+    .totals .label { text-align: right; font-weight: bold; width: 70%; }
+    .totals .value { text-align: right; width: 30%; }
+    .tax-table { margin-top: 20px; }
+    .status { font-weight: bold; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <div class="box">
+      <h1>{{ settings.company_name }}</h1>
+      {% if settings.company_tax_id %}<div class="muted">VKN: {{ settings.company_tax_id }}</div>{% endif %}
+      {% if settings.company_address %}<div class="muted">{{ settings.company_address|linebreaksbr }}</div>{% endif %}
+    </div>
+    <div class="box" style="text-align:right">
+      <h1>Abonelik Faturası</h1>
+      <div><strong>No:</strong> {{ invoice.number }}</div>
+      <div><strong>Tarih:</strong> {{ invoice.issued_at|date:"d.m.Y H:i"|default:invoice.created_at|date:"d.m.Y" }}</div>
+      <div class="status">{{ invoice.get_status_display }}</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="box">
+      <strong>Müşteri (Kiracı)</strong><br/>
+      {{ tenant.name }}<br/>
+      <span class="muted">Kod: {{ tenant.customer_code }}</span>
+    </div>
+    <div class="box" style="text-align:right">
+      <strong>Dönem</strong><br/>
+      {{ invoice.period_start|date:"d.m.Y" }} — {{ invoice.period_end|date:"d.m.Y" }}<br/>
+      <span class="muted">{{ invoice.get_billing_period_display }} / {{ invoice.currency_id }}</span><br/>
+      <span class="muted">Kur (1 {{ invoice.currency_id }} = {{ invoice.fx_rate_to_try }} TRY)</span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Açıklama</th>
+        <th class="num">Kullanıcı</th>
+        <th class="num">Ay</th>
+        <th class="num">Birim Fiyat</th>
+        <th class="num">Tutar (KDV hariç)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td>{{ line.description }}</td>
+        <td class="num">{{ line.user_count }}</td>
+        <td class="num">{{ line.months }}</td>
+        <td class="num">{{ line.unit_price }} {{ invoice.currency_id }}</td>
+        <td class="num">{{ line.amount_excl_tax }} {{ invoice.currency_id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr>
+      <td class="label">Ara toplam (KDV hariç)</td>
+      <td class="value">{{ invoice.subtotal_excl_tax }} {{ invoice.currency_id }}</td>
+    </tr>
+  </table>
+
+  <table class="tax-table">
+    <thead>
+      <tr>
+        <th>Vergi türü</th>
+        <th class="num">Oran %</th>
+        <th class="num">Matrah</th>
+        <th class="num">Vergi tutarı</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tax in invoice.tax_lines %}
+      <tr>
+        <td>{{ tax.tax_type_name }} ({{ tax.tax_type_code }})</td>
+        <td class="num">{{ tax.rate_percent }}</td>
+        <td class="num">{{ tax.base_amount }} {{ invoice.currency_id }}</td>
+        <td class="num">{{ tax.tax_amount }} {{ invoice.currency_id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr>
+      <td class="label">Genel toplam (KDV dahil)</td>
+      <td class="value"><strong>{{ invoice.total_incl_tax }} {{ invoice.currency_id }}</strong></td>
+    </tr>
+  </table>
+
+  {% if invoice.notes %}
+  <p class="muted" style="margin-top:24px"><strong>Not:</strong> {{ invoice.notes }}</p>
+  {% endif %}
+</body>
+</html>
