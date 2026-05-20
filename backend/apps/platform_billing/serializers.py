@@ -84,6 +84,7 @@ class PlatformBillingSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlatformBillingSettings
         fields = (
+            "default_monthly_discount_percent",
             "yearly_discount_percent",
             "invoice_prefix",
             "default_payment_terms_days",
@@ -101,14 +102,16 @@ class TenantSubscriptionInvoiceLineSerializer(serializers.ModelSerializer):
             "module_slug",
             "description",
             "user_count",
+            "unit_price_list",
+            "discount_percent",
             "unit_price",
             "months",
+            "line_total_before_discount",
             "amount_excl_tax",
         )
 
 
 class TenantSubscriptionInvoiceSerializer(serializers.ModelSerializer):
-    lines = TenantSubscriptionInvoiceLineSerializer(many=True, read_only=True)
     currency_code = serializers.CharField(source="currency_id", read_only=True)
     tenant_name = serializers.CharField(source="tenant.name", read_only=True)
     tenant_code = serializers.CharField(source="tenant.customer_code", read_only=True)
@@ -127,6 +130,9 @@ class TenantSubscriptionInvoiceSerializer(serializers.ModelSerializer):
             "billing_period",
             "currency_code",
             "fx_rate_to_try",
+            "subtotal_before_discount",
+            "discount_percent",
+            "discount_amount",
             "subtotal_excl_tax",
             "tax_lines",
             "total_incl_tax",
@@ -135,13 +141,38 @@ class TenantSubscriptionInvoiceSerializer(serializers.ModelSerializer):
             "paid_at",
             "notes",
             "is_paid",
-            "lines",
             "created_at",
         )
         read_only_fields = fields
 
     def get_is_paid(self, obj: TenantSubscriptionInvoice) -> bool:
         return obj.status == TenantSubscriptionInvoice.Status.PAID
+
+
+class TenantSubscriptionInvoiceListSerializer(TenantSubscriptionInvoiceSerializer):
+    """List view: header fields only (lines loaded on retrieve)."""
+
+    class Meta(TenantSubscriptionInvoiceSerializer.Meta):
+        fields = TenantSubscriptionInvoiceSerializer.Meta.fields
+
+
+class TenantSubscriptionInvoiceDetailSerializer(TenantSubscriptionInvoiceSerializer):
+    """Detail view: always load line items from DB."""
+
+    lines = serializers.SerializerMethodField()
+
+    class Meta(TenantSubscriptionInvoiceSerializer.Meta):
+        fields = TenantSubscriptionInvoiceSerializer.Meta.fields + ("lines",)
+
+    def get_lines(self, obj: TenantSubscriptionInvoice) -> list[dict]:
+        if hasattr(obj, "_prefetched_objects_cache") and "lines" in obj._prefetched_objects_cache:
+            queryset = obj.lines.all()
+        else:
+            queryset = TenantSubscriptionInvoiceLine.objects.filter(invoice_id=obj.pk)
+        return TenantSubscriptionInvoiceLineSerializer(
+            queryset.order_by("id"),
+            many=True,
+        ).data
 
 
 class GenerateInvoiceSerializer(serializers.Serializer):

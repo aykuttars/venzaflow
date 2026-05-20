@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
@@ -10,7 +12,7 @@ from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
 from apps.platform_billing.models import Currency
 from apps.tenants.models import Tenant
 from apps.tenants.serializers import TenantProfileSerializer
-from apps.tenants.subscription_service import set_module_subscriptions
+from apps.tenants.subscription_service import apply_module_prices, set_module_subscriptions
 
 User = get_user_model()
 
@@ -31,6 +33,12 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         help_text="Module slugs marked as extra (beyond base package).",
     )
     module_subscriptions = serializers.SerializerMethodField(read_only=True)
+    module_prices = serializers.DictField(
+        child=serializers.CharField(allow_null=True),
+        required=False,
+        write_only=True,
+        help_text='Per-module TRY/user/month override, e.g. {"products": "120.00", "billing": null}',
+    )
     payment_currency = serializers.SlugRelatedField(
         slug_field="code",
         queryset=Currency.objects.filter(is_active=True),
@@ -48,8 +56,10 @@ class PlatformTenantSerializer(TenantProfileSerializer):
             "module_subscriptions",
             "billing_period",
             "payment_currency",
+            "monthly_discount_percent",
             "yearly_discount_percent",
             "billing_anchor_day",
+            "module_prices",
             "initial_admin_email",
             "initial_admin_password",
         )
@@ -60,6 +70,9 @@ class PlatformTenantSerializer(TenantProfileSerializer):
                 "module_slug": s.module_slug,
                 "is_active": s.is_active,
                 "is_extra": s.is_extra,
+                "price_per_user_monthly": (
+                    str(s.price_per_user_monthly) if s.price_per_user_monthly is not None else None
+                ),
                 "activated_at": s.activated_at,
                 "expires_at": s.expires_at,
             }
@@ -78,10 +91,39 @@ class PlatformTenantSerializer(TenantProfileSerializer):
             raise serializers.ValidationError("Customer code is required.")
         return code
 
-    def validate_yearly_discount_percent(self, value):
+    def validate_discount_percent(self, value):
         if value is not None and (value < 0 or value > 100):
             raise serializers.ValidationError("Must be between 0 and 100.")
         return value
+
+    def validate_monthly_discount_percent(self, value):
+        return self.validate_discount_percent(value)
+
+    def validate_yearly_discount_percent(self, value):
+        return self.validate_discount_percent(value)
+
+    def validate_module_prices(self, value):
+        if not value:
+            return {}
+        parsed: dict[str, Decimal | None] = {}
+        for slug, raw in value.items():
+            if raw is None or raw == "":
+                parsed[slug] = None
+                continue
+            try:
+                parsed[slug] = Decimal(str(raw))
+            except (InvalidOperation, ValueError) as exc:
+                raise serializers.ValidationError(
+                    {slug: "Invalid decimal price."}
+                ) from exc
+            if parsed[slug] is not None and parsed[slug] < 0:
+                raise serializers.ValidationError({slug: "Price must be non-negative."})
+        invalid = [s for s in parsed if s not in ALL_MODULES]
+        if invalid:
+            raise serializers.ValidationError(
+                f"Unknown modules: {', '.join(invalid)}"
+            )
+        return parsed
 
     def validate_billing_anchor_day(self, value):
         if value is not None and (value < 1 or value > 28):
@@ -166,13 +208,16 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         admin_password = validated_data.pop("initial_admin_password")
         subscribed = validated_data.pop("subscribed_modules", None)
         extra = set(validated_data.pop("extra_modules", []) or [])
+        module_prices = validated_data.pop("module_prices", None)
         validated_data.pop("enabled_modules", None)
         validated_data.setdefault("max_users", 5)
         validated_data.setdefault("billing_period", Tenant.BillingPeriod.MONTHLY)
 
         tenant = Tenant.objects.create(**validated_data)
         modules = subscribed if subscribed is not None else list(ALL_MODULES)
-        set_module_subscriptions(tenant, modules, extra_modules=extra)
+        set_module_subscriptions(
+            tenant, modules, extra_modules=extra, module_prices=module_prices
+        )
 
         all_perms = list(Permission.objects.all())
         if not all_perms:
@@ -207,10 +252,14 @@ class PlatformTenantSerializer(TenantProfileSerializer):
             setattr(instance, attr, value)
         instance.save()
 
+        module_prices = validated_data.pop("module_prices", None)
         if subscribed is not None:
             set_module_subscriptions(
                 instance,
                 subscribed,
                 extra_modules=set(extra or []),
+                module_prices=module_prices,
             )
+        elif module_prices:
+            apply_module_prices(instance, module_prices)
         return instance

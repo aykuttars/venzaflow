@@ -32,6 +32,12 @@ interface ModuleSubscriptionRow {
   module_slug: string;
   is_active: boolean;
   is_extra: boolean;
+  price_per_user_monthly?: string | null;
+}
+
+interface GlobalModulePrice {
+  module_slug: string;
+  price_per_user_monthly: string;
 }
 
 interface TenantRow {
@@ -48,6 +54,7 @@ interface TenantRow {
   module_subscriptions?: ModuleSubscriptionRow[];
   billing_period?: string;
   payment_currency?: string;
+  monthly_discount_percent?: string | null;
   yearly_discount_percent?: string | null;
   created_at?: string;
 }
@@ -177,6 +184,10 @@ interface Page<T> {
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline">
+            <mat-label>{{ 'platform.monthlyDiscount' | translate }}</mat-label>
+            <input matInput type="number" min="0" max="100" formControlName="monthly_discount_percent" />
+          </mat-form-field>
+          <mat-form-field appearance="outline">
             <mat-label>{{ 'platform.yearlyDiscount' | translate }}</mat-label>
             <input matInput type="number" min="0" max="100" formControlName="yearly_discount_percent" />
           </mat-form-field>
@@ -199,6 +210,17 @@ interface Page<T> {
               >
                 {{ 'platform.extraModule' | translate }}
               </mat-checkbox>
+              <mat-form-field appearance="outline" class="module-price-field" subscriptSizing="dynamic">
+                <mat-label>{{ 'platform.modulePriceOverride' | translate }}</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  [formControl]="modulePriceControl(slug)"
+                  [placeholder]="globalPricePlaceholder(slug)"
+                />
+              </mat-form-field>
               }
             </div>
             }
@@ -275,8 +297,12 @@ interface Page<T> {
         display: none;
       }
       .extra-flag {
-        margin-left: auto;
         font-size: 13px;
+      }
+      .module-price-field {
+        flex: 1;
+        min-width: 140px;
+        max-width: 220px;
       }
       .hint {
         font-size: 13px;
@@ -301,11 +327,13 @@ export class PlatformTenantsComponent implements OnInit {
   readonly moduleSlugs = ALL_MODULE_SLUGS;
   items = signal<TenantRow[]>([]);
   currencies = signal<CurrencyOption[]>([]);
+  globalModulePrices = signal<Record<string, string>>({});
   editing = signal(false);
   editingTenant = signal<TenantRow | null>(null);
   private enabledModules = signal<string[]>([]);
   private extraModules = signal<string[]>([]);
   private labelControls = new Map<string, FormControl<string>>();
+  private modulePriceControls = new Map<string, FormControl<string>>();
 
   form = this.fb.group({
     id: this.fb.control<number | null>(null),
@@ -316,6 +344,7 @@ export class PlatformTenantsComponent implements OnInit {
     is_active: [true],
     billing_period: ['monthly' as 'monthly' | 'yearly'],
     payment_currency: ['TRY'],
+    monthly_discount_percent: this.fb.control<string | null>(null),
     yearly_discount_percent: this.fb.control<string | null>(null),
     initial_admin_email: [''],
   });
@@ -330,6 +359,27 @@ export class PlatformTenantsComponent implements OnInit {
     this.http
       .get<Page<CurrencyOption>>(`${API_BASE}/platform/billing/currencies/?limit=20`)
       .subscribe((p) => this.currencies.set(p.results));
+    this.http
+      .get<Page<GlobalModulePrice>>(`${API_BASE}/platform/billing/module-prices/?limit=100`)
+      .subscribe((p) => {
+        const map: Record<string, string> = {};
+        for (const row of p.results) {
+          map[row.module_slug] = row.price_per_user_monthly;
+        }
+        this.globalModulePrices.set(map);
+      });
+  }
+
+  modulePriceControl(slug: string): FormControl<string> {
+    if (!this.modulePriceControls.has(slug)) {
+      this.modulePriceControls.set(slug, this.fb.nonNullable.control(''));
+    }
+    return this.modulePriceControls.get(slug)!;
+  }
+
+  globalPricePlaceholder(slug: string): string {
+    const g = this.globalModulePrices()[slug];
+    return g ? `${g} TRY` : '';
   }
 
   labelControl(slug: string): FormControl<string> {
@@ -398,6 +448,7 @@ export class PlatformTenantsComponent implements OnInit {
 
   openForm(t?: TenantRow): void {
     this.labelControls.clear();
+    this.modulePriceControls.clear();
     this.editingTenant.set(t ?? null);
     this.initialAdminPasswordGroup.reset({ password: '', password_confirm: '' });
     if (t) {
@@ -410,6 +461,7 @@ export class PlatformTenantsComponent implements OnInit {
         is_active: t.is_active,
         billing_period: (t.billing_period as 'monthly' | 'yearly') || 'monthly',
         payment_currency: t.payment_currency || 'TRY',
+        monthly_discount_percent: t.monthly_discount_percent ?? null,
         yearly_discount_percent: t.yearly_discount_percent ?? null,
         initial_admin_email: '',
       });
@@ -421,8 +473,13 @@ export class PlatformTenantsComponent implements OnInit {
         .filter((s) => s.is_extra)
         .map((s) => s.module_slug);
       this.extraModules.set(extra);
+      const priceBySlug = new Map(
+        (t.module_subscriptions ?? []).map((s) => [s.module_slug, s.price_per_user_monthly])
+      );
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue(t.module_labels?.[slug] || '');
+        const override = priceBySlug.get(slug);
+        this.modulePriceControl(slug).setValue(override ?? '');
       }
     } else {
       this.form.reset({
@@ -434,6 +491,7 @@ export class PlatformTenantsComponent implements OnInit {
         is_active: true,
         billing_period: 'monthly',
         payment_currency: 'TRY',
+        monthly_discount_percent: null,
         yearly_discount_percent: null,
         initial_admin_email: '',
       });
@@ -443,6 +501,7 @@ export class PlatformTenantsComponent implements OnInit {
       this.extraModules.set([]);
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue('');
+        this.modulePriceControl(slug).setValue('');
       }
     }
     this.form.updateValueAndValidity();
@@ -452,6 +511,15 @@ export class PlatformTenantsComponent implements OnInit {
   cancel(): void {
     this.editing.set(false);
     this.editingTenant.set(null);
+  }
+
+  private buildModulePrices(): Record<string, string | null> {
+    const prices: Record<string, string | null> = {};
+    for (const slug of this.enabledModules()) {
+      const v = this.modulePriceControl(slug).value?.trim();
+      prices[slug] = v ? v : null;
+    }
+    return prices;
   }
 
   private buildModuleLabels(): Record<string, string> {
@@ -477,7 +545,9 @@ export class PlatformTenantsComponent implements OnInit {
       module_labels: this.buildModuleLabels(),
       billing_period: v.billing_period,
       payment_currency: v.payment_currency,
+      monthly_discount_percent: v.monthly_discount_percent || null,
       yearly_discount_percent: v.yearly_discount_percent || null,
+      module_prices: this.buildModulePrices(),
     };
     if (!v.id) {
       const pw = this.initialAdminPasswordGroup.getRawValue();

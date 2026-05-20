@@ -27,11 +27,15 @@ from apps.platform_billing.serializers import (
     PlatformBillingSettingsSerializer,
     TaxRateSerializer,
     TaxTypeSerializer,
+    TenantSubscriptionInvoiceDetailSerializer,
+    TenantSubscriptionInvoiceListSerializer,
     TenantSubscriptionInvoiceSerializer,
 )
 from apps.platform_billing.services.fx_service import get_latest_rate, save_manual_rate
 from apps.platform_billing.services.invoice_service import (
+    can_generate_subscription_invoice,
     generate_subscription_invoice,
+    invoice_generation_status,
     mark_invoice_paid,
 )
 from apps.platform_billing.services.pdf_service import render_invoice_pdf
@@ -108,6 +112,13 @@ class TenantSubscriptionInvoiceViewSet(
 ):
     serializer_class = TenantSubscriptionInvoiceSerializer
 
+    def get_serializer_class(self):
+        if self.action in ("retrieve", "create", "mark_paid"):
+            return TenantSubscriptionInvoiceDetailSerializer
+        if self.action == "list":
+            return TenantSubscriptionInvoiceListSerializer
+        return TenantSubscriptionInvoiceSerializer
+
     def get_tenant(self) -> Tenant:
         return get_object_or_404(Tenant, pk=self.kwargs["tenant_pk"])
 
@@ -119,10 +130,24 @@ class TenantSubscriptionInvoiceViewSet(
             .order_by("-period_end", "-number")
         )
 
+    @action(detail=False, methods=["get"], url_path="can-generate")
+    def can_generate(self, request, tenant_pk=None):
+        tenant = self.get_tenant()
+        return Response(invoice_generation_status(tenant))
+
     def create(self, request, *args, **kwargs):
         ser = GenerateInvoiceSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         tenant = self.get_tenant()
+        if not can_generate_subscription_invoice(tenant):
+            status_data = invoice_generation_status(tenant)
+            return Response(
+                {
+                    "detail": "An invoice already exists for the current billing period.",
+                    **status_data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             invoice = generate_subscription_invoice(
                 tenant,
@@ -132,8 +157,9 @@ class TenantSubscriptionInvoiceViewSet(
             )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        invoice = self.get_queryset().get(pk=invoice.pk)
         return Response(
-            TenantSubscriptionInvoiceSerializer(invoice).data,
+            TenantSubscriptionInvoiceDetailSerializer(invoice).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -150,7 +176,8 @@ class TenantSubscriptionInvoiceViewSet(
             )
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(TenantSubscriptionInvoiceSerializer(invoice).data)
+        invoice = self.get_queryset().get(pk=invoice.pk)
+        return Response(TenantSubscriptionInvoiceDetailSerializer(invoice).data)
 
     @action(detail=True, methods=["get"], url_path="pdf")
     def pdf(self, request, tenant_pk=None, pk=None):

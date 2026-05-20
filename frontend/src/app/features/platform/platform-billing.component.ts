@@ -14,6 +14,7 @@ import { API_BASE } from '../../core/api';
 import { ALL_MODULE_SLUGS } from '../../shared/module-slugs';
 
 interface BillingSettings {
+  default_monthly_discount_percent: string;
   yearly_discount_percent: string;
   invoice_prefix: string;
   default_payment_terms_days: number;
@@ -76,8 +77,12 @@ interface Page<T> {
         <mat-tab [label]="'platform.billing.settings' | translate">
           <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" class="tab-form">
             <mat-form-field appearance="outline">
+              <mat-label>{{ 'platform.billing.monthlyDiscount' | translate }}</mat-label>
+              <input matInput type="number" min="0" max="100" formControlName="default_monthly_discount_percent" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
               <mat-label>{{ 'platform.billing.yearlyDiscount' | translate }}</mat-label>
-              <input matInput type="number" formControlName="yearly_discount_percent" />
+              <input matInput type="number" min="0" max="100" formControlName="yearly_discount_percent" />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>{{ 'platform.billing.invoicePrefix' | translate }}</mat-label>
@@ -221,6 +226,7 @@ export class PlatformBillingComponent implements OnInit {
   taxTypes = signal<TaxType[]>([]);
 
   settingsForm = this.fb.group({
+    default_monthly_discount_percent: ['0', Validators.required],
     yearly_discount_percent: ['15', Validators.required],
     invoice_prefix: ['TEN', Validators.required],
     company_name: ['Tenancysoft', Validators.required],

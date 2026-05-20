@@ -31,7 +31,9 @@
     <div class="box" style="text-align:right">
       <h1>Abonelik Faturası</h1>
       <div><strong>No:</strong> {{ invoice.number }}</div>
-      <div><strong>Tarih:</strong> {{ invoice.issued_at|date:"d.m.Y H:i"|default:invoice.created_at|date:"d.m.Y" }}</div>
+      {% if invoice.document_datetime %}
+      <div><strong>Tarih:</strong> {{ invoice.document_datetime|date:"d.m.Y H:i" }}</div>
+      {% endif %}
       <div class="status">{{ invoice.get_status_display }}</div>
     </div>
   </div>
@@ -47,6 +49,12 @@
       {{ invoice.period_start|date:"d.m.Y" }} — {{ invoice.period_end|date:"d.m.Y" }}<br/>
       <span class="muted">{{ invoice.get_billing_period_display }} / {{ invoice.currency_id }}</span><br/>
       <span class="muted">Kur (1 {{ invoice.currency_id }} = {{ invoice.fx_rate_to_try }} TRY)</span>
+      {% if invoice.discount_percent and invoice.discount_percent > 0 %}
+      <br/><span class="muted">
+        {% if invoice.billing_period == "yearly" %}Yıllık{% else %}Aylık{% endif %}
+        iskonto: %{{ invoice.discount_percent|floatformat:2 }}
+      </span>
+      {% endif %}
     </div>
   </div>
 
@@ -56,7 +64,8 @@
         <th>Açıklama</th>
         <th class="num">Kullanıcı</th>
         <th class="num">Ay</th>
-        <th class="num">Birim Fiyat</th>
+        <th class="num">Liste birim fiyat</th>
+        <th class="num">İskonto %</th>
         <th class="num">Tutar (KDV hariç)</th>
       </tr>
     </thead>
@@ -66,17 +75,42 @@
         <td>{{ line.description }}</td>
         <td class="num">{{ line.user_count }}</td>
         <td class="num">{{ line.months }}</td>
-        <td class="num">{{ line.unit_price }} {{ invoice.currency_id }}</td>
-        <td class="num">{{ line.amount_excl_tax }} {{ invoice.currency_id }}</td>
+        <td class="num">
+          {% if line.unit_price_list is not None %}
+            {{ line.unit_price_list|floatformat:4 }} {{ invoice.currency_id }}
+          {% else %}
+            {{ line.unit_price|floatformat:4 }} {{ invoice.currency_id }}
+          {% endif %}
+        </td>
+        <td class="num">
+          {% if line.discount_percent and line.discount_percent > 0 %}
+            %{{ line.discount_percent|floatformat:2 }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td class="num">{{ line.amount_excl_tax|floatformat:2 }} {{ invoice.currency_id }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
   <table class="totals">
+    {% if invoice.subtotal_before_discount is not None %}
     <tr>
-      <td class="label">Ara toplam (KDV hariç)</td>
-      <td class="value">{{ invoice.subtotal_excl_tax }} {{ invoice.currency_id }}</td>
+      <td class="label">Ara toplam (iskonto öncesi)</td>
+      <td class="value">{{ invoice.subtotal_before_discount|floatformat:2 }} {{ invoice.currency_id }}</td>
+    </tr>
+    {% if invoice.discount_amount and invoice.discount_amount > 0 %}
+    <tr>
+      <td class="label">Uygulanan iskonto (%{{ invoice.discount_percent|floatformat:2 }})</td>
+      <td class="value">−{{ invoice.discount_amount|floatformat:2 }} {{ invoice.currency_id }}</td>
+    </tr>
+    {% endif %}
+    {% endif %}
+    <tr>
+      <td class="label">Ara toplam (iskonto sonrası, KDV hariç)</td>
+      <td class="value">{{ invoice.subtotal_excl_tax|floatformat:2 }} {{ invoice.currency_id }}</td>
     </tr>
   </table>
 
@@ -104,7 +138,7 @@
   <table class="totals">
     <tr>
       <td class="label">Genel toplam (KDV dahil)</td>
-      <td class="value"><strong>{{ invoice.total_incl_tax }} {{ invoice.currency_id }}</strong></td>
+      <td class="value"><strong>{{ invoice.total_incl_tax|floatformat:2 }} {{ invoice.currency_id }}</strong></td>
     </tr>
   </table>
 

@@ -31,3 +31,27 @@ def ensure_periodic_tasks() -> None:
         task.crontab = tcmb_schedule
         task.interval = None
         task.save(update_fields=["crontab", "interval"])
+
+    invoice_schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="0",
+        hour="3",
+        day_of_week="*",
+        day_of_month="*",
+        month_of_year="*",
+        timezone=tz,
+    )
+    inv_task, _ = PeriodicTask.objects.update_or_create(
+        name="platform-billing-generate-invoices",
+        defaults={
+            "task": "platform_billing.generate_subscription_invoices",
+            "crontab": invoice_schedule,
+            "interval": None,
+            "queue": billing_queue,
+            "enabled": True,
+            "description": "Generate tenant subscription invoices daily at 03:00",
+        },
+    )
+    if inv_task.crontab_id != invoice_schedule.pk:
+        inv_task.crontab = invoice_schedule
+        inv_task.interval = None
+        inv_task.save(update_fields=["crontab", "interval"])

@@ -22,8 +22,9 @@ Requires a platform JWT (`is_platform` claim). Sign in at UI `/admin/login`.
 | POST | `/platform/auth/logout/` | `{ refresh }` | Blacklist refresh token. |
 | GET | `/platform/auth/me/` |  | Platform user profile. |
 | GET/POST | `/platform/tenants/` | create: `customer_code`, `name`, `max_users` (default 5), `default_language`, `is_active`, `subscribed_modules`, `extra_modules`, `module_labels`, `initial_admin_email`, `initial_admin_password` | Tenant CRUD; module subscriptions + user limit. |
-| GET/PATCH/DELETE | `/platform/tenants/{id}/` |  | Update `max_users`, subscriptions, labels, `billing_period`, `payment_currency`, `yearly_discount_percent`. Response includes `active_user_count`. |
-| GET/POST | `/platform/tenants/{id}/subscription-invoices/` | POST: optional `period_start`, `period_end`, `issue` | Generate/list tenant subscription invoices. |
+| GET/PATCH/DELETE | `/platform/tenants/{id}/` |  | Update `max_users`, subscriptions, labels, `billing_period`, `payment_currency`, `monthly_discount_percent`, `yearly_discount_percent`, `module_prices` (per-slug TRY override or `null` for global). Response includes `active_user_count`, `module_subscriptions[].price_per_user_monthly`. |
+| GET | `/platform/tenants/{id}/subscription-invoices/can-generate/` |  | `can_generate`, current `period_start` / `period_end`, existing invoice if any. |
+| GET/POST | `/platform/tenants/{id}/subscription-invoices/` | POST: optional `period_start`, `period_end`, `issue` | List invoices; generate (400 if current period already invoiced). |
 | GET | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/` |  | Invoice detail + lines + tax summary. |
 | POST | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/mark-paid/` | `{ method?, reference? }` | Mark invoice paid. |
 | GET | `/platform/tenants/{id}/subscription-invoices/{invoice_id}/pdf/` |  | PDF download (e-arşiv-style). |
@@ -31,7 +32,7 @@ Requires a platform JWT (`is_platform` claim). Sign in at UI `/admin/login`.
 | GET | `/platform/billing/exchange-rates/latest/` |  | Latest rate per active currency. |
 | POST | `/platform/billing/exchange-rates/manual/` | `{ currency_code, rate_to_try }` | Manual rate override (e.g. USD). |
 | CRUD | `/platform/billing/tax-types/`, `/tax-rates/`, `/module-prices/` |  | Master data. |
-| GET/PATCH | `/platform/billing/settings/` |  | Yearly discount %, invoice prefix, company info. |
+| GET/PATCH | `/platform/billing/settings/` |  | `default_monthly_discount_percent`, `yearly_discount_percent`, invoice prefix, company info. |
 
 See [super-admin.md](super-admin.md), [subscriptions.md](subscriptions.md), and [platform-billing.md](platform-billing.md).
 

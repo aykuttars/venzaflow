@@ -51,6 +51,13 @@ class Tenant(models.Model):
         null=True,
         blank=True,
     )
+    monthly_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Override platform default monthly discount; null uses global setting.",
+    )
     yearly_discount_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -114,6 +121,13 @@ class TenantModuleSubscription(models.Model):
     )
     activated_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    price_per_user_monthly = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="TRY per user per month override; null uses global ModulePrice.",
+    )
 
     class Meta:
         db_table = "tenant_module_subscription"

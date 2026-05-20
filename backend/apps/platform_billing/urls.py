@@ -19,6 +19,7 @@ router.register(r"billing/tax-rates", TaxRateViewSet, basename="platform-tax-rat
 router.register(r"billing/module-prices", ModulePriceViewSet, basename="platform-module-price")
 
 tenant_invoice_list = TenantSubscriptionInvoiceViewSet.as_view({"get": "list", "post": "create"})
+tenant_invoice_can_generate = TenantSubscriptionInvoiceViewSet.as_view({"get": "can_generate"})
 tenant_invoice_detail = TenantSubscriptionInvoiceViewSet.as_view({"get": "retrieve"})
 tenant_invoice_mark_paid = TenantSubscriptionInvoiceViewSet.as_view({"post": "mark_paid"})
 tenant_invoice_pdf = TenantSubscriptionInvoiceViewSet.as_view({"get": "pdf"})
@@ -35,6 +36,11 @@ urlpatterns = [
         name="platform-exchange-rates-manual",
     ),
     path("billing/settings/", PlatformBillingSettingsView.as_view(), name="platform-billing-settings"),
+    path(
+        "tenants/<int:tenant_pk>/subscription-invoices/can-generate/",
+        tenant_invoice_can_generate,
+        name="platform-tenant-subscription-invoice-can-generate",
+    ),
     path(
         "tenants/<int:tenant_pk>/subscription-invoices/",
         tenant_invoice_list,

@@ -110,10 +110,16 @@ class ModulePrice(models.Model):
 class PlatformBillingSettings(models.Model):
     """Singleton platform billing configuration."""
 
+    default_monthly_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
     yearly_discount_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal("15.00"),
+        help_text="Default yearly discount % for tenants without override.",
     )
     invoice_prefix = models.CharField(max_length=16, default="TEN")
     default_payment_terms_days = models.PositiveSmallIntegerField(default=7)
@@ -165,6 +171,27 @@ class TenantSubscriptionInvoice(models.Model):
         decimal_places=6,
         help_text="TRY per 1 invoice currency unit at issue time.",
     )
+    subtotal_before_discount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Subtotal in invoice currency before billing discount.",
+    )
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Billing discount % snapshot applied on this invoice.",
+    )
+    discount_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Discount amount in invoice currency.",
+    )
     subtotal_excl_tax = models.DecimalField(max_digits=14, decimal_places=2)
     tax_lines = models.JSONField(default=list)
     total_incl_tax = models.DecimalField(max_digits=14, decimal_places=2)
@@ -182,6 +209,10 @@ class TenantSubscriptionInvoice(models.Model):
     def __str__(self) -> str:
         return self.number
 
+    @property
+    def document_datetime(self):
+        return self.issued_at or self.paid_at or self.created_at
+
 
 class TenantSubscriptionInvoiceLine(models.Model):
     invoice = models.ForeignKey(
@@ -192,8 +223,27 @@ class TenantSubscriptionInvoiceLine(models.Model):
     module_slug = models.CharField(max_length=64, blank=True)
     description = models.CharField(max_length=255)
     user_count = models.PositiveIntegerField()
+    unit_price_list = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="List unit price (1 user × 1 month) before discount, invoice currency.",
+    )
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     unit_price = models.DecimalField(max_digits=14, decimal_places=4)
     months = models.PositiveSmallIntegerField(default=1)
+    line_total_before_discount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     amount_excl_tax = models.DecimalField(max_digits=14, decimal_places=2)
 
     class Meta:
