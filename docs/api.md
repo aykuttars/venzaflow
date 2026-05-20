@@ -11,6 +11,21 @@ All endpoints are prefixed with `/api/v1/` and require `Authorization: Bearer <a
 | POST | `/auth/logout/` | `{ refresh }` | Blacklists the refresh token. |
 | GET | `/auth/me/` |  | Current user + permissions + enabled modules. |
 
+## Platform admin (`/platform/`)
+
+Requires a platform JWT (`is_platform` claim). Sign in at UI `/admin/login`.
+
+| Method | Path | Body | Notes |
+|--------|------|------|-------|
+| POST | `/platform/auth/login/` | `{ email, password }` | Platform super admin only (`tenant` null). |
+| POST | `/platform/auth/refresh/` | `{ refresh }` | Refresh platform access token. |
+| POST | `/platform/auth/logout/` | `{ refresh }` | Blacklist refresh token. |
+| GET | `/platform/auth/me/` |  | Platform user profile. |
+| GET/POST | `/platform/tenants/` | create: `customer_code`, `name`, `default_language`, `is_active`, `enabled_modules`, `module_labels`, `initial_admin_email`, `initial_admin_password` | Tenant CRUD; create provisions admin department + user. |
+| GET/PATCH/DELETE | `/platform/tenants/{id}/` |  | Update modules, labels, active flag. |
+
+See [super-admin.md](super-admin.md).
+
 ## Core CRUD endpoints
 
 All support `?search=`, `?ordering=` (`-field` for desc), and `?limit=&offset=` pagination.

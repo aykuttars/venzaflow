@@ -8,26 +8,28 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 
-import { AuthService } from './auth.service';
+import { PlatformAuthService } from './platform-auth.service';
 
-let refreshing = false;
+let platformRefreshing = false;
 
-function isTenantApi(url: string): boolean {
-  return !url.includes('/platform/');
+function isPlatformApi(url: string): boolean {
+  return url.includes('/platform/');
 }
 
-export const authInterceptor: HttpInterceptorFn = (
+export const platformAuthInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ) => {
-  if (!isTenantApi(req.url)) {
+  if (!isPlatformApi(req.url)) {
     return next(req);
   }
 
-  const auth = inject(AuthService);
+  const auth = inject(PlatformAuthService);
   const router = inject(Router);
 
-  const skip = req.url.endsWith('/auth/login/') || req.url.endsWith('/auth/refresh/');
+  const skip =
+    req.url.endsWith('/platform/auth/login/') ||
+    req.url.endsWith('/platform/auth/refresh/');
   const access = auth.access();
   const reqWithAuth =
     access && !skip
@@ -36,20 +38,20 @@ export const authInterceptor: HttpInterceptorFn = (
 
   return next(reqWithAuth).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401 && !skip && auth.refresh() && !refreshing) {
-        refreshing = true;
+      if (err.status === 401 && !skip && auth.refresh() && !platformRefreshing) {
+        platformRefreshing = true;
         return auth.refreshAccess().pipe(
           switchMap((res) => {
-            refreshing = false;
+            platformRefreshing = false;
             const retry = req.clone({
               setHeaders: { Authorization: `Bearer ${res.access}` },
             });
             return next(retry);
           }),
           catchError((e) => {
-            refreshing = false;
+            platformRefreshing = false;
             auth.logout(false);
-            router.navigate(['/login']);
+            router.navigate(['/admin/login']);
             return throwError(() => e);
           })
         );

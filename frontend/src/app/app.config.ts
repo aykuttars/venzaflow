@@ -15,6 +15,7 @@ import { APP_ROUTES } from './app.routes';
 import { AppTranslateLoader } from './core/app-translate-loader';
 import { authInterceptor } from './core/auth.interceptor';
 import { languageInterceptor } from './core/language.interceptor';
+import { platformAuthInterceptor } from './core/platform-auth.interceptor';
 import { i18nInitializerProvider } from './core/i18n.initializer';
 import { authReducer } from './core/state/auth.reducer';
 import { AuthEffects } from './core/state/auth.effects';
@@ -25,7 +26,9 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(APP_ROUTES, withComponentInputBinding()),
     provideAnimations(),
-    provideHttpClient(withInterceptors([languageInterceptor, authInterceptor])),
+    provideHttpClient(
+      withInterceptors([languageInterceptor, platformAuthInterceptor, authInterceptor])
+    ),
     i18nInitializerProvider,
     importProvidersFrom(
       TranslateModule.forRoot({

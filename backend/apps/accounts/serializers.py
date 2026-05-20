@@ -100,7 +100,7 @@ class LoginSerializer(serializers.Serializer):
             .filter(tenant=tenant, email__iexact=email, is_active=True)
             .first()
         )
-        if not user or not user.check_password(password):
+        if not user or user.is_platform_admin or not user.check_password(password):
             raise serializers.ValidationError({"detail": _("Invalid credentials.")})
         attrs["user"] = user
         return attrs

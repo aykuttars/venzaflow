@@ -141,4 +141,27 @@ class Command(BaseCommand):
             status = "created" if created else "updated"
             self.stdout.write(self.style.SUCCESS(f"{status} user {email} @ {tenant.customer_code}"))
 
+        platform_email = "admin@platform.local"
+        platform_pw = demo_pw
+        pu, pcreated = User.all_tenants.get_or_create(
+            tenant=None,
+            email=platform_email,
+            defaults={
+                "is_superuser": True,
+                "is_staff": True,
+                "is_active": True,
+            },
+        )
+        pu.is_superuser = True
+        pu.is_staff = True
+        pu.is_active = True
+        pu.tenant = None
+        pu.department = None
+        pu.set_password(platform_pw)
+        pu.save()
+        pstatus = "created" if pcreated else "updated"
+        self.stdout.write(
+            self.style.SUCCESS(f"{pstatus} platform admin {platform_email}")
+        )
+
         self.stdout.write(self.style.SUCCESS("seed_demo completed."))

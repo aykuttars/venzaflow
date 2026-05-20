@@ -1,9 +1,36 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/auth.guard';
+import { platformAuthGuard, platformGuestGuard } from './core/platform-auth.guard';
 import { roleGuard } from './core/role.guard';
 
 export const APP_ROUTES: Routes = [
+  {
+    path: 'admin/login',
+    loadComponent: () =>
+      import('./features/platform/platform-login.component').then(
+        (m) => m.PlatformLoginComponent
+      ),
+    canActivate: [platformGuestGuard],
+  },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./features/platform/platform-layout.component').then(
+        (m) => m.PlatformLayoutComponent
+      ),
+    canActivate: [platformAuthGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'tenants' },
+      {
+        path: 'tenants',
+        loadComponent: () =>
+          import('./features/platform/platform-tenants.component').then(
+            (m) => m.PlatformTenantsComponent
+          ),
+      },
+    ],
+  },
   {
     path: 'login',
     loadComponent: () =>

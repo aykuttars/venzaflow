@@ -3,7 +3,9 @@ from __future__ import annotations
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Group, PermissionsMixin
 from django.contrib.auth.models import Permission as AuthPermission
 from django.db import models
+from django.db.models import Q
 
+from apps.common.permission_codes import PERMISSION_CODENAMES
 from apps.tenants.context import get_current_tenant_id
 from apps.tenants.models import Tenant, TenantOwnedModel
 
@@ -72,13 +74,19 @@ class AllUsersManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Tenant-scoped staff user.
+    """Staff user scoped to a tenant, or platform super admin when tenant is null.
 
-    Login identity is (tenant customer_code, email, password) — see LoginSerializer.
-    The same email may exist on different tenants; uniqueness is per tenant.
+    Tenant login: (customer_code, email, password).
+    Platform login: (email, password) for is_superuser users without a tenant.
     """
 
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="users")
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="users",
+        null=True,
+        blank=True,
+    )
     department = models.ForeignKey(
         Department,
         null=True,
@@ -130,26 +138,47 @@ class User(AbstractBaseUser, PermissionsMixin):
     all_tenants = AllUsersManager()
 
     USERNAME_FIELD = "login_key"
-    REQUIRED_FIELDS: list[str] = ["email", "tenant_id"]
+    REQUIRED_FIELDS: list[str] = ["email"]
 
     class Meta:
         db_table = "user"
-        unique_together = [("tenant", "email")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "email"],
+                name="u_user_tenant_email",
+            ),
+            models.UniqueConstraint(
+                fields=["email"],
+                condition=Q(tenant__isnull=True),
+                name="u_platform_email",
+            ),
+        ]
         indexes = [
             models.Index(fields=["tenant", "email"]),
         ]
 
+    @property
+    def is_platform_admin(self) -> bool:
+        return self.is_superuser and self.tenant_id is None
+
     def save(self, *args, **kwargs):
         if self.email:
             self.email = BaseUserManager.normalize_email(self.email)
-        if self.tenant_id and self.email:
-            self.login_key = f"{self.tenant_id}:{self.email}"
+        if self.email:
+            if self.tenant_id:
+                self.login_key = f"{self.tenant_id}:{self.email}"
+            else:
+                self.login_key = f"__platform__:{self.email}"
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f"{self.email} @ {self.tenant.customer_code}"
+        if self.tenant_id:
+            return f"{self.email} @ {self.tenant.customer_code}"
+        return f"{self.email} (platform)"
 
     def effective_permission_codenames(self) -> set[str]:
+        if self.is_platform_admin:
+            return {c[0] for c in PERMISSION_CODENAMES}
         codes: set[str] = set()
         if self.department_id:
             codes.update(

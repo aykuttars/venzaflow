@@ -7,16 +7,29 @@ from rest_framework_simplejwt.tokens import RefreshToken
 class TenantTokenMixin:
     @classmethod
     def annotate_token(cls, token, user):
-        token["tenant_id"] = user.tenant_id
-        token["tenant_code"] = user.tenant.customer_code
-        if user.department_id:
-            token["department_id"] = user.department_id
-            token["department_key"] = user.department.key
-        else:
+        if user.is_platform_admin:
+            token["tenant_id"] = None
+            token["tenant_code"] = ""
+            token["is_platform"] = True
             token["department_id"] = None
             token["department_key"] = ""
+        else:
+            token["tenant_id"] = user.tenant_id
+            token["tenant_code"] = user.tenant.customer_code
+            token["is_platform"] = False
+            if user.department_id:
+                token["department_id"] = user.department_id
+                token["department_key"] = user.department.key
+            else:
+                token["department_id"] = None
+                token["department_key"] = ""
         token["email"] = user.email
         return token
+
+
+class PlatformTokenMixin(TenantTokenMixin):
+    """Alias for platform token annotation (same mixin)."""
+    pass
 
 
 class TenantTokenObtainPairSerializer(TenantTokenMixin, TokenObtainPairSerializer):

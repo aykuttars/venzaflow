@@ -26,8 +26,22 @@ class HasModule(permissions.BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
+        if getattr(user, "is_platform_admin", False):
+            return False
         tenant = getattr(user, "tenant", None)
         if not tenant:
             return False
         enabled = tenant.enabled_modules or []
         return module in enabled
+
+
+class IsPlatformAdmin(permissions.BasePermission):
+    """Platform super admin: is_superuser with no tenant."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and getattr(user, "is_platform_admin", False)
+        )

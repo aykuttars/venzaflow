@@ -2,11 +2,12 @@ export interface JwtClaims {
   exp?: number;
   iat?: number;
   user_id?: number;
-  tenant_id?: number;
+  tenant_id?: number | null;
   tenant_code?: string;
   department_id?: number | null;
   department_key?: string;
   email?: string;
+  is_platform?: boolean;
 }
 
 export function decodeJwt(token: string | null): JwtClaims | null {

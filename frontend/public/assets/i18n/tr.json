@@ -275,5 +275,19 @@
     "moduleSlug": "Modül",
     "customName": "Özel ad",
     "resetModuleName": "Varsayılana dön"
+  },
+  "platform": {
+    "title": "Platform Yönetimi",
+    "console": "Süper Admin",
+    "signIn": "Platform yöneticisi girişi",
+    "tenants": "Kiracılar",
+    "newTenant": "Yeni kiracı",
+    "editTenant": "Kiracı düzenle",
+    "customerCode": "Müşteri kodu",
+    "modulesCount": "Modül",
+    "modulesAccess": "Modül erişimi",
+    "moduleLabels": "Modül adları (opsiyonel)",
+    "moduleLabelsHint": "Boş bırakılan modüller varsayılan çeviriyi kullanır.",
+    "initialAdmin": "İlk yönetici kullanıcı"
   }
 }

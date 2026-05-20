@@ -275,5 +275,19 @@
     "moduleSlug": "Module",
     "customName": "Custom name",
     "resetModuleName": "Reset to default"
+  },
+  "platform": {
+    "title": "Platform Admin",
+    "console": "Super Admin",
+    "signIn": "Platform administrator sign-in",
+    "tenants": "Tenants",
+    "newTenant": "New tenant",
+    "editTenant": "Edit tenant",
+    "customerCode": "Customer code",
+    "modulesCount": "Modules",
+    "modulesAccess": "Module access",
+    "moduleLabels": "Module labels (optional)",
+    "moduleLabelsHint": "Modules left blank use the default translation.",
+    "initialAdmin": "Initial admin user"
   }
 }
