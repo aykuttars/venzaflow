@@ -31,7 +31,7 @@
         <th>{{ 'employees.department' | translate }}</th>
         <th>{{ 'employees.permissionsCol' | translate }}</th>
         <th>{{ 'common.active' | translate }}</th>
-        @if (canWrite()) { <th></th> }
+        @if (showActionsColumn()) { <th></th> }
       </tr>
     </thead>
     <tbody>
@@ -43,16 +43,20 @@
         <td>{{ u.department_name || '—' }}</td>
         <td>{{ (u.extra_permission_codenames || []).join(', ') }}</td>
         <td>{{ (u.is_active ? 'common.yes' : 'common.no') | translate }}</td>
-        @if (canWrite()) {
+        @if (showActionsColumn() && canManageRow(u)) {
         <td style="text-align:right">
           <button mat-icon-button (click)="openForm(u)"><mat-icon>edit</mat-icon></button>
+          @if (!isSelf(u)) {
           <button mat-icon-button (click)="remove(u)"><mat-icon>delete</mat-icon></button>
+          }
         </td>
+        } @else if (showActionsColumn()) {
+        <td></td>
         }
       </tr>
       }
       @if (items().length === 0) {
-      <tr><td [attr.colspan]="canWrite() ? 7 : 6" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
+      <tr><td [attr.colspan]="showActionsColumn() ? 7 : 6" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
       }
     </tbody>
   </table>

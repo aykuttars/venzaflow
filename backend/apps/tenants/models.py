@@ -119,6 +119,16 @@ class TenantModuleSubscription(models.Model):
         default=False,
         help_text="Granted beyond the base package by platform admin.",
     )
+    is_billable = models.BooleanField(
+        default=True,
+        help_text="When false, module is enabled for the tenant but excluded from subscription invoices.",
+    )
+    parent_module_slug = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Optional parent module slug for nested UI (e.g. patients under customers).",
+    )
     activated_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     price_per_user_monthly = models.DecimalField(

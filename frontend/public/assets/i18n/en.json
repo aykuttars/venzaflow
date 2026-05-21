@@ -9,6 +9,7 @@
     "inventory": "Inventory",
     "employees": "Employees",
     "customers": "Customers",
+    "patients": "Patients",
     "appointments": "Appointments",
     "billing": "Billing",
     "accounting": "Accounting",
@@ -179,7 +180,8 @@
     "newStock": "New stock",
     "editStock": "Edit stock",
     "newMovement": "New movement",
-    "editMovement": "Edit movement"
+    "editMovement": "Edit movement",
+    "productsModuleRequired": "Products module is required to manage stock items."
   },
   "customers": {
     "title": "Customers",
@@ -197,6 +199,9 @@
     "phone": "Phone",
     "summary": "Summary",
     "updated": "Updated"
+  },
+  "patients": {
+    "newPatient": "New patient"
   },
   "appointments": {
     "title": "Appointments",
@@ -229,7 +234,9 @@
     "sent": "Sent",
     "paid": "Paid",
     "overdue": "Overdue",
-    "invoice": "Invoice"
+    "invoice": "Invoice",
+    "customersModuleRequired": "Customers module is required to select a customer.",
+    "partyModuleRequired": "Customers or Patients module is required to select a person."
   },
   "accounting": {
     "title": "Accounting",
@@ -285,9 +292,16 @@
     "tenants": "Tenants",
     "newTenant": "New tenant",
     "editTenant": "Edit tenant",
+    "tenantInfo": "Tenant information",
     "customerCode": "Customer code",
     "modulesCount": "Modules",
     "modulesAccess": "Module access",
+    "moduleName": "Module",
+    "moduleEnabled": "Enabled",
+    "moduleParent": "Parent module",
+    "moduleParentNone": "Standalone",
+    "nonBillableModulesHint": "Panel and Settings (including Departments) are always included and not billed. For other modules, choose whether each is billable.",
+    "moduleBillable": "Billable",
     "moduleLabels": "Module labels (optional)",
     "moduleLabelsHint": "Modules left blank use the default translation.",
     "initialAdmin": "Initial admin user",

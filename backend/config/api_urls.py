@@ -8,7 +8,7 @@ from apps.appointments.views import AppointmentViewSet, ScheduleViewSet
 from apps.audit.views import ActivityLogView
 from apps.billing.views import InvoiceViewSet, PaymentViewSet
 from apps.common.views import health
-from apps.customers.views import CustomerViewSet, MedicalRecordViewSet
+from apps.customers.views import CustomerViewSet, MedicalRecordViewSet, PatientViewSet
 from apps.dashboard.views import DashboardSummaryView
 from apps.accounts.views_employees import EmployeeViewSet
 from apps.inventory.views import StockMovementViewSet, StockViewSet, WarehouseViewSet
@@ -26,6 +26,7 @@ router.register(r"inventory/warehouses", WarehouseViewSet, basename="warehouse")
 router.register(r"inventory/stock", StockViewSet, basename="stock")
 router.register(r"inventory/movements", StockMovementViewSet, basename="stockmovement")
 router.register(r"customers", CustomerViewSet, basename="customer")
+router.register(r"patients", PatientViewSet, basename="patient")
 router.register(r"medical-records", MedicalRecordViewSet, basename="medicalrecord")
 router.register(r"appointments", AppointmentViewSet, basename="appointment")
 router.register(r"schedules", ScheduleViewSet, basename="schedule")

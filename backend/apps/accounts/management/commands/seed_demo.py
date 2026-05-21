@@ -6,7 +6,12 @@ from django.db import transaction
 
 from apps.accounts.models import Department, Permission
 from apps.common.celery_setup import ensure_periodic_tasks
-from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
+from apps.common.permission_codes import (
+    ALL_MODULES,
+    BILLABLE_MODULES,
+    PERMISSION_CODENAMES,
+    filter_codenames_for_tenant,
+)
 from datetime import date
 from decimal import Decimal
 
@@ -23,6 +28,9 @@ from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
 User = get_user_model()
+
+# Clinic tenant: patients instead of customers (no CRM customers module).
+CLINIC_1000_MODULES = [m for m in ALL_MODULES if m != "customers"]
 
 
 def ensure_permissions() -> dict[str, Permission]:
@@ -73,7 +81,7 @@ def ensure_platform_billing_master() -> dict[str, Currency]:
         defaults={"is_active": True},
     )
     PlatformBillingSettings.get_solo()
-    for slug in ALL_MODULES:
+    for slug in BILLABLE_MODULES:
         ModulePrice.objects.get_or_create(
             module_slug=slug,
             defaults={"price_per_user_monthly": Decimal("50.00")},
@@ -108,7 +116,8 @@ def mk_department(
     )
     dept.name = name
     dept.save()
-    dept.permissions.set([perm_index[c] for c in codenames if c in perm_index])
+    allowed = filter_codenames_for_tenant(codenames, tenant.enabled_modules)
+    dept.permissions.set([perm_index[c] for c in allowed if c in perm_index])
     return dept
 
 
@@ -127,7 +136,7 @@ class Command(BaseCommand):
                 "name": "Demo Clinic 1000",
                 "default_language": Tenant.Language.TR,
                 "is_active": True,
-                "enabled_modules": ALL_MODULES,
+                "enabled_modules": CLINIC_1000_MODULES,
                 "max_users": 10,
                 "billing_period": Tenant.BillingPeriod.MONTHLY,
                 "payment_currency": currencies["TRY"],
@@ -146,8 +155,13 @@ class Command(BaseCommand):
                 "yearly_discount_percent": Decimal("10"),
             },
         )
-        for tenant in (t1000, t3000):
-            set_module_subscriptions(tenant, list(ALL_MODULES), extra_modules=set())
+        set_module_subscriptions(t1000, CLINIC_1000_MODULES, extra_modules=set())
+        set_module_subscriptions(
+            t3000,
+            list(ALL_MODULES),
+            extra_modules=set(),
+            module_parents={"patients": "customers"},
+        )
 
         admin_codes = [c[0] for c in PERMISSION_CODENAMES]
         tech_codes = [
@@ -158,6 +172,12 @@ class Command(BaseCommand):
             "dashboard.read",
         ]
         cashier_codes = ["billing.read", "billing.write", "customers.read", "dashboard.read"]
+        clinic_cashier_codes = [
+            "billing.read",
+            "billing.write",
+            "patients.read",
+            "dashboard.read",
+        ]
         accounting_codes = [
             "accounting.read",
             "accounting.write",
@@ -170,13 +190,12 @@ class Command(BaseCommand):
             "patients.write",
             "appointments.read",
             "appointments.write",
-            "customers.read",
             "dashboard.read",
         ]
 
         d1000_admin = mk_department(t1000, "admin", "Admin", admin_codes, perm_index)
         d1000_tech = mk_department(t1000, "technician", "Technician", tech_codes, perm_index)
-        d1000_cash = mk_department(t1000, "cashier", "Cashier", cashier_codes, perm_index)
+        d1000_cash = mk_department(t1000, "cashier", "Cashier", clinic_cashier_codes, perm_index)
 
         d3000_admin = mk_department(t3000, "admin", "Admin", admin_codes, perm_index)
         d3000_acc = mk_department(t3000, "accounting", "Accounting", accounting_codes, perm_index)
@@ -212,6 +231,20 @@ class Command(BaseCommand):
             u.save()
             status = "created" if created else "updated"
             self.stdout.write(self.style.SUCCESS(f"{status} user {email} @ {tenant.customer_code}"))
+
+        hr, hr_created = User.all_tenants.get_or_create(
+            tenant=t1000,
+            email="hr@admin.com",
+            defaults={"department": d1000_cash, "is_active": True},
+        )
+        hr.department = d1000_cash
+        hr.is_active = True
+        hr.set_password(demo_pw)
+        hr.save()
+        hr_extra = [perm_index[c] for c in ("employees.read", "employees.write") if c in perm_index]
+        hr.extra_permissions.set(hr_extra)
+        hr_status = "created" if hr_created else "updated"
+        self.stdout.write(self.style.SUCCESS(f"{hr_status} user hr@admin.com @ 1000 (HR extra perms)"))
 
         platform_email = "aykutt.ars@gmail.com"
         platform_pw = demo_pw

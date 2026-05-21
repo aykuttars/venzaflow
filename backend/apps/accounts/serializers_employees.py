@@ -5,7 +5,19 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
+from apps.accounts.rbac import (
+    assert_can_manage_target,
+    can_assign_department,
+    can_manage_target,
+    effective_permissions_for,
+    filter_grantable_codenames,
+    validate_self_no_escalation,
+)
 from apps.common.password_policy import validate_password_policy
+from apps.common.permission_codes import (
+    codename_allowed_for_tenant,
+    filter_codenames_for_tenant,
+)
 from apps.tenants.subscription_service import validate_user_capacity
 
 User = get_user_model()
@@ -31,7 +43,8 @@ def _active_admin_count(tenant_id: int, exclude_user_id: int | None = None) -> i
 def _set_extra_permissions(user: User, codes: list[str] | None) -> None:
     if codes is None:
         return
-    user.extra_permissions.set(Permission.objects.filter(codename__in=codes))
+    filtered = filter_codenames_for_tenant(codes, user.tenant.enabled_modules)
+    user.extra_permissions.set(Permission.objects.filter(codename__in=filtered))
 
 
 class EmployeeUserSerializer(serializers.ModelSerializer):
@@ -44,6 +57,8 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         child=serializers.CharField(),
         required=False,
     )
+    effective_permission_codenames = serializers.SerializerMethodField()
+    manageable = serializers.SerializerMethodField()
     department = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.none(),
         allow_null=True,
@@ -61,6 +76,8 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
             "department",
             "department_name",
             "extra_permission_codenames",
+            "effective_permission_codenames",
+            "manageable",
             "password",
             "password_confirm",
         )
@@ -71,12 +88,49 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         self.fields["department"].queryset = _tenant_departments(request)
 
+    def get_effective_permission_codenames(self, instance: User) -> list[str]:
+        codes = sorted(instance.effective_permission_codenames())
+        return filter_codenames_for_tenant(codes, instance.tenant.enabled_modules)
+
+    def get_manageable(self, instance: User) -> bool:
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if not actor or not actor.is_authenticated:
+            return False
+        return can_manage_target(actor, instance)
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["extra_permission_codenames"] = list(
+        codes = list(
             instance.extra_permissions.order_by("codename").values_list("codename", flat=True)
         )
+        data["extra_permission_codenames"] = filter_codenames_for_tenant(
+            codes, instance.tenant.enabled_modules
+        )
         return data
+
+    def validate_extra_permission_codenames(self, value):
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        tenant = getattr(actor, "tenant", None)
+        if not tenant:
+            return value
+        invalid = [c for c in value if not codename_allowed_for_tenant(c, tenant.enabled_modules)]
+        if invalid:
+            raise serializers.ValidationError(
+                _("Permissions for unsubscribed modules are not allowed: %(codes)s")
+                % {"codes": ", ".join(sorted(invalid))}
+            )
+        if actor:
+            ungrantable = [
+                c for c in value if c not in filter_grantable_codenames(actor, list(value))
+            ]
+            if ungrantable:
+                raise serializers.ValidationError(
+                    _("You cannot grant permissions you do not hold: %(codes)s")
+                    % {"codes": ", ".join(sorted(ungrantable))}
+                )
+        return value
 
     def _validate_passwords(self, attrs):
         password = attrs.get("password") or ""
@@ -107,10 +161,51 @@ class EmployeeUserSerializer(serializers.ModelSerializer):
         attrs.pop("password_confirm", None)
         return attrs
 
+    def _proposed_permissions(self, attrs: dict) -> set[str]:
+        dept = attrs.get("department")
+        if dept is None and self.instance is not None:
+            dept = self.instance.department
+        if "extra_permission_codenames" in attrs:
+            extras = attrs["extra_permission_codenames"]
+        elif self.instance is not None:
+            extras = list(
+                self.instance.extra_permissions.values_list("codename", flat=True)
+            )
+        else:
+            extras = []
+        return effective_permissions_for(dept, extras)
+
     def validate(self, attrs):
         attrs = self._validate_passwords(attrs)
         if self.instance is None and attrs.get("department") is None:
             raise serializers.ValidationError({"department": _("Department is required.")})
+
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if not actor or not actor.is_authenticated:
+            return attrs
+
+        dept = attrs.get("department", getattr(self.instance, "department", None))
+        if "department" in attrs and not can_assign_department(actor, dept):
+            raise serializers.ValidationError(
+                {"department": _("You cannot assign this department.")}
+            )
+
+        proposed = self._proposed_permissions(attrs)
+
+        if self.instance is not None and self.instance.pk == actor.pk:
+            new_dept = attrs.get("department", self.instance.department)
+            new_extras = attrs.get("extra_permission_codenames")
+            validate_self_no_escalation(actor, new_dept, new_extras)
+        elif self.instance is not None:
+            assert_can_manage_target(actor, self.instance, proposed)
+        else:
+            assert_can_manage_target(
+                actor,
+                User(tenant=actor.tenant, department=dept),
+                proposed,
+            )
+
         return attrs
 
     def validate_email(self, value):

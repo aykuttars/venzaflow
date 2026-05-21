@@ -5,6 +5,16 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
+from apps.accounts.rbac import (
+    assert_department_manageable,
+    department_manageable_by,
+    filter_grantable_codenames,
+    is_tenant_manager,
+)
+from apps.common.permission_codes import (
+    codename_allowed_for_tenant,
+    filter_codenames_for_tenant,
+)
 
 User = get_user_model()
 
@@ -23,21 +33,91 @@ class DepartmentSerializer(serializers.ModelSerializer):
         required=False,
         write_only=False,
     )
+    manageable = serializers.SerializerMethodField()
 
     class Meta:
         model = Department
-        fields = ("id", "key", "name", "permission_codenames")
+        fields = ("id", "key", "name", "permission_codenames", "manageable")
+
+    def get_manageable(self, instance: Department) -> bool:
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if not actor or not actor.is_authenticated:
+            return False
+        return department_manageable_by(actor, instance)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data["permission_codenames"] = list(
+        codes = list(
             instance.permissions.order_by("codename").values_list("codename", flat=True)
         )
+        data["permission_codenames"] = filter_codenames_for_tenant(
+            codes, instance.tenant.enabled_modules
+        )
         return data
+
+    def validate_permission_codenames(self, value):
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        tenant = getattr(actor, "tenant", None)
+        if not tenant:
+            return value
+        invalid = [c for c in value if not codename_allowed_for_tenant(c, tenant.enabled_modules)]
+        if invalid:
+            raise serializers.ValidationError(
+                _("Permissions for unsubscribed modules are not allowed: %(codes)s")
+                % {"codes": ", ".join(sorted(invalid))}
+            )
+        if actor:
+            ungrantable = [
+                c for c in value if c not in filter_grantable_codenames(actor, list(value))
+            ]
+            if ungrantable:
+                raise serializers.ValidationError(
+                    _("You cannot grant permissions you do not hold: %(codes)s")
+                    % {"codes": ", ".join(sorted(ungrantable))}
+                )
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        instance = self.instance
+
+        if instance and instance.key == "admin":
+            if "key" in attrs and attrs["key"] != instance.key:
+                raise serializers.ValidationError(
+                    {"key": _("The admin department key cannot be changed.")}
+                )
+            codes = attrs.get("permission_codenames")
+            if codes is not None and len(codes) == 0:
+                raise serializers.ValidationError(
+                    {"permission_codenames": _("The admin department must keep permissions.")}
+                )
+
+        if actor and actor.is_authenticated:
+            proposed = attrs.get("permission_codenames")
+            if instance is not None:
+                assert_department_manageable(actor, instance, proposed)
+            else:
+                codes = proposed if proposed is not None else []
+                assert_department_manageable(
+                    actor,
+                    Department(tenant=actor.tenant, key=attrs.get("key", "new"), name=""),
+                    codes,
+                )
+
+        return attrs
 
     def create(self, validated_data):
         codes = validated_data.pop("permission_codenames", [])
         tenant_id = validated_data.pop("tenant_id")
+        if validated_data.get("key") == "admin" and not is_tenant_manager(
+            self.context["request"].user
+        ):
+            raise serializers.ValidationError(
+                {"key": _("Only tenant managers can create an admin department.")}
+            )
         dept = Department.objects.create(tenant_id=tenant_id, **validated_data)
         if codes:
             dept.permissions.set(Permission.objects.filter(codename__in=codes))

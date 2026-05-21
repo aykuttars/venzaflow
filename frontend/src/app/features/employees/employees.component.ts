@@ -17,6 +17,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
+import { API_BASE } from '../../core/api';
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { CrudService } from '../../shared/crud.service';
@@ -43,6 +44,8 @@ interface StaffUser {
   department: number | null;
   department_name?: string;
   extra_permission_codenames?: string[];
+  effective_permission_codenames?: string[];
+  manageable?: boolean;
 }
 
 @Component({
@@ -82,8 +85,7 @@ export class EmployeesComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   protected auth = inject(AuthService);
-  private staffCrud = new CrudService<StaffUser>(this.http, 'employees');
-  private deptCrud = new CrudService<Department>(this.http, 'departments');
+  private staffCrud = new CrudService<StaffUser>(this.http, 'employees', this.auth, 'employees');
 
   items = signal<StaffUser[]>([]);
   departments = signal<Department[]>([]);
@@ -106,7 +108,7 @@ export class EmployeesComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.deptCrud.list({ limit: 100 }).subscribe((p) => this.departments.set(p.results));
+    this.loadDepartments();
     this.reload();
     if (!this.auth.subscription()) {
       this.auth.loadMe().subscribe({ error: () => undefined });
@@ -115,6 +117,29 @@ export class EmployeesComponent implements OnInit {
 
   canWrite(): boolean {
     return this.auth.hasPermission('employees.write');
+  }
+
+  canManageRow(u: StaffUser): boolean {
+    return u.manageable !== false;
+  }
+
+  showActionsColumn(): boolean {
+    return this.canWrite() && this.items().some((u) => this.canManageRow(u));
+  }
+
+  isSelf(u: StaffUser): boolean {
+    return u.id === this.auth.me()?.user.id;
+  }
+
+  loadDepartments(): void {
+    if (!this.canWrite()) {
+      this.departments.set([]);
+      return;
+    }
+    this.http.get<Department[]>(`${API_BASE}/employees/assignable-departments/`).subscribe({
+      next: (rows) => this.departments.set(rows),
+      error: () => this.departments.set([]),
+    });
   }
 
   onSearch(v: string): void {
@@ -129,6 +154,7 @@ export class EmployeesComponent implements OnInit {
   }
 
   openForm(u?: StaffUser): void {
+    if (u && !this.canManageRow(u)) return;
     const pw = this.passwordGroup;
     if (u) {
       this.form.reset({
@@ -144,6 +170,7 @@ export class EmployeesComponent implements OnInit {
       pw.get('password')!.clearValidators();
       pw.get('password_confirm')!.clearValidators();
     } else {
+      if (!this.canWrite()) return;
       this.form.reset({
         id: null,
         email: '',
@@ -168,6 +195,12 @@ export class EmployeesComponent implements OnInit {
   save(): void {
     if (this.form.invalid || this.passwordGroup.invalid) return;
     const v = this.form.getRawValue();
+    if (v.id) {
+      const row = this.items().find((u) => u.id === v.id);
+      if (row && !this.canManageRow(row)) return;
+    } else if (!this.canWrite()) {
+      return;
+    }
     const pw = this.passwordGroup.getRawValue();
     const payload: Record<string, unknown> = {
       email: v.email,
@@ -205,6 +238,7 @@ export class EmployeesComponent implements OnInit {
   }
 
   remove(u: StaffUser): void {
+    if (!this.canManageRow(u) || this.isSelf(u)) return;
     if (!confirm(this.translate.instant('common.confirmDelete') + ` (${u.email})`)) return;
     this.staffCrud.remove(u.id).subscribe({
       next: () => {

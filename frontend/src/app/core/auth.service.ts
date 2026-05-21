@@ -1,11 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Observable, of, tap } from 'rxjs';
 
 import { API_BASE } from './api';
 import { decodeJwt, isExpired, JwtClaims } from './jwt';
 import { AppLanguage, LanguageService } from './language.service';
+import { isExemptApiPath, requiredModuleForApiPath } from '../shared/api-module-map';
+import { parentHostsChild } from '../shared/module-hierarchy';
 
 const ACCESS_KEY = 'bms.access';
 const REFRESH_KEY = 'bms.refresh';
@@ -37,6 +39,7 @@ export interface LoginResponse {
   enabled_modules: string[];
   default_language?: AppLanguage;
   module_labels?: Record<string, string>;
+  module_parents?: Record<string, string>;
   subscription?: TenantSubscription;
 }
 
@@ -54,6 +57,7 @@ export class AuthService {
     enabled_modules: string[];
     default_language?: AppLanguage;
     module_labels?: Record<string, string>;
+    module_parents?: Record<string, string>;
     subscription?: TenantSubscription;
   } | null>(this.readMe());
 
@@ -101,6 +105,7 @@ export class AuthService {
     permissions: string[];
     enabled_modules: string[];
     module_labels?: Record<string, string>;
+    module_parents?: Record<string, string>;
     subscription?: TenantSubscription;
   }> {
     return this.loadMe();
@@ -112,6 +117,7 @@ export class AuthService {
     enabled_modules: string[];
     default_language?: AppLanguage;
     module_labels?: Record<string, string>;
+    module_parents?: Record<string, string>;
     subscription?: TenantSubscription;
   }> {
     return this.http
@@ -121,6 +127,7 @@ export class AuthService {
         enabled_modules: string[];
         default_language?: AppLanguage;
         module_labels?: Record<string, string>;
+        module_parents?: Record<string, string>;
         subscription?: TenantSubscription;
       }>(`${API_BASE}/auth/me/`)
       .pipe(
@@ -170,10 +177,66 @@ export class AuthService {
     return !!me?.permissions.includes(code);
   }
 
+  permissions(): string[] {
+    return this.me()?.permissions ?? [];
+  }
+
+  isTenantManager(): boolean {
+    const me = this.me();
+    if (!me) return false;
+    if (me.permissions.includes('settings.write')) return true;
+    return me.user.department?.key === 'admin';
+  }
+
+  canGrantPermission(codename: string): boolean {
+    if (this.isTenantManager()) return true;
+    return this.hasPermission(codename);
+  }
+
   hasModule(slug: string): boolean {
     if (!slug) return true;
     const me = this.me();
     return !!me?.enabled_modules.includes(slug);
+  }
+
+  moduleParents(): Record<string, string> {
+    return this.me()?.module_parents ?? {};
+  }
+
+  moduleParent(slug: string): string | undefined {
+    return this.moduleParents()[slug];
+  }
+
+  isModuleNested(slug: string): boolean {
+    const parent = this.moduleParent(slug);
+    if (!parent) return false;
+    const enabled = this.me()?.enabled_modules ?? [];
+    if (!enabled.includes(parent)) return false;
+    return parentHostsChild(parent, slug);
+  }
+
+  nestedUnder(slug: string, parentModule: string): boolean {
+    return this.moduleParent(slug) === parentModule && this.isModuleNested(slug);
+  }
+
+  /** Whether the tenant may call this API path (module subscription check). */
+  canAccessApiPath(pathOrUrl: string): boolean {
+    if (isExemptApiPath(pathOrUrl)) {
+      return true;
+    }
+    const module = requiredModuleForApiPath(pathOrUrl);
+    if (!module) {
+      return true;
+    }
+    return this.hasModule(module);
+  }
+
+  /** Run factory only when tenant has the module; otherwise return fallback without HTTP. */
+  whenModule<T>(slug: string, factory: () => Observable<T>, fallback: T): Observable<T> {
+    if (!this.hasModule(slug)) {
+      return of(fallback);
+    }
+    return factory();
   }
 
   private persist(res: LoginResponse) {
@@ -187,6 +250,7 @@ export class AuthService {
         enabled_modules: res.enabled_modules,
         default_language: res.default_language,
         module_labels: res.module_labels ?? {},
+        module_parents: res.module_parents ?? {},
         subscription: res.subscription,
       })
     );
@@ -198,6 +262,7 @@ export class AuthService {
       enabled_modules: res.enabled_modules,
       default_language: res.default_language,
       module_labels: res.module_labels ?? {},
+      module_parents: res.module_parents ?? {},
       subscription: res.subscription,
     });
     this.language.initFromTenant(

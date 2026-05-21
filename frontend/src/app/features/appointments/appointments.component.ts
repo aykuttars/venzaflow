@@ -14,6 +14,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { CrudService } from '../../shared/crud.service';
+import { PartyListService } from '../../shared/party-list.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { AppointmentDatetimeRangeComponent } from '../../shared/appointment-datetime-range.component';
 import { normalizeDateTimeInput } from '../../shared/date-utils';
@@ -87,7 +88,12 @@ import { normalizeDateTimeInput } from '../../shared/date-utils';
         <form [formGroup]="activeForm" (ngSubmit)="save()" style="display:flex;flex-direction:column;gap:8px">
           @if (tab() === 0) {
             <mat-form-field appearance="outline"><mat-label>{{ 'appointments.customer' | translate }}</mat-label>
-              <mat-select formControlName="customer">@for (c of customers(); track c.id) {<mat-option [value]="c.id">{{ c.first_name }} {{ c.last_name }}</mat-option>}</mat-select>
+              <mat-select formControlName="customer" [disabled]="!hasPartyModule()">
+                @for (c of parties(); track c.id) {<mat-option [value]="c.id">{{ c.first_name }} {{ c.last_name }}</mat-option>}
+              </mat-select>
+              @if (!hasPartyModule()) {
+              <mat-hint>{{ 'billing.partyModuleRequired' | translate }}</mat-hint>
+              }
             </mat-form-field>
             <app-appointment-datetime-range
               [startControl]="startAtControl"
@@ -122,14 +128,14 @@ export class AppointmentsComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   protected auth = inject(AuthService);
+  private partiesApi = inject(PartyListService);
   tab = signal(0);
   editing = signal(false);
   appointments = signal<any[]>([]);
   schedules = signal<any[]>([]);
-  customers = signal<any[]>([]);
-  private apptCrud = new CrudService<any>(this.http, 'appointments');
-  private schedCrud = new CrudService<any>(this.http, 'schedules');
-  private custCrud = new CrudService<any>(this.http, 'customers');
+  parties = signal<any[]>([]);
+  private apptCrud = new CrudService<any>(this.http, 'appointments', this.auth, 'appointments');
+  private schedCrud = new CrudService<any>(this.http, 'schedules', this.auth, 'appointments');
 
   apptForm = this.fb.group({
     id: this.fb.control<number | null>(null),
@@ -164,9 +170,14 @@ export class AppointmentsComponent implements OnInit {
   reload(): void {
     this.apptCrud.list({ limit: 200 }).subscribe((p) => this.appointments.set(p.results));
     this.schedCrud.list({ limit: 200 }).subscribe((p) => this.schedules.set(p.results));
-    this.custCrud.list({ limit: 200 }).subscribe((p) => this.customers.set(p.results));
+    if (this.partiesApi.hasAnyPartyModule()) {
+      this.partiesApi.listParties(200).subscribe((rows) => this.parties.set(rows));
+    } else {
+      this.parties.set([]);
+    }
   }
 
+  hasPartyModule = () => this.partiesApi.hasAnyPartyModule();
   canWrite = () => this.auth.hasPermission('appointments.write');
   onAdd = () => (this.tab() === 0 ? this.openAppt() : this.openSchedule());
 

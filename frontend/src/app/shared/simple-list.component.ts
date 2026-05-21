@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 
 import { CrudService, Page } from './crud.service';
 import { PageHeaderComponent } from './page-header.component';
+import { AuthService } from '../core/auth.service';
 
 export interface SimpleColumn {
   key: string;
@@ -79,6 +80,7 @@ export class SimpleListComponent implements OnInit {
   @Input({ required: true }) columns: SimpleColumn[] = [];
 
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   items = signal<Record<string, unknown>[]>([]);
   private search = '';
 
@@ -92,7 +94,7 @@ export class SimpleListComponent implements OnInit {
   }
 
   private reload() {
-    const crud = new CrudService<Record<string, unknown>>(this.http, this.path);
+    const crud = new CrudService<Record<string, unknown>>(this.http, this.path, this.auth);
     crud
       .list({ limit: 100, search: this.search })
       .subscribe((p: Page<Record<string, unknown>>) => this.items.set(p.results));

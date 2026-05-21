@@ -10,11 +10,13 @@ import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 import { APP_ROUTES } from './app.routes';
 import { AppTranslateLoader } from './core/app-translate-loader';
 import { authInterceptor } from './core/auth.interceptor';
 import { languageInterceptor } from './core/language.interceptor';
+import { moduleAccessInterceptor } from './core/module-access.interceptor';
 import { platformAuthInterceptor } from './core/platform-auth.interceptor';
 import { i18nInitializerProvider } from './core/i18n.initializer';
 import { authReducer } from './core/state/auth.reducer';
@@ -27,7 +29,12 @@ export const appConfig: ApplicationConfig = {
     provideRouter(APP_ROUTES, withComponentInputBinding()),
     provideAnimations(),
     provideHttpClient(
-      withInterceptors([languageInterceptor, platformAuthInterceptor, authInterceptor])
+      withInterceptors([
+        languageInterceptor,
+        moduleAccessInterceptor,
+        platformAuthInterceptor,
+        authInterceptor,
+      ])
     ),
     i18nInitializerProvider,
     importProvidersFrom(
@@ -43,5 +50,6 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_DATE_LOCALE, useFactory: matDateLocaleFactory, deps: [LanguageService] },
     provideStore({ auth: authReducer }),
     provideEffects([AuthEffects]),
+    provideCharts(withDefaultRegisterables()),
   ],
 };

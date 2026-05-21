@@ -4,6 +4,8 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions
 
+from apps.common.permission_codes import NON_BILLABLE_MODULES
+
 
 class HasViewPermission(permissions.BasePermission):
     """Uses `required_permission` codename on view / viewset."""
@@ -24,6 +26,8 @@ class HasModule(permissions.BasePermission):
     def has_permission(self, request, view):
         module = getattr(view, "required_module", None)
         if not module:
+            return True
+        if module in NON_BILLABLE_MODULES:
             return True
         user = request.user
         if not user or not user.is_authenticated:

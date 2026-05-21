@@ -7,6 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { API_BASE } from '../core/api';
+import { AuthService } from '../core/auth.service';
 import { ModuleLabelService } from '../core/module-label.service';
 
 interface PermissionItem {
@@ -126,6 +127,7 @@ export class PermissionPickerComponent implements OnInit {
   private http = inject(HttpClient);
   private translate = inject(TranslateService);
   private moduleLabelService = inject(ModuleLabelService);
+  private auth = inject(AuthService);
   groups: PermissionGroup[] = [];
   loading = true;
   error = false;
@@ -140,12 +142,19 @@ export class PermissionPickerComponent implements OnInit {
           if (!map.has(mod)) map.set(mod, []);
           map.get(mod)!.push(p);
         }
+        const enabled = new Set(this.auth.me()?.enabled_modules ?? []);
+        const grantable = new Set(this.auth.permissions());
+        const isManager = this.auth.isTenantManager();
         this.groups = [...map.entries()]
-          .sort(([a], [b]) => a.localeCompare(b))
+          .filter(([module]) => enabled.has(module))
           .map(([module, groupItems]) => ({
             module,
-            items: groupItems.sort((a, b) => a.codename.localeCompare(b.codename)),
-          }));
+            items: groupItems
+              .filter((p) => isManager || grantable.has(p.codename))
+              .sort((a, b) => a.codename.localeCompare(b.codename)),
+          }))
+          .filter((g) => g.items.length > 0)
+          .sort((a, b) => a.module.localeCompare(b.module));
         this.loading = false;
       },
       error: () => {

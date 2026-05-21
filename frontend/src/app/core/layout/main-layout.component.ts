@@ -12,38 +12,8 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../auth.service';
 import { ModuleLabelService } from '../module-label.service';
-
-interface NavItem {
-  path: string;
-  labelKey: string;
-  icon: string;
-  /** Module slug for hasModule() / RBAC. */
-  module: string;
-  /** When set, nav title uses this instead of module (e.g. departments → settings module). */
-  labelSlug?: string;
-  permission: string;
-}
-
-const NAV: NavItem[] = [
-  { path: '/dashboard', labelKey: 'nav.dashboard', icon: 'dashboard', module: 'dashboard', permission: 'dashboard.read' },
-  { path: '/products', labelKey: 'nav.products', icon: 'inventory_2', module: 'products', permission: 'products.read' },
-  { path: '/inventory', labelKey: 'nav.inventory', icon: 'warehouse', module: 'inventory', permission: 'inventory.read' },
-  { path: '/employees', labelKey: 'nav.employees', icon: 'badge', module: 'employees', permission: 'employees.read' },
-  { path: '/customers', labelKey: 'nav.customers', icon: 'people', module: 'customers', permission: 'customers.read' },
-  { path: '/appointments', labelKey: 'nav.appointments', icon: 'event', module: 'appointments', permission: 'appointments.read' },
-  { path: '/billing', labelKey: 'nav.billing', icon: 'receipt_long', module: 'billing', permission: 'billing.read' },
-  { path: '/accounting', labelKey: 'nav.accounting', icon: 'savings', module: 'accounting', permission: 'accounting.read' },
-  { path: '/audit-logs', labelKey: 'nav.auditLogs', icon: 'history', module: 'audit', permission: 'audit.read' },
-  {
-    path: '/departments',
-    labelKey: 'nav.departments',
-    labelSlug: 'departments',
-    icon: 'admin_panel_settings',
-    module: 'settings',
-    permission: 'settings.read',
-  },
-  { path: '/settings', labelKey: 'nav.settings', icon: 'settings', module: 'settings', permission: 'settings.read' },
-];
+import { ModuleNavService } from '../module-nav.service';
+import { ModuleNavItem } from '../../shared/module-hierarchy';
 
 @Component({
   selector: 'app-main-layout',
@@ -110,9 +80,10 @@ const NAV: NavItem[] = [
 export class MainLayoutComponent {
   protected auth = inject(AuthService);
   private moduleLabels = inject(ModuleLabelService);
+  private moduleNav = inject(ModuleNavService);
   private translate = inject(TranslateService);
 
-  protected navLabel(item: NavItem): string {
+  protected navLabel(item: ModuleNavItem): string {
     const displaySlug = item.labelSlug ?? item.module;
     if (displaySlug !== item.module) {
       const custom = this.auth.me()?.module_labels?.[displaySlug]?.trim();
@@ -123,10 +94,8 @@ export class MainLayoutComponent {
     return this.moduleLabels.label(item.module);
   }
 
-  protected get visibleNav(): NavItem[] {
-    return NAV.filter(
-      (n) => this.auth.hasModule(n.module) && this.auth.hasPermission(n.permission)
-    );
+  protected get visibleNav(): ModuleNavItem[] {
+    return this.moduleNav.visibleTopLevel();
   }
 
   protected logout(): void {

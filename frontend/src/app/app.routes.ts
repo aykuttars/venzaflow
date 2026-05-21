@@ -107,11 +107,38 @@ export const APP_ROUTES: Routes = [
       {
         path: 'customers',
         loadComponent: () =>
-          import('./features/customers/customers.component').then(
-            (m) => m.CustomersComponent
+          import('./features/customers/customers-shell.component').then(
+            (m) => m.CustomersShellComponent
           ),
         canActivate: [roleGuard],
         data: { module: 'customers', permission: 'customers.read' },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/customers/customers.component').then(
+                (m) => m.CustomersComponent
+              ),
+          },
+          {
+            path: 'patients',
+            loadComponent: () =>
+              import('./features/patients/patients.component').then(
+                (m) => m.PatientsComponent
+              ),
+            canActivate: [roleGuard],
+            data: { module: 'patients', permission: 'patients.read', embedded: true },
+          },
+        ],
+      },
+      {
+        path: 'patients',
+        loadComponent: () =>
+          import('./features/patients/patients.component').then(
+            (m) => m.PatientsComponent
+          ),
+        canActivate: [roleGuard],
+        data: { module: 'patients', permission: 'patients.read' },
       },
       {
         path: 'appointments',

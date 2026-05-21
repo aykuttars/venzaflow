@@ -8,6 +8,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { BaseChartDirective } from 'ng2-charts';
 
 import { API_BASE } from '../../core/api';
+import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 
 interface DashboardSummary {
@@ -66,32 +67,43 @@ interface DashboardSummary {
 
       @if (data(); as d) {
       <div class="card-grid">
+        @if (auth.hasModule('billing')) {
         <div class="metric-card">
           <span class="label">{{ 'dashboard.dailySales' | translate }}</span>
           <span class="value">{{ d.daily_sales | number: '1.2-2' }}</span>
         </div>
+        }
+        @if (auth.hasModule('customers')) {
         <div class="metric-card">
           <span class="label">{{ 'dashboard.customers' | translate }}</span>
           <span class="value">{{ d.customer_count }}</span>
         </div>
+        }
+        @if (auth.hasModule('patients')) {
         <div class="metric-card">
           <span class="label">{{ 'dashboard.patients' | translate }}</span>
           <span class="value">{{ d.patient_count }}</span>
         </div>
+        }
+        @if (auth.hasModule('billing')) {
         <div class="metric-card">
           <span class="label">{{ 'dashboard.openInvoices' | translate }}</span>
           <span class="value">{{ d.open_invoices_count }}</span>
         </div>
+        }
       </div>
 
       <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px">
+        @if (auth.hasModule('billing')) {
         <mat-card>
           <mat-card-header><mat-card-title>{{ 'dashboard.recentPayments' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
             <canvas baseChart [data]="paymentsChart()" [type]="'bar'" [options]="chartOpts"></canvas>
           </mat-card-content>
         </mat-card>
+        }
 
+        @if (auth.hasModule('inventory')) {
         <mat-card>
           <mat-card-header><mat-card-title>{{ 'dashboard.criticalStock' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
@@ -109,9 +121,11 @@ interface DashboardSummary {
             }
           </mat-card-content>
         </mat-card>
+        }
       </div>
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px">
+        @if (auth.hasModule('appointments')) {
         <mat-card>
           <mat-card-header><mat-card-title>{{ 'dashboard.upcomingAppointments' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
@@ -126,6 +140,8 @@ interface DashboardSummary {
             }
           </mat-card-content>
         </mat-card>
+        }
+        @if (auth.hasModule('accounting')) {
         <mat-card>
           <mat-card-header><mat-card-title>{{ 'dashboard.recentTransactions' | translate }}</mat-card-title></mat-card-header>
           <mat-card-content>
@@ -142,6 +158,7 @@ interface DashboardSummary {
             }
           </mat-card-content>
         </mat-card>
+        }
       </div>
       }
     </div>
@@ -150,6 +167,7 @@ interface DashboardSummary {
 export class DashboardComponent implements OnInit {
   private http = inject(HttpClient);
   private translate = inject(TranslateService);
+  protected auth = inject(AuthService);
   protected data = signal<DashboardSummary | null>(null);
   protected chartOpts = { responsive: true, maintainAspectRatio: false };
 
@@ -174,6 +192,9 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.auth.hasModule('dashboard')) {
+      return;
+    }
     this.http
       .get<DashboardSummary>(`${API_BASE}/dashboard/summary/`)
       .subscribe({

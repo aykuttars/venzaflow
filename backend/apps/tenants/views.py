@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.rbac import is_tenant_manager
 from apps.tenants.models import Tenant
 from apps.tenants.serializers import TenantProfileSerializer
 
@@ -16,11 +17,7 @@ class TenantProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def _can_manage(self, user) -> bool:
-        if user.has_permission_codename("settings.write"):
-            return True
-        if user.department_id and user.department.key == "admin":
-            return True
-        return False
+        return is_tenant_manager(user)
 
     def get(self, request):
         tenant = Tenant.objects.get(pk=request.user.tenant_id)

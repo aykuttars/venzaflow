@@ -43,6 +43,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "phone",
             "email",
         )
+        read_only_fields = ("kind",)
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
@@ -59,6 +60,45 @@ class CustomerSerializer(serializers.ModelSerializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError(str(exc.messages[0])) from exc
         return text
+
+    def create(self, validated_data):
+        validated_data["kind"] = Customer.Kind.CUSTOMER
+        return super().create(validated_data)
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Customer
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "full_name",
+            "phone",
+            "email",
+        )
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}".strip()
+
+    def validate_phone(self, value):
+        return validate_phone_value(value)
+
+    def validate_email(self, value):
+        text = (value or "").strip()
+        if not text:
+            return ""
+        try:
+            validate_email(text)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(str(exc.messages[0])) from exc
+        return text
+
+    def create(self, validated_data):
+        validated_data["kind"] = Customer.Kind.PATIENT
+        return super().create(validated_data)
 
 
 class MedicalRecordSerializer(serializers.ModelSerializer):

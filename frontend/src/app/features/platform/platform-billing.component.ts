@@ -11,7 +11,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
-import { ALL_MODULE_SLUGS } from '../../shared/module-slugs';
+import { BILLABLE_MODULE_SLUGS } from '../../shared/module-slugs';
 
 interface BillingSettings {
   default_monthly_discount_percent: string;
@@ -246,7 +246,7 @@ export class PlatformBillingComponent implements OnInit {
       .subscribe((p) => {
         const existing = new Set(p.results.map((x) => x.module_slug));
         this.modulePrices.set(p.results);
-        for (const slug of ALL_MODULE_SLUGS) {
+        for (const slug of BILLABLE_MODULE_SLUGS) {
           if (!existing.has(slug)) {
             this.http
               .post<ModulePrice>(`${API_BASE}/platform/billing/module-prices/`, {

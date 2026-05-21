@@ -153,9 +153,9 @@ export class AccountingComponent implements OnInit {
   accounts = signal<any[]>([]);
   expenses = signal<any[]>([]);
   transactions = signal<any[]>([]);
-  private accCrud = new CrudService<any>(this.http, 'accounting/accounts');
-  private expCrud = new CrudService<any>(this.http, 'accounting/expenses');
-  private txCrud = new CrudService<any>(this.http, 'accounting/transactions');
+  private accCrud = new CrudService<any>(this.http, 'accounting/accounts', this.auth, 'accounting');
+  private expCrud = new CrudService<any>(this.http, 'accounting/expenses', this.auth, 'accounting');
+  private txCrud = new CrudService<any>(this.http, 'accounting/transactions', this.auth, 'accounting');
 
   accountForm = this.fb.group({
     id: this.fb.control<number | null>(null),

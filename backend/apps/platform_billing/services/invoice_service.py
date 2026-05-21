@@ -213,7 +213,9 @@ def generate_subscription_invoice(
         raise ValueError("Tenant has no active users for billing.")
 
     active_modules = list(
-        tenant.module_subscriptions.filter(is_active=True).values_list("module_slug", flat=True)
+        tenant.module_subscriptions.filter(is_active=True, is_billable=True).values_list(
+            "module_slug", flat=True
+        )
     )
     if not active_modules:
         raise ValueError("Tenant has no active module subscriptions.")

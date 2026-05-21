@@ -197,8 +197,8 @@ export class ProductsComponent implements OnInit {
   private translate = inject(TranslateService);
   protected auth = inject(AuthService);
 
-  private crud = new CrudService<Product>(this.http, 'products');
-  private catCrud = new CrudService<Category>(this.http, 'products/categories');
+  private crud = new CrudService<Product>(this.http, 'products', this.auth, 'products');
+  private catCrud = new CrudService<Category>(this.http, 'products/categories', this.auth, 'products');
 
   tab = signal(0);
   items = signal<Product[]>([]);

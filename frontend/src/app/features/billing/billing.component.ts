@@ -14,6 +14,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { CrudService } from '../../shared/crud.service';
+import { PartyListService } from '../../shared/party-list.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { DateFieldComponent } from '../../shared/date-field.component';
 import { DateTimeFieldComponent } from '../../shared/date-time-field.component';
@@ -88,7 +89,12 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
           @if (tab() === 0) {
             <mat-form-field appearance="outline"><mat-label>{{ 'billing.number' | translate }}</mat-label><input matInput formControlName="number" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'appointments.customer' | translate }}</mat-label>
-              <mat-select formControlName="customer">@for (c of customers(); track c.id) {<mat-option [value]="c.id">{{ c.first_name }}</mat-option>}</mat-select>
+              <mat-select formControlName="customer" [disabled]="!hasPartyModule()">
+                @for (c of parties(); track c.id) {<mat-option [value]="c.id">{{ c.first_name }}</mat-option>}
+              </mat-select>
+              @if (!hasPartyModule()) {
+              <mat-hint>{{ 'billing.partyModuleRequired' | translate }}</mat-hint>
+              }
             </mat-form-field>
             <app-date-field formControlName="issued_at" labelKey="billing.issuedAt" [required]="true" />
             <app-date-field formControlName="due_date" labelKey="billing.dueDate" />
@@ -123,14 +129,14 @@ export class BillingComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   protected auth = inject(AuthService);
+  private partiesApi = inject(PartyListService);
   tab = signal(0);
   editing = signal(false);
   invoices = signal<any[]>([]);
   payments = signal<any[]>([]);
-  customers = signal<any[]>([]);
-  private invCrud = new CrudService<any>(this.http, 'billing/invoices');
-  private payCrud = new CrudService<any>(this.http, 'billing/payments');
-  private custCrud = new CrudService<any>(this.http, 'customers');
+  parties = signal<any[]>([]);
+  private invCrud = new CrudService<any>(this.http, 'billing/invoices', this.auth, 'billing');
+  private payCrud = new CrudService<any>(this.http, 'billing/payments', this.auth, 'billing');
 
   invoiceForm = this.fb.group({
     id: this.fb.control<number | null>(null),
@@ -159,9 +165,14 @@ export class BillingComponent implements OnInit {
   reload(): void {
     this.invCrud.list({ limit: 200 }).subscribe((p) => this.invoices.set(p.results));
     this.payCrud.list({ limit: 200 }).subscribe((p) => this.payments.set(p.results));
-    this.custCrud.list({ limit: 200 }).subscribe((p) => this.customers.set(p.results));
+    if (this.partiesApi.hasAnyPartyModule()) {
+      this.partiesApi.listParties(200).subscribe((rows) => this.parties.set(rows));
+    } else {
+      this.parties.set([]);
+    }
   }
 
+  hasPartyModule = () => this.partiesApi.hasAnyPartyModule();
   canWrite = () => this.auth.hasPermission('billing.write');
   onAdd = () => (this.tab() === 0 ? this.openInvoice() : this.openPayment());
 

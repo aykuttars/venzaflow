@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.serializers import LoginSerializer, UserSerializer
 from apps.accounts.tokens import build_tokens_for_user
+from apps.tenants.subscription_service import tenant_module_parents
 
 User = get_user_model()
 
@@ -33,6 +34,7 @@ class LoginView(APIView):
                 "enabled_modules": user.tenant.enabled_modules or [],
                 "default_language": user.tenant.default_language,
                 "module_labels": user.tenant.module_labels or {},
+                "module_parents": tenant_module_parents(user.tenant),
                 "subscription": user.tenant.subscription_payload(),
             }
         )
@@ -65,6 +67,7 @@ class MeView(APIView):
                 "enabled_modules": user.tenant.enabled_modules or [],
                 "default_language": user.tenant.default_language,
                 "module_labels": user.tenant.module_labels or {},
+                "module_parents": tenant_module_parents(user.tenant),
                 "subscription": user.tenant.subscription_payload(),
             }
         )

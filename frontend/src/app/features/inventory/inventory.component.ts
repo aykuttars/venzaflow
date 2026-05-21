@@ -107,7 +107,12 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
           } @else if (tab() === 1) {
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.product' | translate }}</mat-label>
-              <mat-select formControlName="product">@for (p of products(); track p.id) {<mat-option [value]="p.id">{{ p.sku }}</mat-option>}</mat-select>
+              <mat-select formControlName="product" [disabled]="!hasProductsModule()">
+                @for (p of products(); track p.id) {<mat-option [value]="p.id">{{ p.sku }}</mat-option>}
+              </mat-select>
+              @if (!hasProductsModule()) {
+              <mat-hint>{{ 'inventory.productsModuleRequired' | translate }}</mat-hint>
+              }
             </mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.warehouse' | translate }}</mat-label>
               <mat-select formControlName="warehouse">@for (w of warehouses(); track w.id) {<mat-option [value]="w.id">{{ w.code }}</mat-option>}</mat-select>
@@ -145,10 +150,10 @@ export class InventoryComponent implements OnInit {
   movements = signal<any[]>([]);
   products = signal<any[]>([]);
 
-  private whCrud = new CrudService<any>(this.http, 'inventory/warehouses');
-  private stockCrud = new CrudService<any>(this.http, 'inventory/stock');
-  private movCrud = new CrudService<any>(this.http, 'inventory/movements');
-  private prodCrud = new CrudService<any>(this.http, 'products');
+  private whCrud = new CrudService<any>(this.http, 'inventory/warehouses', this.auth, 'inventory');
+  private stockCrud = new CrudService<any>(this.http, 'inventory/stock', this.auth, 'inventory');
+  private movCrud = new CrudService<any>(this.http, 'inventory/movements', this.auth, 'inventory');
+  private prodCrud = new CrudService<any>(this.http, 'products', this.auth, 'products');
 
   warehouseForm = this.fb.group({ id: this.fb.control<number | null>(null), code: ['', Validators.required], name: ['', Validators.required] });
   stockForm = this.fb.group({
@@ -187,8 +192,14 @@ export class InventoryComponent implements OnInit {
     this.whCrud.list({ limit: 200 }).subscribe((p) => this.warehouses.set(p.results));
     this.stockCrud.list({ limit: 200 }).subscribe((p) => this.stock.set(p.results));
     this.movCrud.list({ limit: 200 }).subscribe((p) => this.movements.set(p.results));
-    this.prodCrud.list({ limit: 200 }).subscribe((p) => this.products.set(p.results));
+    if (this.auth.hasModule('products')) {
+      this.prodCrud.list({ limit: 200 }).subscribe((p) => this.products.set(p.results));
+    } else {
+      this.products.set([]);
+    }
   }
+
+  hasProductsModule = () => this.auth.hasModule('products');
 
   openForm(w?: any): void {
     this.tab.set(0);

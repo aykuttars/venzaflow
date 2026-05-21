@@ -25,6 +25,7 @@ interface Department {
   key: string;
   name: string;
   permission_codenames: string[];
+  manageable?: boolean;
 }
 
 @Component({
@@ -64,7 +65,7 @@ interface Department {
             <th>{{ 'departments.key' | translate }}</th>
             <th>{{ 'departments.name' | translate }}</th>
             <th>{{ 'permissions.title' | translate }}</th>
-            @if (canWrite()) {<th></th>}
+            @if (showActionsColumn()) {<th></th>}
           </tr>
         </thead>
         <tbody>
@@ -73,16 +74,18 @@ interface Department {
             <td>{{ d.key }}</td>
             <td>{{ d.name }}</td>
             <td>{{ (d.permission_codenames || []).join(', ') }}</td>
-            @if (canWrite()) {
+            @if (showActionsColumn() && canManageRow(d)) {
             <td style="text-align:right">
               <button mat-icon-button (click)="openForm(d)"><mat-icon>edit</mat-icon></button>
               <button mat-icon-button (click)="remove(d)"><mat-icon>delete</mat-icon></button>
             </td>
+            } @else if (showActionsColumn()) {
+            <td></td>
             }
           </tr>
           }
           @if (items().length === 0) {
-          <tr><td [attr.colspan]="canWrite() ? 4 : 3" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
+          <tr><td [attr.colspan]="showActionsColumn() ? 4 : 3" style="text-align:center;padding:24px">{{ 'common.noRecords' | translate }}</td></tr>
           }
         </tbody>
       </table>
@@ -119,7 +122,7 @@ export class DepartmentsComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   protected auth = inject(AuthService);
-  private crud = new CrudService<Department>(this.http, 'departments');
+  private crud = new CrudService<Department>(this.http, 'departments', this.auth, 'settings');
 
   items = signal<Department[]>([]);
   editing = signal(false);
@@ -140,6 +143,14 @@ export class DepartmentsComponent implements OnInit {
     return this.auth.hasPermission('settings.write');
   }
 
+  canManageRow(d: Department): boolean {
+    return d.manageable !== false;
+  }
+
+  showActionsColumn(): boolean {
+    return this.canWrite() && this.items().some((d) => this.canManageRow(d));
+  }
+
   onSearch(v: string): void {
     this.search = v;
     this.reload();
@@ -152,6 +163,8 @@ export class DepartmentsComponent implements OnInit {
   }
 
   openForm(d?: Department): void {
+    if (d && !this.canManageRow(d)) return;
+    if (!d && !this.canWrite()) return;
     if (d) {
       this.form.reset({ id: d.id, key: d.key, name: d.name });
       this.permControl.setValue(d.permission_codenames || []);
@@ -169,6 +182,12 @@ export class DepartmentsComponent implements OnInit {
   save(): void {
     if (this.form.invalid) return;
     const v = this.form.getRawValue();
+    if (v.id) {
+      const row = this.items().find((d) => d.id === v.id);
+      if (row && !this.canManageRow(row)) return;
+    } else if (!this.canWrite()) {
+      return;
+    }
     const payload = {
       key: v.key,
       name: v.name,
@@ -189,6 +208,7 @@ export class DepartmentsComponent implements OnInit {
   }
 
   remove(d: Department): void {
+    if (!this.canManageRow(d)) return;
     if (!confirm(this.translate.instant('common.confirmDelete') + ` (${d.name})`)) return;
     this.crud.remove(d.id).subscribe({
       next: () => {

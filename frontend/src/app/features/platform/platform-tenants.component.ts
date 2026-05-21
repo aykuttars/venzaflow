@@ -21,7 +21,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { API_BASE } from '../../core/api';
 import { AppLanguage } from '../../core/language.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
-import { ALL_MODULE_SLUGS } from '../../shared/module-slugs';
+import { ALL_MODULE_SLUGS, BILLABLE_MODULE_SLUGS, NON_BILLABLE_MODULE_SLUGS, mergeTenantModules } from '../../shared/module-slugs';
 import { PasswordFieldsComponent } from '../../shared/password-fields.component';
 import {
   passwordMatchValidator,
@@ -32,6 +32,7 @@ interface ModuleSubscriptionRow {
   module_slug: string;
   is_active: boolean;
   is_extra: boolean;
+  is_billable?: boolean;
   price_per_user_monthly?: string | null;
 }
 
@@ -52,6 +53,9 @@ interface TenantRow {
   subscribed_modules?: string[];
   module_labels: Record<string, string>;
   module_subscriptions?: ModuleSubscriptionRow[];
+  non_billable_modules?: string[];
+  module_parents?: Record<string, string>;
+  default_non_billable_modules?: string[];
   billing_period?: string;
   payment_currency?: string;
   monthly_discount_percent?: string | null;
@@ -140,113 +144,177 @@ interface Page<T> {
 
       @if (editing()) {
       <div class="overlay" (click)="cancel()"></div>
-      <div class="dialog dialog--wide">
-        <h2>{{ (form.value.id ? 'platform.editTenant' : 'platform.newTenant') | translate }}</h2>
-        <form [formGroup]="form" (ngSubmit)="save()" class="dialog-form">
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.customerCode' | translate }}</mat-label>
-            <input matInput formControlName="customer_code" [readonly]="!!form.value.id" required />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'products.name' | translate }}</mat-label>
-            <input matInput formControlName="name" required />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.maxUsers' | translate }}</mat-label>
-            <input matInput type="number" min="1" formControlName="max_users" required />
-            @if (editingTenant()) {
-            <mat-hint>{{ 'platform.userUsage' | translate }}: {{ editingTenant()!.active_user_count }}/{{ form.value.max_users }}</mat-hint>
-            }
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'common.language' | translate }}</mat-label>
-            <mat-select formControlName="default_language">
-              <mat-option value="tr">{{ 'common.turkish' | translate }}</mat-option>
-              <mat-option value="en">{{ 'common.english' | translate }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-slide-toggle formControlName="is_active">{{ 'common.active' | translate }}</mat-slide-toggle>
-
-          <h3 class="dialog__section-title">{{ 'platform.billingPeriod' | translate }}</h3>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.billingPeriod' | translate }}</mat-label>
-            <mat-select formControlName="billing_period">
-              <mat-option value="monthly">{{ 'platform.billingMonthly' | translate }}</mat-option>
-              <mat-option value="yearly">{{ 'platform.billingYearly' | translate }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.paymentCurrency' | translate }}</mat-label>
-            <mat-select formControlName="payment_currency">
-              @for (c of currencies(); track c.code) {
-              <mat-option [value]="c.code">{{ c.code }} — {{ c.name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.monthlyDiscount' | translate }}</mat-label>
-            <input matInput type="number" min="0" max="100" formControlName="monthly_discount_percent" />
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'platform.yearlyDiscount' | translate }}</mat-label>
-            <input matInput type="number" min="0" max="100" formControlName="yearly_discount_percent" />
-          </mat-form-field>
-
-          <h3 class="dialog__section-title">{{ 'platform.modulesAccess' | translate }}</h3>
-          <div class="module-grid">
-            @for (slug of moduleSlugs; track slug) {
-            <div class="module-row" [class.module-row--disabled]="!isModuleEnabled(slug)">
-              <mat-checkbox
-                [checked]="isModuleEnabled(slug)"
-                (change)="toggleModule(slug, $event.checked)"
-              >
-                {{ ('modules.' + slug) | translate }}
-              </mat-checkbox>
-              @if (isModuleEnabled(slug)) {
-              <mat-checkbox
-                class="extra-flag"
-                [checked]="isExtraModule(slug)"
-                (change)="toggleExtra(slug, $event.checked)"
-              >
-                {{ 'platform.extraModule' | translate }}
-              </mat-checkbox>
-              <mat-form-field appearance="outline" class="module-price-field" subscriptSizing="dynamic">
-                <mat-label>{{ 'platform.modulePriceOverride' | translate }}</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  [formControl]="modulePriceControl(slug)"
-                  [placeholder]="globalPricePlaceholder(slug)"
-                />
-              </mat-form-field>
+      <div class="dialog dialog--tenant">
+        <form [formGroup]="form" (ngSubmit)="save()">
+          <div class="dialog__header">
+            <div class="dialog__header-main">
+              <h2>{{ (form.value.id ? 'platform.editTenant' : 'platform.newTenant') | translate }}</h2>
+              @if (editingTenant()) {
+              <span class="tenant-code-badge">{{ editingTenant()!.customer_code }}</span>
               }
             </div>
+            <mat-slide-toggle formControlName="is_active" class="dialog__active-toggle">
+              {{ 'common.active' | translate }}
+            </mat-slide-toggle>
+          </div>
+
+          <div class="dialog__body">
+            <section class="dialog__section">
+              <h3 class="dialog__section-title">{{ 'platform.tenantInfo' | translate }}</h3>
+              <div class="dialog__row dialog__row--3">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.customerCode' | translate }}</mat-label>
+                  <input matInput formControlName="customer_code" [readonly]="!!form.value.id" required />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'products.name' | translate }}</mat-label>
+                  <input matInput formControlName="name" required />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.maxUsers' | translate }}</mat-label>
+                  <input matInput type="number" min="1" formControlName="max_users" required />
+                  @if (editingTenant()) {
+                  <mat-hint>{{ 'platform.userUsage' | translate }}: {{ editingTenant()!.active_user_count }}/{{ form.value.max_users }}</mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+              <div class="dialog__row">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'common.language' | translate }}</mat-label>
+                  <mat-select formControlName="default_language">
+                    <mat-option value="tr">{{ 'common.turkish' | translate }}</mat-option>
+                    <mat-option value="en">{{ 'common.english' | translate }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+            </section>
+
+            <section class="dialog__section">
+              <h3 class="dialog__section-title">{{ 'platform.billingPeriod' | translate }}</h3>
+              <div class="dialog__row dialog__row--4">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.billingPeriod' | translate }}</mat-label>
+                  <mat-select formControlName="billing_period">
+                    <mat-option value="monthly">{{ 'platform.billingMonthly' | translate }}</mat-option>
+                    <mat-option value="yearly">{{ 'platform.billingYearly' | translate }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.paymentCurrency' | translate }}</mat-label>
+                  <mat-select formControlName="payment_currency">
+                    @for (c of currencies(); track c.code) {
+                    <mat-option [value]="c.code">{{ c.code }} — {{ c.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.monthlyDiscount' | translate }}</mat-label>
+                  <input matInput type="number" min="0" max="100" formControlName="monthly_discount_percent" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'platform.yearlyDiscount' | translate }}</mat-label>
+                  <input matInput type="number" min="0" max="100" formControlName="yearly_discount_percent" />
+                </mat-form-field>
+              </div>
+            </section>
+
+            <section class="dialog__section">
+              <h3 class="dialog__section-title">{{ 'platform.modulesAccess' | translate }}</h3>
+              <p class="hint">{{ 'platform.nonBillableModulesHint' | translate }}</p>
+              <div class="core-modules">
+                @for (slug of nonBillableModuleSlugs; track slug) {
+                <span class="core-chip">{{ ('modules.' + slug) | translate }}</span>
+                }
+              </div>
+              <div class="module-table">
+                <div class="module-table__head">
+                  <span>{{ 'platform.moduleName' | translate }}</span>
+                  <span>{{ 'platform.moduleEnabled' | translate }}</span>
+                  <span>{{ 'platform.moduleBillable' | translate }}</span>
+                  <span>{{ 'platform.extraModule' | translate }}</span>
+                  <span>{{ 'platform.moduleParent' | translate }}</span>
+                  <span>{{ 'platform.modulePriceOverride' | translate }}</span>
+                </div>
+                @for (slug of moduleSlugs; track slug) {
+                <div class="module-table__row" [class.module-table__row--disabled]="!isModuleEnabled(slug)">
+                  <span class="module-table__name">{{ ('modules.' + slug) | translate }}</span>
+                  <mat-checkbox
+                    [checked]="isModuleEnabled(slug)"
+                    (change)="toggleModule(slug, $event.checked)"
+                  />
+                  @if (isModuleEnabled(slug)) {
+                  <mat-checkbox
+                    [checked]="isModuleBillable(slug)"
+                    (change)="toggleBillable(slug, $event.checked)"
+                  />
+                  <mat-checkbox
+                    [checked]="isExtraModule(slug)"
+                    (change)="toggleExtra(slug, $event.checked)"
+                  />
+                  <mat-form-field appearance="outline" class="module-parent-field" subscriptSizing="dynamic">
+                    <mat-select
+                      [value]="moduleParent(slug)"
+                      (selectionChange)="setModuleParent(slug, $event.value)"
+                    >
+                      <mat-option value="">{{ 'platform.moduleParentNone' | translate }}</mat-option>
+                      @for (p of parentModuleOptions(slug); track p) {
+                      <mat-option [value]="p">{{ ('modules.' + p) | translate }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  @if (isModuleBillable(slug)) {
+                  <mat-form-field appearance="outline" class="module-price-field" subscriptSizing="dynamic">
+                    <input
+                      matInput
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      [formControl]="modulePriceControl(slug)"
+                      [placeholder]="globalPricePlaceholder(slug)"
+                    />
+                  </mat-form-field>
+                  } @else {
+                  <span class="module-table__na">—</span>
+                  }
+                  } @else {
+                  <span class="module-table__na">—</span>
+                  <span class="module-table__na">—</span>
+                  <span class="module-table__na">—</span>
+                  <span class="module-table__na">—</span>
+                  }
+                </div>
+                }
+              </div>
+            </section>
+
+            <section class="dialog__section">
+              <h3 class="dialog__section-title">{{ 'platform.moduleLabels' | translate }}</h3>
+              <p class="hint">{{ 'platform.moduleLabelsHint' | translate }}</p>
+              <div class="dialog__row">
+                @for (slug of labelModuleSlugs(); track slug) {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>{{ ('modules.' + slug) | translate }}</mat-label>
+                  <input matInput [formControl]="labelControl(slug)" />
+                </mat-form-field>
+                }
+              </div>
+            </section>
+
+            @if (!form.value.id) {
+            <section class="dialog__section">
+              <h3 class="dialog__section-title">{{ 'platform.initialAdmin' | translate }}</h3>
+              <div class="dialog__row">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ 'auth.email' | translate }}</mat-label>
+                  <input matInput type="email" formControlName="initial_admin_email" required />
+                </mat-form-field>
+              </div>
+              <app-password-fields [group]="initialAdminPasswordGroup" />
+            </section>
             }
           </div>
 
-          <h3 class="dialog__section-title">{{ 'platform.moduleLabels' | translate }}</h3>
-          <p class="hint">{{ 'platform.moduleLabelsHint' | translate }}</p>
-          @for (slug of moduleSlugs; track slug) {
-          @if (isModuleEnabled(slug)) {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>{{ ('modules.' + slug) | translate }}</mat-label>
-            <input matInput [formControl]="labelControl(slug)" />
-          </mat-form-field>
-          }
-          }
-
-          @if (!form.value.id) {
-          <h3 class="dialog__section-title">{{ 'platform.initialAdmin' | translate }}</h3>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ 'auth.email' | translate }}</mat-label>
-            <input matInput type="email" formControlName="initial_admin_email" required />
-          </mat-form-field>
-          <app-password-fields [group]="initialAdminPasswordGroup" />
-          }
-
-          <div class="dialog__footer-inline">
+          <div class="dialog__footer">
             <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
             <button mat-flat-button color="primary" type="submit" [disabled]="!canSave()">
               {{ 'common.save' | translate }}
@@ -271,49 +339,104 @@ interface Page<T> {
         font-size: 22px;
         font-weight: 500;
       }
-      .dialog--wide {
-        min-width: min(560px, 96vw);
-        max-width: 640px;
+      .dialog--tenant {
+        min-width: min(960px, 96vw);
+        max-width: 1040px;
       }
-      .dialog-form {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .module-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-      .module-row {
-        display: flex;
-        flex-wrap: wrap;
+      .tenant-code-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 8px 24px;
-        padding: 4px 0;
-      }
-      .module-row--disabled .extra-flag {
-        display: none;
-      }
-      .extra-flag {
+        padding: 4px 12px;
+        border-radius: 16px;
+        background: rgba(63, 81, 181, 0.1);
         font-size: 13px;
+        font-weight: 500;
+        color: rgba(63, 81, 181, 0.95);
+      }
+      .dialog__row--3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .dialog__row--4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      @media (max-width: 900px) {
+        .dialog__row--3,
+        .dialog__row--4 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .dialog__row--3,
+        .dialog__row--4 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .module-table {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .module-table__head,
+      .module-table__row {
+        display: grid;
+        grid-template-columns: minmax(120px, 1.5fr) 72px 72px 72px minmax(140px, 1fr) minmax(140px, 1fr);
+        align-items: center;
+        gap: 8px 12px;
+        padding: 10px 16px;
+      }
+      .module-table__head {
+        background: rgba(0, 0, 0, 0.04);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: rgba(0, 0, 0, 0.6);
+      }
+      .module-table__head span:not(:first-child),
+      .module-table__row > mat-checkbox,
+      .module-table__row > .module-table__na {
+        justify-self: center;
+        text-align: center;
+      }
+      .module-table__row {
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+      }
+      .module-table__row--disabled {
+        opacity: 0.55;
+      }
+      .module-table__name {
+        font-size: 14px;
+      }
+      .module-table__na {
+        color: rgba(0, 0, 0, 0.35);
+        font-size: 14px;
       }
       .module-price-field {
-        flex: 1;
-        min-width: 140px;
-        max-width: 220px;
+        width: 100%;
+        margin: 0;
+      }
+      .module-parent-field {
+        width: 100%;
+        margin: 0;
       }
       .hint {
         font-size: 13px;
         color: rgba(0, 0, 0, 0.6);
-        margin: 0 0 8px;
+        margin: 0 0 12px;
       }
-      .dialog__footer-inline {
+      .core-modules {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
-        justify-content: flex-end;
-        margin-top: 8px;
+        margin-bottom: 16px;
+      }
+      .core-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 16px;
+        background: rgba(63, 81, 181, 0.08);
+        font-size: 13px;
       }
     `,
   ],
@@ -324,7 +447,8 @@ export class PlatformTenantsComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
 
-  readonly moduleSlugs = ALL_MODULE_SLUGS;
+  readonly nonBillableModuleSlugs = NON_BILLABLE_MODULE_SLUGS;
+  readonly moduleSlugs = BILLABLE_MODULE_SLUGS;
   items = signal<TenantRow[]>([]);
   currencies = signal<CurrencyOption[]>([]);
   globalModulePrices = signal<Record<string, string>>({});
@@ -332,6 +456,8 @@ export class PlatformTenantsComponent implements OnInit {
   editingTenant = signal<TenantRow | null>(null);
   private enabledModules = signal<string[]>([]);
   private extraModules = signal<string[]>([]);
+  private nonBillableModules = signal<string[]>([]);
+  private moduleParents = signal<Record<string, string>>({});
   private labelControls = new Map<string, FormControl<string>>();
   private modulePriceControls = new Map<string, FormControl<string>>();
 
@@ -397,14 +523,72 @@ export class PlatformTenantsComponent implements OnInit {
     return this.extraModules().includes(slug);
   }
 
+  isModuleBillable(slug: string): boolean {
+    return this.isModuleEnabled(slug) && !this.nonBillableModules().includes(slug);
+  }
+
   toggleModule(slug: string, checked: boolean): void {
+    if ((NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(slug)) {
+      return;
+    }
     const current = [...this.enabledModules()];
     const extra = [...this.extraModules()];
+    const nonBillable = [...this.nonBillableModules()];
+    const parents = { ...this.moduleParents() };
     if (checked && !current.includes(slug)) {
       this.enabledModules.set([...current, slug]);
     } else if (!checked) {
       this.enabledModules.set(current.filter((s) => s !== slug));
       this.extraModules.set(extra.filter((s) => s !== slug));
+      this.nonBillableModules.set(nonBillable.filter((s) => s !== slug));
+      delete parents[slug];
+      for (const [child, parent] of Object.entries(parents)) {
+        if (parent === slug) {
+          delete parents[child];
+        }
+      }
+      this.moduleParents.set(parents);
+    }
+  }
+
+  moduleParent(slug: string): string {
+    return this.moduleParents()[slug] ?? '';
+  }
+
+  setModuleParent(slug: string, parent: string): void {
+    if (!this.isModuleEnabled(slug)) return;
+    const parents = { ...this.moduleParents() };
+    if (!parent) {
+      delete parents[slug];
+    } else {
+      parents[slug] = parent;
+    }
+    this.moduleParents.set(parents);
+  }
+
+  parentModuleOptions(slug: string): string[] {
+    return this.enabledModules().filter(
+      (m) => m !== slug && !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(m)
+    );
+  }
+
+  private buildModuleParents(): Record<string, string> {
+    const parents: Record<string, string> = {};
+    for (const [child, parent] of Object.entries(this.moduleParents())) {
+      if (this.isModuleEnabled(child) && this.isModuleEnabled(parent)) {
+        parents[child] = parent;
+      }
+    }
+    return parents;
+  }
+
+  toggleBillable(slug: string, checked: boolean): void {
+    if (!this.isModuleEnabled(slug)) return;
+    const nonBillable = [...this.nonBillableModules()];
+    if (checked) {
+      this.nonBillableModules.set(nonBillable.filter((s) => s !== slug));
+    } else if (!nonBillable.includes(slug)) {
+      this.nonBillableModules.set([...nonBillable, slug]);
     }
   }
 
@@ -416,6 +600,10 @@ export class PlatformTenantsComponent implements OnInit {
     } else if (!checked) {
       this.extraModules.set(extra.filter((s) => s !== slug));
     }
+  }
+
+  labelModuleSlugs(): string[] {
+    return mergeTenantModules(this.enabledModules());
   }
 
   reload(): void {
@@ -467,19 +655,31 @@ export class PlatformTenantsComponent implements OnInit {
       });
       this.form.get('initial_admin_email')?.clearValidators();
       this.setInitialAdminPasswordValidators(false);
-      const subs = t.subscribed_modules ?? t.enabled_modules ?? [];
+      const subs = (t.subscribed_modules ?? t.enabled_modules ?? []).filter(
+        (s) => !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(s)
+      );
       this.enabledModules.set([...subs]);
+      const nonBillableFromApi =
+        t.non_billable_modules ??
+        (t.module_subscriptions ?? [])
+          .filter((s) => s.is_active && s.is_billable === false)
+          .map((s) => s.module_slug)
+          .filter((s) => !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(s));
+      this.nonBillableModules.set([...nonBillableFromApi]);
       const extra = (t.module_subscriptions ?? [])
         .filter((s) => s.is_extra)
         .map((s) => s.module_slug);
       this.extraModules.set(extra);
+      this.moduleParents.set({ ...(t.module_parents ?? {}) });
       const priceBySlug = new Map(
         (t.module_subscriptions ?? []).map((s) => [s.module_slug, s.price_per_user_monthly])
       );
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue(t.module_labels?.[slug] || '');
         const override = priceBySlug.get(slug);
-        this.modulePriceControl(slug).setValue(override ?? '');
+        this.modulePriceControl(slug).setValue(
+          override != null && override !== '' ? String(override) : ''
+        );
       }
     } else {
       this.form.reset({
@@ -497,8 +697,10 @@ export class PlatformTenantsComponent implements OnInit {
       });
       this.form.get('initial_admin_email')?.setValidators([Validators.required, Validators.email]);
       this.setInitialAdminPasswordValidators(true);
-      this.enabledModules.set([...ALL_MODULE_SLUGS]);
+      this.enabledModules.set([...BILLABLE_MODULE_SLUGS]);
       this.extraModules.set([]);
+      this.nonBillableModules.set([]);
+      this.moduleParents.set({});
       for (const slug of ALL_MODULE_SLUGS) {
         this.labelControl(slug).setValue('');
         this.modulePriceControl(slug).setValue('');
@@ -516,8 +718,9 @@ export class PlatformTenantsComponent implements OnInit {
   private buildModulePrices(): Record<string, string | null> {
     const prices: Record<string, string | null> = {};
     for (const slug of this.enabledModules()) {
-      const v = this.modulePriceControl(slug).value?.trim();
-      prices[slug] = v ? v : null;
+      if (!this.isModuleBillable(slug)) continue;
+      const v = String(this.modulePriceControl(slug).value ?? '').trim();
+      prices[slug] = v || null;
     }
     return prices;
   }
@@ -542,6 +745,8 @@ export class PlatformTenantsComponent implements OnInit {
       is_active: v.is_active,
       subscribed_modules: this.enabledModules(),
       extra_modules: this.extraModules(),
+      non_billable_modules: this.nonBillableModules(),
+      module_parents: this.buildModuleParents(),
       module_labels: this.buildModuleLabels(),
       billing_period: v.billing_period,
       payment_currency: v.payment_currency,

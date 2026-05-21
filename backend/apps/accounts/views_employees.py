@@ -3,8 +3,13 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
+from apps.accounts.models import Department
+from apps.accounts.rbac import assert_can_manage_target, filter_assignable_departments
+from apps.accounts.serializers import DepartmentSerializer
 from apps.accounts.serializers_employees import EmployeeUserSerializer
 from apps.common.viewsets import TenantScopedViewSet
 
@@ -26,6 +31,7 @@ class EmployeeViewSet(TenantScopedViewSet):
         "update": "employees.write",
         "partial_update": "employees.write",
         "destroy": "employees.write",
+        "assignable_departments": "employees.write",
     }
     search_fields = ("email", "first_name", "last_name")
     ordering_fields = ("email", "first_name", "last_name", "is_active")
@@ -49,6 +55,20 @@ class EmployeeViewSet(TenantScopedViewSet):
     def perform_create(self, serializer):
         serializer.save(tenant_id=self.request.user.tenant_id)
 
+    @action(detail=False, methods=["get"], url_path="assignable-departments")
+    def assignable_departments(self, request):
+        tenant_id = getattr(request.user, "tenant_id", None)
+        if tenant_id is None:
+            return Response([])
+        qs = Department.objects.filter(tenant_id=tenant_id).order_by("name")
+        qs = filter_assignable_departments(request.user, qs)
+        data = DepartmentSerializer(
+            qs.prefetch_related("permissions"),
+            many=True,
+            context={"request": request},
+        ).data
+        return Response(data)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.pk == request.user.pk:
@@ -56,6 +76,10 @@ class EmployeeViewSet(TenantScopedViewSet):
                 {"detail": _("You cannot delete your own account.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        try:
+            assert_can_manage_target(request.user, instance)
+        except PermissionDenied as exc:
+            return Response({"detail": exc.detail}, status=status.HTTP_403_FORBIDDEN)
         if (
             instance.department_id
             and instance.department.key == "admin"

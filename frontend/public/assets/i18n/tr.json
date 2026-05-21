@@ -9,6 +9,7 @@
     "inventory": "Envanter",
     "employees": "Çalışanlar",
     "customers": "Müşteriler",
+    "patients": "Hastalar",
     "appointments": "Randevular",
     "billing": "Faturalama",
     "accounting": "Muhasebe",
@@ -179,7 +180,8 @@
     "newStock": "Yeni stok",
     "editStock": "Stok düzenle",
     "newMovement": "Yeni hareket",
-    "editMovement": "Hareket düzenle"
+    "editMovement": "Hareket düzenle",
+    "productsModuleRequired": "Stok yönetimi için Ürünler modülü gerekli."
   },
   "customers": {
     "title": "Müşteriler",
@@ -197,6 +199,9 @@
     "phone": "Telefon",
     "summary": "Özet",
     "updated": "Güncelleme"
+  },
+  "patients": {
+    "newPatient": "Yeni hasta"
   },
   "appointments": {
     "title": "Randevular",
@@ -229,7 +234,9 @@
     "sent": "Gönderildi",
     "paid": "Ödendi",
     "overdue": "Gecikmiş",
-    "invoice": "Fatura"
+    "invoice": "Fatura",
+    "customersModuleRequired": "Müşteri seçmek için Müşteriler modülü gerekli.",
+    "partyModuleRequired": "Kişi seçmek için Müşteriler veya Hastalar modülü gerekli."
   },
   "accounting": {
     "title": "Muhasebe",
@@ -285,9 +292,16 @@
     "tenants": "Kiracılar",
     "newTenant": "Yeni kiracı",
     "editTenant": "Kiracı düzenle",
+    "tenantInfo": "Kiracı bilgileri",
     "customerCode": "Müşteri kodu",
     "modulesCount": "Modül",
     "modulesAccess": "Modül erişimi",
+    "moduleName": "Modül",
+    "moduleEnabled": "Açık",
+    "moduleParent": "Üst modül",
+    "moduleParentNone": "Bağımsız",
+    "nonBillableModulesHint": "Panel ve Ayarlar (Departmanlar dahil) her zaman açıktır ve faturalanmaz. Diğer modüller için faturalanıp faturalanmayacağını seçin.",
+    "moduleBillable": "Faturalanır",
     "moduleLabels": "Modül adları (opsiyonel)",
     "moduleLabelsHint": "Boş bırakılan modüller varsayılan çeviriyi kullanır.",
     "initialAdmin": "İlk yönetici kullanıcı",

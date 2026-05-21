@@ -8,11 +8,22 @@ from rest_framework import serializers
 
 from apps.accounts.models import Department, Permission
 from apps.common.password_policy import validate_password_policy
-from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
+from apps.common.permission_codes import (
+    ALL_MODULES,
+    BILLABLE_MODULES,
+    NON_BILLABLE_MODULES,
+    PERMISSION_CODENAMES,
+    merge_tenant_modules,
+)
 from apps.platform_billing.models import Currency
 from apps.tenants.models import Tenant
 from apps.tenants.serializers import TenantProfileSerializer
-from apps.tenants.subscription_service import apply_module_prices, set_module_subscriptions
+from apps.tenants.subscription_service import (
+    apply_module_prices,
+    set_module_subscriptions,
+    tenant_module_parents,
+    validate_module_parents,
+)
 
 User = get_user_model()
 
@@ -31,6 +42,17 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         required=False,
         write_only=True,
         help_text="Module slugs marked as extra (beyond base package).",
+    )
+    non_billable_modules = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        write_only=True,
+        help_text="Enabled module slugs excluded from subscription invoices (defaults are always non-billable).",
+    )
+    module_parents = serializers.DictField(
+        child=serializers.CharField(),
+        required=False,
+        help_text='Optional parent module per child slug, e.g. {"patients": "customers"}.',
     )
     module_subscriptions = serializers.SerializerMethodField(read_only=True)
     module_prices = serializers.DictField(
@@ -53,6 +75,8 @@ class PlatformTenantSerializer(TenantProfileSerializer):
             "active_user_count",
             "subscribed_modules",
             "extra_modules",
+            "non_billable_modules",
+            "module_parents",
             "module_subscriptions",
             "billing_period",
             "payment_currency",
@@ -70,6 +94,8 @@ class PlatformTenantSerializer(TenantProfileSerializer):
                 "module_slug": s.module_slug,
                 "is_active": s.is_active,
                 "is_extra": s.is_extra,
+                "is_billable": s.is_billable,
+                "parent_module_slug": s.parent_module_slug,
                 "price_per_user_monthly": (
                     str(s.price_per_user_monthly) if s.price_per_user_monthly is not None else None
                 ),
@@ -82,7 +108,15 @@ class PlatformTenantSerializer(TenantProfileSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["active_user_count"] = instance.active_user_count()
-        data["subscribed_modules"] = list(instance.enabled_modules or [])
+        enabled = list(instance.enabled_modules or [])
+        data["default_non_billable_modules"] = list(NON_BILLABLE_MODULES)
+        data["subscribed_modules"] = [m for m in enabled if m not in NON_BILLABLE_MODULES]
+        data["non_billable_modules"] = [
+            s.module_slug
+            for s in instance.module_subscriptions.filter(is_active=True, is_billable=False)
+            if s.module_slug not in NON_BILLABLE_MODULES
+        ]
+        data["module_parents"] = tenant_module_parents(instance)
         return data
 
     def validate_customer_code(self, value):
@@ -151,10 +185,42 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         return list(dict.fromkeys(value))
 
     def validate_subscribed_modules(self, value):
-        return self._validate_module_list(value, "subscribed_modules")
+        modules = self._validate_module_list(value, "subscribed_modules")
+        non_billable_in_payload = [m for m in modules if m in NON_BILLABLE_MODULES]
+        if non_billable_in_payload:
+            raise serializers.ValidationError(
+                {
+                    "subscribed_modules": (
+                        "Non-billable modules cannot be changed: "
+                        f"{', '.join(non_billable_in_payload)}"
+                    )
+                }
+            )
+        return modules
+
+    def validate_non_billable_modules(self, value):
+        modules = self._validate_module_list(value, "non_billable_modules")
+        invalid = [m for m in modules if m in NON_BILLABLE_MODULES]
+        if invalid:
+            raise serializers.ValidationError(
+                {
+                    "non_billable_modules": (
+                        "Default modules are always non-billable: "
+                        f"{', '.join(invalid)}"
+                    )
+                }
+            )
+        return modules
 
     def validate_extra_modules(self, value):
         return self._validate_module_list(value, "extra_modules")
+
+    def validate_module_parents(self, value):
+        if not value:
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("module_parents must be an object.")
+        return value
 
     def validate_enabled_modules(self, value):
         if value is None:
@@ -188,10 +254,29 @@ class PlatformTenantSerializer(TenantProfileSerializer):
 
         subscribed = attrs.get("subscribed_modules")
         extra = set(attrs.get("extra_modules") or [])
+        non_billable = set(attrs.get("non_billable_modules") or [])
         if subscribed is not None and extra - set(subscribed):
             raise serializers.ValidationError(
                 {"extra_modules": "Extra modules must be included in subscribed_modules."}
             )
+        if subscribed is not None and non_billable - set(subscribed):
+            raise serializers.ValidationError(
+                {
+                    "non_billable_modules": (
+                        "Non-billable modules must be included in subscribed_modules."
+                    )
+                }
+            )
+        module_parents = attrs.get("module_parents")
+        if module_parents is not None:
+            modules = merge_tenant_modules(
+                subscribed
+                if subscribed is not None
+                else list(self.instance.enabled_modules or [])
+                if self.instance
+                else list(BILLABLE_MODULES)
+            )
+            validate_module_parents(modules, module_parents)
         return attrs
 
     def _apply_module_subscriptions(self, tenant: Tenant, attrs: dict) -> None:
@@ -200,7 +285,9 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         if subscribed is None and "enabled_modules" in attrs:
             subscribed = attrs.get("enabled_modules")
         if subscribed is not None:
-            set_module_subscriptions(tenant, subscribed, extra_modules=extra)
+            set_module_subscriptions(
+                tenant, merge_tenant_modules(subscribed), extra_modules=extra
+            )
 
     @transaction.atomic
     def create(self, validated_data):
@@ -208,15 +295,24 @@ class PlatformTenantSerializer(TenantProfileSerializer):
         admin_password = validated_data.pop("initial_admin_password")
         subscribed = validated_data.pop("subscribed_modules", None)
         extra = set(validated_data.pop("extra_modules", []) or [])
+        non_billable = set(validated_data.pop("non_billable_modules", []) or [])
+        module_parents = validated_data.pop("module_parents", None) or {}
         module_prices = validated_data.pop("module_prices", None)
         validated_data.pop("enabled_modules", None)
         validated_data.setdefault("max_users", 5)
         validated_data.setdefault("billing_period", Tenant.BillingPeriod.MONTHLY)
 
         tenant = Tenant.objects.create(**validated_data)
-        modules = subscribed if subscribed is not None else list(ALL_MODULES)
+        modules = merge_tenant_modules(
+            subscribed if subscribed is not None else list(BILLABLE_MODULES)
+        )
         set_module_subscriptions(
-            tenant, modules, extra_modules=extra, module_prices=module_prices
+            tenant,
+            modules,
+            extra_modules=extra,
+            non_billable_modules=non_billable,
+            module_prices=module_prices,
+            module_parents=module_parents,
         )
 
         all_perms = list(Permission.objects.all())
@@ -246,19 +342,29 @@ class PlatformTenantSerializer(TenantProfileSerializer):
     def update(self, instance, validated_data):
         subscribed = validated_data.pop("subscribed_modules", None)
         extra = validated_data.pop("extra_modules", None)
+        non_billable = validated_data.pop("non_billable_modules", None)
+        module_parents = validated_data.pop("module_parents", None)
+        module_prices = validated_data.pop("module_prices", None)
         validated_data.pop("enabled_modules", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        module_prices = validated_data.pop("module_prices", None)
         if subscribed is not None:
             set_module_subscriptions(
                 instance,
-                subscribed,
+                merge_tenant_modules(subscribed),
                 extra_modules=set(extra or []),
+                non_billable_modules=set(non_billable or []),
                 module_prices=module_prices,
+                module_parents=module_parents if module_parents is not None else {},
+            )
+        elif module_parents is not None:
+            set_module_subscriptions(
+                instance,
+                list(instance.enabled_modules or []),
+                module_parents=module_parents,
             )
         elif module_prices:
             apply_module_prices(instance, module_prices)

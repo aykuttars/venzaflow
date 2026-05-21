@@ -190,6 +190,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def has_permission_codename(self, codename: str) -> bool:
         if not self.is_active:
             return False
-        if self.is_superuser:
+        if self.is_platform_admin:
             return True
         return codename in self.effective_permission_codenames()

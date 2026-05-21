@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Department, Permission
-from apps.common.permission_codes import PERMISSION_CODENAMES
+from apps.common.permission_codes import NON_BILLABLE_MODULES, PERMISSION_CODENAMES
 from apps.products.models import Category, Product
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
@@ -166,3 +166,47 @@ class TenantSubscriptionTests(TestCase):
         sub = r.json()["subscription"]
         self.assertEqual(sub["max_users"], 5)
         self.assertEqual(sub["active_users"], 2)
+
+    def test_non_billable_modules_always_enabled(self):
+        set_module_subscriptions(self.tenant, ["products"], extra_modules=set())
+        self.tenant.refresh_from_db()
+        enabled = list(self.tenant.enabled_modules)
+        for slug in NON_BILLABLE_MODULES:
+            self.assertIn(slug, enabled)
+        self.assertIn("products", enabled)
+        self.assertNotIn("billing", enabled)
+
+    def test_per_tenant_non_billable_modules(self):
+        set_module_subscriptions(
+            self.tenant,
+            ["products", "billing"],
+            extra_modules=set(),
+            non_billable_modules={"billing"},
+        )
+        products = self.tenant.module_subscriptions.get(module_slug="products")
+        billing = self.tenant.module_subscriptions.get(module_slug="billing")
+        self.assertTrue(products.is_billable)
+        self.assertFalse(billing.is_billable)
+        self.assertTrue(products.is_active)
+        self.assertTrue(billing.is_active)
+
+    def test_module_parents_stored_on_subscription(self):
+        set_module_subscriptions(
+            self.tenant,
+            ["customers", "patients"],
+            extra_modules=set(),
+            module_parents={"patients": "customers"},
+        )
+        patients = self.tenant.module_subscriptions.get(module_slug="patients")
+        self.assertEqual(patients.parent_module_slug, "customers")
+
+    def test_module_parents_rejects_cycle(self):
+        from rest_framework import serializers
+
+        from apps.tenants.subscription_service import validate_module_parents
+
+        with self.assertRaises(serializers.ValidationError):
+            validate_module_parents(
+                ["customers", "patients", "billing"],
+                {"patients": "customers", "customers": "billing", "billing": "patients"},
+            )
