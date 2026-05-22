@@ -252,7 +252,9 @@
       "unit": "Unit no",
       "addressCode": "Address code",
       "openAddress": "Open address",
-      "optional": "optional"
+      "optional": "optional",
+      "loading": "Loading address lists…",
+      "changeAddress": "Change address"
     }
   },
   "oral": {

@@ -252,7 +252,9 @@
       "unit": "İç kapı no",
       "addressCode": "Adres kodu",
       "openAddress": "Açık adres",
-      "optional": "opsiyonel"
+      "optional": "opsiyonel",
+      "loading": "Adres listeleri yükleniyor…",
+      "changeAddress": "Adresi değiştir"
     }
   },
   "oral": {

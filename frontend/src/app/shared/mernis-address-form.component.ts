@@ -4,6 +4,8 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatButtonModule } from '@angular/material/button';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { NviListItem, NviOpenAddress, NviService } from '../core/nvi.service';
@@ -21,6 +23,16 @@ function parseApartmentNo(name: string): string {
   return m ? m[1] : name;
 }
 
+const CODE_FIELDS = [
+  'province_code',
+  'district_code',
+  'neighborhood_code',
+  'street_code',
+  'building_code',
+  'unit_code',
+  'address_code',
+] as const;
+
 @Component({
   selector: 'app-mernis-address-form',
   standalone: true,
@@ -30,13 +42,70 @@ function parseApartmentNo(name: string): string {
     MatFormFieldModule,
     MatSelectModule,
     MatInputModule,
+    MatProgressSpinnerModule,
+    MatButtonModule,
     TranslateModule,
   ],
   template: `
-    <div class="address-grid">
+    @if (savedLocked) {
+    <div class="address-saved">
+      <div class="address-saved__grid">
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.province' | translate }}</span>
+          <span>{{ group.get('province_name')?.value || '—' }}</span>
+        </div>
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.district' | translate }}</span>
+          <span>{{ group.get('district_name')?.value || '—' }}</span>
+        </div>
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.neighborhood' | translate }}</span>
+          <span>{{ group.get('neighborhood_name')?.value || '—' }}</span>
+        </div>
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.street' | translate }}</span>
+          <span>{{ group.get('street_name')?.value || '—' }}</span>
+        </div>
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.building' | translate }}</span>
+          <span>{{ group.get('building_no')?.value || '—' }}</span>
+        </div>
+        <div class="address-saved__item">
+          <span class="address-saved__label">{{ 'patients.address.unit' | translate }}</span>
+          <span>{{ group.get('apartment_no')?.value || '—' }}</span>
+        </div>
+      </div>
+      @if (group.get('address_code')?.value) {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>{{ 'patients.address.addressCode' | translate }}</mat-label>
+        <input matInput readonly [value]="group.get('address_code')?.value" />
+      </mat-form-field>
+      }
+      @if (group.get('full_address')?.value) {
+      <div class="address-preview">
+        <span class="address-preview__label">{{ 'patients.address.openAddress' | translate }}</span>
+        <p>{{ group.get('full_address')?.value }}</p>
+      </div>
+      }
+      <button mat-stroked-button type="button" class="address-saved__change" (click)="unlockForEdit()">
+        {{ 'patients.address.changeAddress' | translate }}
+      </button>
+    </div>
+    } @else {
+    @if (restoring) {
+    <div class="address-loading">
+      <mat-spinner diameter="28"></mat-spinner>
+      <span>{{ 'patients.address.loading' | translate }}</span>
+    </div>
+    }
+    <div class="address-grid" [class.address-grid--dimmed]="restoring">
       <mat-form-field appearance="outline">
         <mat-label>{{ 'patients.address.province' | translate }}</mat-label>
-        <mat-select [formControl]="$any(group.get('province_code'))" (selectionChange)="onProvince($event.value)">
+        <mat-select
+          [formControl]="$any(group.get('province_code'))"
+          [compareWith]="compareCode"
+          (selectionChange)="onProvince($event.value)"
+        >
           @for (p of provinces; track p.code) {
           <mat-option [value]="p.code">{{ p.name }}</mat-option>
           }
@@ -44,7 +113,11 @@ function parseApartmentNo(name: string): string {
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>{{ 'patients.address.district' | translate }}</mat-label>
-        <mat-select [formControl]="$any(group.get('district_code'))" (selectionChange)="onDistrict($event.value)">
+        <mat-select
+          [formControl]="$any(group.get('district_code'))"
+          [compareWith]="compareCode"
+          (selectionChange)="onDistrict($event.value)"
+        >
           @for (d of districts; track d.code) {
           <mat-option [value]="d.code">{{ d.name }}</mat-option>
           }
@@ -52,7 +125,11 @@ function parseApartmentNo(name: string): string {
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>{{ 'patients.address.neighborhood' | translate }}</mat-label>
-        <mat-select [formControl]="$any(group.get('neighborhood_code'))" (selectionChange)="onNeighborhood($event.value)">
+        <mat-select
+          [formControl]="$any(group.get('neighborhood_code'))"
+          [compareWith]="compareCode"
+          (selectionChange)="onNeighborhood($event.value)"
+        >
           @for (n of neighborhoods; track n.code) {
           <mat-option [value]="n.code">{{ n.name }}</mat-option>
           }
@@ -60,7 +137,11 @@ function parseApartmentNo(name: string): string {
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>{{ 'patients.address.street' | translate }}</mat-label>
-        <mat-select [formControl]="$any(group.get('street_code'))" (selectionChange)="onStreet($event.value)">
+        <mat-select
+          [formControl]="$any(group.get('street_code'))"
+          [compareWith]="compareCode"
+          (selectionChange)="onStreet($event.value)"
+        >
           @for (s of streets; track s.code) {
           <mat-option [value]="s.code">{{ s.name }}</mat-option>
           }
@@ -68,7 +149,11 @@ function parseApartmentNo(name: string): string {
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>{{ 'patients.address.building' | translate }}</mat-label>
-        <mat-select [formControl]="$any(group.get('building_code'))" (selectionChange)="onBuilding($event.value)">
+        <mat-select
+          [formControl]="$any(group.get('building_code'))"
+          [compareWith]="compareCode"
+          (selectionChange)="onBuilding($event.value)"
+        >
           @for (b of buildings; track b.code) {
           <mat-option [value]="b.code">{{ buildingLabel(b.name) }}</mat-option>
           }
@@ -78,8 +163,9 @@ function parseApartmentNo(name: string): string {
         <mat-label>{{ 'patients.address.unit' | translate }}@if (unitOptional) { ({{ 'patients.address.optional' | translate }})}</mat-label>
         <mat-select
           [formControl]="$any(group.get('unit_code'))"
+          [compareWith]="compareCode"
           (selectionChange)="onUnit($event.value)"
-          [disabled]="unitOptional && !!group.get('address_code')?.value"
+          [disabled]="restoring || (unitOptional && !!group.get('address_code')?.value)"
         >
           @for (u of units; track u.code) {
           <mat-option [value]="u.code">{{ unitLabel(u.name) }}</mat-option>
@@ -99,9 +185,22 @@ function parseApartmentNo(name: string): string {
       <p>{{ group.get('full_address')?.value }}</p>
     </div>
     }
+    }
   `,
   styles: [
     `
+      .address-loading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-size: 13px;
+        opacity: 0.75;
+      }
+      .address-grid--dimmed {
+        pointer-events: none;
+        opacity: 0.55;
+      }
       .address-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -131,6 +230,28 @@ function parseApartmentNo(name: string): string {
         font-size: 13px;
         line-height: 1.45;
       }
+      .address-saved__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px 16px;
+        margin-bottom: 8px;
+      }
+      .address-saved__item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 13px;
+      }
+      .address-saved__label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        opacity: 0.65;
+      }
+      .address-saved__change {
+        margin-top: 8px;
+      }
     `,
   ],
 })
@@ -146,34 +267,64 @@ export class MernisAddressFormComponent implements OnInit {
   buildings: NviListItem[] = [];
   units: NviListItem[] = [];
   unitOptional = false;
+  restoring = false;
+  savedLocked = false;
 
   buildingLabel = parseBuildingNo;
   unitLabel = parseApartmentNo;
+  compareCode = (a: number | string | null, b: number | string | null) =>
+    a != null && b != null && Number(a) === Number(b);
 
   ngOnInit(): void {
+    this.normalizeCodeFields();
+    if (this.hasCompleteSavedAddress()) {
+      this.savedLocked = true;
+      if (!this.group.get('unit_code')?.value && this.group.get('address_code')?.value) {
+        this.unitOptional = true;
+      }
+      return;
+    }
+    this.beginInteractiveLoad();
+  }
+
+  unlockForEdit(): void {
+    this.savedLocked = false;
+    this.beginInteractiveLoad();
+  }
+
+  private beginInteractiveLoad(): void {
+    const hasSavedAddress = !!this.group.get('province_code')?.value;
+    if (hasSavedAddress) this.restoring = true;
+
     this.nvi.listProvinces().subscribe({
       next: (rows) => {
         this.provinces = rows;
-        this.restoreNames('province', this.provinces);
+        this.restoreNames('province', rows);
+        if (hasSavedAddress) {
+          this.restoreSavedCascade();
+        }
+      },
+      error: () => {
+        this.restoring = false;
       },
     });
-    const pc = this.group.get('province_code')?.value;
-    if (pc) this.loadDistricts(pc, false);
-    const dc = this.group.get('district_code')?.value;
-    if (dc) this.loadNeighborhoods(dc, false);
-    const nc = this.group.get('neighborhood_code')?.value;
-    if (nc) this.loadStreets(nc, false);
-    const sc = this.group.get('street_code')?.value;
-    if (sc && nc) this.loadBuildings(nc, sc, false);
-    const bc = this.group.get('building_code')?.value;
-    if (bc && nc) this.loadUnits(nc, bc, false);
-    const uc = this.group.get('unit_code')?.value;
-    const ac = this.group.get('address_code')?.value;
-    if (uc && nc) {
-      this.loadOpenAddress(nc, { unit: uc });
-    } else if (ac && bc && nc && !uc) {
-      this.unitOptional = true;
-    }
+  }
+
+  private hasCompleteSavedAddress(): boolean {
+    const g = this.group;
+    return !!(
+      g.get('province_code')?.value &&
+      g.get('district_code')?.value &&
+      g.get('neighborhood_code')?.value &&
+      g.get('street_code')?.value &&
+      g.get('building_code')?.value &&
+      g.get('province_name')?.value &&
+      g.get('district_name')?.value &&
+      g.get('neighborhood_name')?.value &&
+      g.get('street_name')?.value &&
+      g.get('address_code')?.value &&
+      g.get('full_address')?.value
+    );
   }
 
   onProvince(code: number): void {
@@ -216,57 +367,121 @@ export class MernisAddressFormComponent implements OnInit {
     if (mahalle) this.loadOpenAddress(mahalle, { unit: code });
   }
 
-  private loadDistricts(il: number, reset: boolean): void {
+  private restoreSavedCascade(): void {
+    const pc = this.num('province_code');
+    if (!pc) {
+      this.restoring = false;
+      return;
+    }
+    this.loadDistricts(pc, false, () => {
+      const dc = this.num('district_code');
+      if (!dc) return this.finishRestore();
+      this.loadNeighborhoods(dc, false, () => {
+        const nc = this.num('neighborhood_code');
+        if (!nc) return this.finishRestore();
+        this.loadStreets(nc, false, () => {
+          const sc = this.num('street_code');
+          if (!sc) return this.finishRestore();
+          this.loadBuildings(nc, sc, false, () => {
+            const bc = this.num('building_code');
+            if (!bc) return this.finishRestore();
+            this.loadUnits(nc, bc, false, () => this.finishRestore());
+          });
+        });
+      });
+    });
+  }
+
+  private finishRestore(): void {
+    const uc = this.num('unit_code');
+    const ac = this.group.get('address_code')?.value;
+    if (!uc && ac) {
+      this.unitOptional = true;
+    }
+    if (uc && !ac) {
+      const nc = this.num('neighborhood_code');
+      if (nc) {
+        this.loadOpenAddress(nc, { unit: uc });
+      }
+    }
+    this.restoring = false;
+  }
+
+  private loadDistricts(il: number, reset: boolean, done?: () => void): void {
     this.nvi.listDistricts(il).subscribe({
       next: (rows) => {
         this.districts = rows;
         if (!reset) this.restoreNames('district', rows);
+        done?.();
+      },
+      error: () => {
+        this.restoring = false;
+        done?.();
       },
     });
   }
 
-  private loadNeighborhoods(ilce: number, reset: boolean): void {
+  private loadNeighborhoods(ilce: number, reset: boolean, done?: () => void): void {
     this.nvi.listNeighborhoods(ilce).subscribe({
       next: (rows) => {
         this.neighborhoods = rows;
         if (!reset) this.restoreNames('neighborhood', rows);
+        done?.();
+      },
+      error: () => {
+        this.restoring = false;
+        done?.();
       },
     });
   }
 
-  private loadStreets(mahalle: number, reset: boolean): void {
+  private loadStreets(mahalle: number, reset: boolean, done?: () => void): void {
     this.nvi.listStreets(mahalle).subscribe({
       next: (rows) => {
         this.streets = rows;
         if (!reset) this.restoreNames('street', rows);
+        done?.();
+      },
+      error: () => {
+        this.restoring = false;
+        done?.();
       },
     });
   }
 
-  private loadBuildings(mahalle: number, yol: number, reset: boolean): void {
+  private loadBuildings(mahalle: number, yol: number, reset: boolean, done?: () => void): void {
     this.nvi.listBuildings(mahalle, yol).subscribe({
       next: (rows) => {
         this.buildings = rows;
         if (!reset) this.restoreNames('building', rows);
+        done?.();
+      },
+      error: () => {
+        this.restoring = false;
+        done?.();
       },
     });
   }
 
-  private loadUnits(mahalle: number, bina: number, reset: boolean): void {
+  private loadUnits(mahalle: number, bina: number, reset: boolean, done?: () => void): void {
     this.nvi.listUnits(mahalle, bina).subscribe({
       next: (rows) => {
         this.units = rows;
         if (!reset) {
           this.restoreNames('unit', rows);
+          done?.();
           return;
         }
         if (rows.length === 0) {
           this.tryOpenAddressAtBuilding(mahalle, bina);
         }
+        done?.();
       },
       error: () => {
         this.units = [];
-        this.tryOpenAddressAtBuilding(mahalle, bina);
+        if (reset) this.tryOpenAddressAtBuilding(mahalle, bina);
+        this.restoring = false;
+        done?.();
       },
     });
   }
@@ -317,10 +532,14 @@ export class MernisAddressFormComponent implements OnInit {
   }
 
   private restoreNames(level: string, list: NviListItem[]): void {
-    const code = this.group.get(`${level}_code`)?.value;
-    const row = list.find((x) => x.code === code);
+    const code = this.num(`${level}_code`);
+    if (code == null) return;
+    const row = list.find((x) => Number(x.code) === code);
     if (row) {
-      const patch: Record<string, string> = { [`${level}_name`]: row.name };
+      const patch: Record<string, string | number> = {
+        [`${level}_code`]: row.code,
+        [`${level}_name`]: row.name,
+      };
       if (level === 'building') patch['building_no'] = parseBuildingNo(row.name);
       if (level === 'unit') patch['apartment_no'] = parseApartmentNo(row.name);
       this.group.patchValue(patch, { emitEvent: false });
@@ -365,5 +584,25 @@ export class MernisAddressFormComponent implements OnInit {
       { address_code: null, full_address: '' },
       { emitEvent: false }
     );
+  }
+
+  private normalizeCodeFields(): void {
+    const patch: Record<string, number | null> = {};
+    for (const key of CODE_FIELDS) {
+      const raw = this.group.get(key)?.value;
+      if (raw == null || raw === '') continue;
+      const num = Number(raw);
+      if (!Number.isNaN(num)) patch[key] = num;
+    }
+    if (Object.keys(patch).length) {
+      this.group.patchValue(patch, { emitEvent: false });
+    }
+  }
+
+  private num(field: string): number | null {
+    const raw = this.group.get(field)?.value;
+    if (raw == null || raw === '') return null;
+    const n = Number(raw);
+    return Number.isNaN(n) ? null : n;
   }
 }

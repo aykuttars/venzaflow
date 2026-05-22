@@ -183,12 +183,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-    }
-}
-
 # Deployment environment: image/container suffix + Celery queue isolation (dev vs prod).
 ENVIRONMENT = env("ENVIRONMENT", default="prod").lower()
 CELERY_QUEUE_PREFIX = ENVIRONMENT
@@ -211,6 +205,20 @@ def _redis_url_from_env() -> str:
 
 
 REDIS_URL = _redis_url_from_env()
+
+if env("REDIS_HOST", default=""):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
 CHANNEL_LAYERS = {
     "default": {
@@ -240,6 +248,13 @@ AUDITLOG_USE_BASE_MANAGER = False
 AUDITLOG_USE_FK_STRING_REPRESENTATION = False
 
 # NVI / MERNIS (adres.nvi.gov.tr + KPSPublic SOAP)
+NVI_REQUEST_TIMEOUT = env.int("NVI_REQUEST_TIMEOUT", default=25)
+NVI_PROVINCES_CACHE_TTL = env.int("NVI_PROVINCES_CACHE_TTL", default=60 * 60 * 24)
+NVI_ADDRESS_CACHE_TTL = env.int("NVI_ADDRESS_CACHE_TTL", default=60 * 60 * 24 * 7)
+NVI_CAPTCHA_CACHE_TTL = env.int("NVI_CAPTCHA_CACHE_TTL", default=120)
+NVI_RATE_LIMIT_PER_MINUTE = env.int("NVI_RATE_LIMIT_PER_MINUTE", default=20)
+# Optional outbound proxy for NVI + reCAPTCHA (http://user:pass@host:port or socks5://...)
+NVI_PROXY_URL = env("NVI_PROXY_URL", default="")
 NVI_RECAPTCHA_SITE_KEY = env(
     "NVI_RECAPTCHA_SITE_KEY",
     default="6LcrFjwUAAAAABui7fXG9wtscqRlt6Avzxfxkmdz",

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import threading
 import uuid
+from collections.abc import Callable
 from datetime import date
 from typing import Any
 
+from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -15,13 +19,52 @@ from apps.integrations.nvi import NviHandler
 from apps.integrations.nvi_identity import NviIdentityHandler
 
 _handler: NviHandler | None = None
+_handler_lock = threading.Lock()
+_PROVINCES_CACHE_KEY = "nvi:address:provinces"
+_RATE_WINDOW_KEY = "nvi:rate:minute"
+
+
+def _address_cache_ttl() -> int:
+    return int(getattr(settings, "NVI_ADDRESS_CACHE_TTL", 60 * 60 * 24 * 7))
+
+
+def _provinces_cache_ttl() -> int:
+    return int(getattr(settings, "NVI_PROVINCES_CACHE_TTL", 60 * 60 * 24))
+
+
+def _rate_limit_nvi_call() -> None:
+    limit = int(getattr(settings, "NVI_RATE_LIMIT_PER_MINUTE", 20))
+    if limit <= 0:
+        return
+    try:
+        count = cache.incr(_RATE_WINDOW_KEY)
+    except ValueError:
+        cache.set(_RATE_WINDOW_KEY, 1, timeout=60)
+        count = 1
+    if count > limit:
+        raise NviError(
+            "NVI istek limiti aşıldı; kısa süre sonra tekrar deneyin veya cache dolana kadar bekleyin."
+        )
+
+
+def _cached_list(cache_key: str, fetch: Callable[[], dict[str, Any]]) -> list[dict[str, int | str]]:
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    _rate_limit_nvi_call()
+    rows = _parse_result(fetch())
+    cache.set(cache_key, rows, timeout=_address_cache_ttl())
+    return rows
 
 
 def _get_handler() -> NviHandler:
     global _handler
-    if _handler is None:
-        _handler = NviHandler()
-    return _handler
+    if _handler is not None:
+        return _handler
+    with _handler_lock:
+        if _handler is None:
+            _handler = NviHandler()
+        return _handler
 
 
 class NviError(Exception):
@@ -49,27 +92,48 @@ def _parse_result(result: dict[str, Any]) -> list[dict[str, int | str]]:
 
 
 def list_provinces() -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().il_list())
+    cached = cache.get(_PROVINCES_CACHE_KEY)
+    if cached is not None:
+        return cached
+    _rate_limit_nvi_call()
+    rows = _parse_result(_get_handler().il_list())
+    cache.set(_PROVINCES_CACHE_KEY, rows, timeout=_provinces_cache_ttl())
+    return rows
 
 
 def list_districts(il_kimlik_no: int) -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().ilce_list(il_kimlik_no))
+    return _cached_list(
+        f"nvi:address:districts:{il_kimlik_no}",
+        lambda: _get_handler().ilce_list(il_kimlik_no),
+    )
 
 
 def list_neighborhoods(ilce_kimlik_no: int) -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().mahalle_list(ilce_kimlik_no))
+    return _cached_list(
+        f"nvi:address:neighborhoods:{ilce_kimlik_no}",
+        lambda: _get_handler().mahalle_list(ilce_kimlik_no),
+    )
 
 
 def list_streets(mahalle_kimlik_no: int) -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().yol_list(mahalle_kimlik_no))
+    return _cached_list(
+        f"nvi:address:streets:{mahalle_kimlik_no}",
+        lambda: _get_handler().yol_list(mahalle_kimlik_no),
+    )
 
 
 def list_buildings(mahalle_kimlik_no: int, yol_kimlik_no: int) -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().bina_list(mahalle_kimlik_no, yol_kimlik_no))
+    return _cached_list(
+        f"nvi:address:buildings:{mahalle_kimlik_no}:{yol_kimlik_no}",
+        lambda: _get_handler().bina_list(mahalle_kimlik_no, yol_kimlik_no),
+    )
 
 
 def list_units(mahalle_kimlik_no: int, bina_kimlik_no: int) -> list[dict[str, int | str]]:
-    return _parse_result(_get_handler().bagimsizbolum_list(mahalle_kimlik_no, bina_kimlik_no))
+    return _cached_list(
+        f"nvi:address:units:{mahalle_kimlik_no}:{bina_kimlik_no}",
+        lambda: _get_handler().bagimsizbolum_list(mahalle_kimlik_no, bina_kimlik_no),
+    )
 
 
 def _format_open_address(data: dict) -> dict[str, int | str]:
@@ -109,6 +173,12 @@ def get_open_address(
     if not attempts:
         raise NviError("Query parameter 'unit' or 'bina' is required.")
 
+    cache_key = f"nvi:address:open:{mahalle_kimlik_no}:{attempts[0]}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    _rate_limit_nvi_call()
     last_error = "Open address not found"
     for kayit_no in attempts:
         result = _get_handler().acik_adres(mahalle_kimlik_no, kayit_no)
@@ -119,7 +189,9 @@ def get_open_address(
         if not isinstance(data, dict):
             continue
         try:
-            return _format_open_address(data)
+            row = _format_open_address(data)
+            cache.set(cache_key, row, timeout=_address_cache_ttl())
+            return row
         except NviError as exc:
             last_error = str(exc)
     raise NviError(last_error)

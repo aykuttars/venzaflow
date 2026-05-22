@@ -254,7 +254,22 @@ export class PatientsComponent implements OnInit {
 
   private patchAddressGroup(data: Record<string, unknown> | undefined) {
     const g = emptyAddressGroup(this.fb);
-    if (data) g.patchValue(data as any);
+    if (data) {
+      const normalized = { ...data } as Record<string, unknown>;
+      for (const key of [
+        'province_code',
+        'district_code',
+        'neighborhood_code',
+        'street_code',
+        'building_code',
+        'unit_code',
+        'address_code',
+      ]) {
+        const v = normalized[key];
+        if (v != null && v !== '') normalized[key] = Number(v);
+      }
+      g.patchValue(normalized as any);
+    }
     return g;
   }
 

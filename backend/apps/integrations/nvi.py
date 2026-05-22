@@ -3,10 +3,13 @@ from __future__ import annotations
 import base64
 import json
 import re
+import threading
+import time
 from urllib.parse import urlencode
 
 import requests
 from bs4 import BeautifulSoup
+from django.conf import settings
 
 
 class NviHandler:
@@ -26,8 +29,20 @@ class NviHandler:
         "(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
     )
 
-    token = ""
-    cookies: dict = {}
+    _session_lock = threading.Lock()
+
+    @staticmethod
+    def _proxy_config() -> dict[str, str]:
+        url = (getattr(settings, "NVI_PROXY_URL", "") or "").strip()
+        if not url:
+            return {}
+        return {"http": url, "https": url}
+
+    @classmethod
+    def _apply_proxies(cls, sess: requests.Session) -> None:
+        proxies = cls._proxy_config()
+        if proxies:
+            sess.proxies.update(proxies)
 
     def __init__(self) -> None:
         self.homepage_url = "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu"
@@ -38,7 +53,14 @@ class NviHandler:
         self.bina_url = "https://adres.nvi.gov.tr/Harita/binaListesi"
         self.bagimsizbolum_url = "https://adres.nvi.gov.tr/Harita/bagimsizBolumListesi"
         self.acikadres_url = "https://adres.nvi.gov.tr/Harita/AcikAdres"
+        self.request_timeout = int(getattr(settings, "NVI_REQUEST_TIMEOUT", 25))
+        self.token = ""
+        self.cookies: dict = {}
+        self._captcha_token = ""
+        self._captcha_until = 0.0
+        self._captcha_lock = threading.Lock()
         self.sess = requests.Session()
+        self._apply_proxies(self.sess)
         self.sess.headers.update(
             {
                 "User-Agent": (
@@ -47,12 +69,23 @@ class NviHandler:
                 ),
             }
         )
-        self.initialize_token()
+
+    def _ensure_session(self) -> None:
+        if self.token:
+            return
+        with self._session_lock:
+            if self.token:
+                return
+            self.initialize_token()
 
     def initialize_token(self) -> None:
-        r = self.sess.get(self.homepage_url)
+        r = self.sess.get(self.homepage_url, timeout=self.request_timeout)
+        r.raise_for_status()
         soup = BeautifulSoup(r.content, "html.parser")
-        self.token = soup.find("input", {"name": "__RequestVerificationToken"}).get("value")
+        field = soup.find("input", {"name": "__RequestVerificationToken"})
+        if not field or not field.get("value"):
+            raise RuntimeError("NVI verification token not found.")
+        self.token = field.get("value")
         self.cookies = self.sess.cookies.get_dict()
         self.sess.headers.update(
             {
@@ -63,6 +96,10 @@ class NviHandler:
                 "Host": "adres.nvi.gov.tr",
             }
         )
+
+    @staticmethod
+    def _request_error(exc: Exception) -> dict:
+        return {"success": False, "reason": f"NVI request failed: {exc}"}
 
     # --- reCAPTCHA (anchor -> reload -> userverify) ---
 
@@ -112,6 +149,7 @@ class NviHandler:
     @classmethod
     def _recaptcha_session(cls) -> requests.Session:
         sess = requests.Session()
+        cls._apply_proxies(sess)
         sess.headers.update(
             {
                 "User-Agent": cls.RECAPTCHA_USER_AGENT,
@@ -121,11 +159,15 @@ class NviHandler:
         return sess
 
     @classmethod
+    def _recaptcha_timeout(cls) -> int:
+        return int(getattr(settings, "NVI_REQUEST_TIMEOUT", 25))
+
+    @classmethod
     def _recaptcha_version(cls, sess: requests.Session) -> str:
         r = sess.get(
             "https://www.google.com/recaptcha/api.js",
             headers={"User-Agent": cls.RECAPTCHA_USER_AGENT},
-            timeout=30,
+            timeout=cls._recaptcha_timeout(),
         )
         r.raise_for_status()
         match = re.search(r"/recaptcha/releases/(.+?)/", r.text)
@@ -140,7 +182,7 @@ class NviHandler:
             "https://www.google.com/recaptcha/api2/anchor"
             f"?ar=1&k={cls.RECAPTCHA_SITE_KEY}&co={co}&hl=tr&v={version}&size=normal"
         )
-        r = sess.get(url, timeout=30)
+        r = sess.get(url, timeout=cls._recaptcha_timeout())
         r.raise_for_status()
         match = re.search(r'id="recaptcha-token"\s+value="([^"]+)"', r.text)
         if not match:
@@ -161,7 +203,7 @@ class NviHandler:
                     f"?hl=tr&v={version}&k={cls.RECAPTCHA_SITE_KEY}"
                 ),
             },
-            timeout=30,
+            timeout=cls._recaptcha_timeout(),
         )
         r.raise_for_status()
         payload = cls._parse_google_payload(r.text)
@@ -190,7 +232,7 @@ class NviHandler:
                     f"?hl=tr&v={version}&k={cls.RECAPTCHA_SITE_KEY}"
                 ),
             },
-            timeout=30,
+            timeout=cls._recaptcha_timeout(),
         )
         r.raise_for_status()
         payload = cls._parse_google_payload(r.text)
@@ -207,6 +249,20 @@ class NviHandler:
         reload_tok = cls._recaptcha_reload(sess, version, anchor)
         return cls._recaptcha_userverify(sess, version, reload_tok)
 
+    def _resolve_captcha_cached(self) -> str:
+        ttl = int(getattr(settings, "NVI_CAPTCHA_CACHE_TTL", 120))
+        now = time.monotonic()
+        if self._captcha_token and now < self._captcha_until:
+            return self._captcha_token
+        with self._captcha_lock:
+            now = time.monotonic()
+            if self._captcha_token and now < self._captcha_until:
+                return self._captcha_token
+            token = self.resolve_captcha()
+            self._captcha_token = token
+            self._captcha_until = time.monotonic() + ttl
+            return token
+
     @staticmethod
     def _is_captcha_failure(result: dict) -> bool:
         if not isinstance(result, dict) or result.get("success") is not False:
@@ -217,19 +273,30 @@ class NviHandler:
     # --- adres API ---
 
     def il_list(self):
-        r = self.sess.post(self.il_url, data="")
-        return self.return_logic(r)
+        try:
+            self._ensure_session()
+            r = self.sess.post(self.il_url, data="", timeout=self.request_timeout)
+            return self.return_logic(r)
+        except requests.RequestException as exc:
+            return self._request_error(exc)
 
     def _post_with_captcha(self, url, fields):
         last = None
+        try:
+            self._ensure_session()
+        except requests.RequestException as exc:
+            return self._request_error(exc)
         for _ in range(2):
             try:
-                captcha = self.resolve_captcha()
-            except RuntimeError as exc:
+                captcha = self._resolve_captcha_cached()
+            except (RuntimeError, requests.RequestException) as exc:
                 return {"success": False, "reason": str(exc)}
             data = dict(fields)
             data["adresReCaptchaResponse"] = captcha
-            r = self.sess.post(url, data=urlencode(data))
+            try:
+                r = self.sess.post(url, data=urlencode(data), timeout=self.request_timeout)
+            except requests.RequestException as exc:
+                return self._request_error(exc)
             last = self.return_logic(r)
             if not self._is_captcha_failure(last):
                 return last
