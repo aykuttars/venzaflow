@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 __init__.py
+!**/migrations/__init__.py
 *.py[cod]
 *$py.class
 *.so

@@ -58,7 +58,7 @@ services:
       [
         "celery",
         "-A",
-        "config",
+        "config.celery:app",
         "beat",
         "-l",
         "info",
