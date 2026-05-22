@@ -43,7 +43,7 @@ services:
     entrypoint: []
     command: >
       sh -c "ENV=$${ENVIRONMENT:-prod} && ENV=$$(echo $$ENV | tr '[:upper:]' '[:lower:]') &&
-      celery -A config worker -l info --queues=$${ENV}_default,$${ENV}_billing"
+      celery -A config.celery:app worker -l info --queues=$${ENV}_default,$${ENV}_billing"
     volumes:
       - backend_media:/app/media
     depends_on:

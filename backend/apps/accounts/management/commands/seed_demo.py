@@ -26,6 +26,7 @@ from apps.platform_billing.models import (
 from apps.products.models import Category
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
+from apps.oral.seed_data import ensure_clinic_demo_patients, ensure_oral_procedures
 
 User = get_user_model()
 
@@ -155,7 +156,12 @@ class Command(BaseCommand):
                 "yearly_discount_percent": Decimal("10"),
             },
         )
-        set_module_subscriptions(t1000, CLINIC_1000_MODULES, extra_modules=set())
+        set_module_subscriptions(
+            t1000,
+            CLINIC_1000_MODULES,
+            extra_modules=set(),
+            module_parents={"oral": "patients"},
+        )
         set_module_subscriptions(
             t3000,
             list(ALL_MODULES),
@@ -188,6 +194,17 @@ class Command(BaseCommand):
         doctor_codes = [
             "patients.read",
             "patients.write",
+            "oral.read",
+            "oral.write",
+            "appointments.read",
+            "appointments.write",
+            "dashboard.read",
+        ]
+        dentist_codes = [
+            "patients.read",
+            "patients.write",
+            "oral.read",
+            "oral.write",
             "appointments.read",
             "appointments.write",
             "dashboard.read",
@@ -196,6 +213,7 @@ class Command(BaseCommand):
         d1000_admin = mk_department(t1000, "admin", "Admin", admin_codes, perm_index)
         d1000_tech = mk_department(t1000, "technician", "Technician", tech_codes, perm_index)
         d1000_cash = mk_department(t1000, "cashier", "Cashier", clinic_cashier_codes, perm_index)
+        d1000_dentist = mk_department(t1000, "dentist", "Dentist", dentist_codes, perm_index)
 
         d3000_admin = mk_department(t3000, "admin", "Admin", admin_codes, perm_index)
         d3000_acc = mk_department(t3000, "accounting", "Accounting", accounting_codes, perm_index)
@@ -205,8 +223,12 @@ class Command(BaseCommand):
         for tenant in (t1000, t3000):
             ensure_product_categories(tenant)
 
+        oral_procedures = ensure_oral_procedures(t1000)
+        ensure_clinic_demo_patients(t1000, oral_procedures)
+
         demo_pw = "X7@qL9#vT2!mZ4$k"
         users = [
+            (t1000, d1000_dentist, "doctor@admin.com", demo_pw),
             (t1000, d1000_admin, "admin@admin.com", demo_pw),
             (t1000, d1000_tech, "tech@admin.com", demo_pw),
             (t1000, d1000_cash, "cash@admin.com", demo_pw),

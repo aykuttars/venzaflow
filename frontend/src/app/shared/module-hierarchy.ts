@@ -1,8 +1,9 @@
 /** Parent modules that can host child module routes/tabs. */
-export const MODULE_CHILD_HOSTS: Readonly<
+export const   MODULE_CHILD_HOSTS: Readonly<
   Record<string, { route: string; children: readonly string[] }>
 > = {
   customers: { route: '/customers', children: ['patients'] },
+  patients: { route: '/patients', children: ['oral'] },
 };
 
 export interface ModuleNavItem {
@@ -21,6 +22,7 @@ export const MODULE_NAV: readonly ModuleNavItem[] = [
   { path: '/employees', labelKey: 'nav.employees', icon: 'badge', module: 'employees', permission: 'employees.read' },
   { path: '/customers', labelKey: 'nav.customers', icon: 'people', module: 'customers', permission: 'customers.read' },
   { path: '/patients', labelKey: 'nav.patients', icon: 'medical_services', module: 'patients', permission: 'patients.read' },
+  { path: '/oral', labelKey: 'nav.oral', icon: 'medical_services', module: 'oral', permission: 'oral.read' },
   { path: '/appointments', labelKey: 'nav.appointments', icon: 'event', module: 'appointments', permission: 'appointments.read' },
   { path: '/billing', labelKey: 'nav.billing', icon: 'receipt_long', module: 'billing', permission: 'billing.read' },
   { path: '/accounting', labelKey: 'nav.accounting', icon: 'savings', module: 'accounting', permission: 'accounting.read' },

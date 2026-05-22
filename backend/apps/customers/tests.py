@@ -1,16 +1,26 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Department, Permission
 from apps.common.permission_codes import PERMISSION_CODENAMES
+from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
 User = get_user_model()
+
+_MOCK_IDENTITY = {
+    "verified": True,
+    "reference": "mock-ref",
+    "normalized_first_name": "AYŞE",
+    "normalized_last_name": "YILMAZ",
+}
 
 
 class CustomerPatientApiTests(TestCase):
@@ -55,14 +65,19 @@ class CustomerPatientApiTests(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.json()['access']}")
 
-    def test_patients_api_creates_patient_kind(self):
+    @patch("apps.customers.serializers.verify_identity", return_value=_MOCK_IDENTITY)
+    def test_patients_api_creates_patient_kind(self, _mock_identity):
         r = self.client.post(
             "/api/v1/patients/",
             {
+                "nationality": "tc",
                 "first_name": "Ayşe",
                 "last_name": "Yılmaz",
-                "phone": "",
-                "email": "",
+                "tckn": "11111111110",
+                "birth_date": "1990-01-01",
+                "mobile_phone": "5321234567",
+                "email": "ayse@test.com",
+                "home_address": SAMPLE_HOME_ADDRESS,
             },
             format="json",
         )

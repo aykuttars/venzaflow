@@ -1,0 +1,238 @@
+<div class="page" [class.page--embedded]="embedded">
+  @if (!embedded) {
+  <app-page-header moduleSlug="patients" icon="medical_services">
+    @if (canWritePatients() && tab() === 0) {
+    <button mat-flat-button color="primary" (click)="openPatientForm()">
+      <mat-icon>add</mat-icon> {{ 'common.new' | translate }}
+    </button>
+    }
+    @if (canWriteRecords() && tab() === 1) {
+    <button mat-flat-button color="primary" (click)="openRecordForm()">
+      <mat-icon>add</mat-icon> {{ 'customers.newRecord' | translate }}
+    </button>
+    }
+  </app-page-header>
+  } @else {
+  <div class="embedded-actions">
+    @if (canWritePatients() && tab() === 0) {
+    <button mat-flat-button color="primary" (click)="openPatientForm()">
+      <mat-icon>add</mat-icon> {{ 'common.new' | translate }}
+    </button>
+    }
+    @if (canWriteRecords() && tab() === 1) {
+    <button mat-flat-button color="primary" (click)="openRecordForm()">
+      <mat-icon>add</mat-icon> {{ 'customers.newRecord' | translate }}
+    </button>
+    }
+  </div>
+  }
+
+  <mat-tab-group (selectedIndexChange)="tab.set($event)">
+    <mat-tab [label]="'nav.patients' | translate">
+      <table class="bms-table" style="margin-top:16px">
+        <thead>
+          <tr>
+            <th></th>
+            <th>{{ 'customers.name' | translate }}</th>
+            <th>{{ 'patients.tckn' | translate }}</th>
+            <th>{{ 'patients.mobilePhone' | translate }}</th>
+            <th>{{ 'customers.email' | translate }}</th>
+            @if (canWritePatients() || canAccessOral()) { <th></th> }
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of patients(); track p.id) {
+          <tr>
+            <td>
+              @if (p.has_photo) {
+              <app-auth-image
+                [url]="patientPhotoUrl(p.id)"
+                [alt]="p.full_name || p.first_name"
+                className="patient-avatar"
+                style="width:40px;height:40px;border-radius:50%"
+              />
+              }
+            </td>
+            <td>
+              <button type="button" class="patient-name-link" (click)="openPatientDetail(p)">
+                {{ p.full_name || (p.first_name + ' ' + p.last_name) }}
+              </button>
+            </td>
+            <td>{{ p.tckn ? maskTckn(p.tckn) : p.foreign_id }}</td>
+            <td>{{ p.mobile_phone || p.phone }}</td>
+            <td>{{ p.email }}</td>
+            @if (canWritePatients() || canAccessOral()) {
+            <td style="text-align:right">
+              @if (canAccessOral()) {
+              <button
+                mat-icon-button
+                type="button"
+                (click)="openPatientDetail(p, oralTabIndex())"
+                [title]="'oral.openChart' | translate"
+              >
+                <mat-icon>medical_services</mat-icon>
+              </button>
+              }
+              @if (canWritePatients()) {
+              <button mat-icon-button (click)="openPatientForm(p)"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button (click)="removePatient(p)"><mat-icon>delete</mat-icon></button>
+              }
+            </td>
+            }
+          </tr>
+          }
+        </tbody>
+      </table>
+    </mat-tab>
+    @if (canAccessRecords()) {
+    <mat-tab [label]="'customers.medicalRecords' | translate">
+      <table class="bms-table" style="margin-top:16px">
+        <thead>
+          <tr>
+            <th>{{ 'customers.patient' | translate }}</th>
+            <th>{{ 'customers.summary' | translate }}</th>
+            <th>{{ 'customers.updated' | translate }}</th>
+            @if (canWriteRecords()) { <th></th> }
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of records(); track r.id) {
+          <tr>
+            <td>{{ r.patient_name }}</td>
+            <td>{{ r.summary }}</td>
+            <td>{{ r.updated_at }}</td>
+            @if (canWriteRecords()) {
+            <td style="text-align:right">
+              <button mat-icon-button (click)="openRecordForm(r)"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button (click)="removeRecord(r)"><mat-icon>delete</mat-icon></button>
+            </td>
+            }
+          </tr>
+          }
+        </tbody>
+      </table>
+    </mat-tab>
+    }
+  </mat-tab-group>
+
+  @if (editingPatient()) {
+  <div class="overlay" (click)="editingPatient.set(false)"></div>
+  <div class="dialog" (click)="$event.stopPropagation()">
+    <div class="dialog__header-edit">
+      <h2>{{ (patientForm.value.id ? 'common.edit' : 'patients.newPatient') | translate }}</h2>
+      @if (canWritePatients()) {
+      <app-patient-photo-avatar
+        [patientId]="patientForm.value.id ?? null"
+        [hasPhoto]="patientHasPhoto() && !removePhotoOnSave()"
+        [previewUrl]="pendingPhotoPreview()"
+        [initials]="formInitials()"
+        [editable]="true"
+        [immediateUpload]="false"
+        [size]="88"
+        (fileSelected)="onAvatarFileSelected($event)"
+        (removeRequested)="markPhotoForRemoval()"
+      />
+      }
+    </div>
+    <form [formGroup]="patientForm" (ngSubmit)="savePatient()">
+      <section class="dialog__section">
+        <h3 class="dialog__section-title">{{ 'patients.sectionIdentity' | translate }}</h3>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ 'patients.nationality' | translate }}</mat-label>
+          <mat-select formControlName="nationality">
+            <mat-option value="tc">{{ 'patients.nationalityTc' | translate }}</mat-option>
+            <mat-option value="foreign">{{ 'patients.nationalityForeign' | translate }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <div class="dialog__row">
+          <mat-form-field appearance="outline"><mat-label>{{ 'employees.firstName' | translate }}</mat-label><input matInput formControlName="first_name" required /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ 'employees.lastName' | translate }}</mat-label><input matInput formControlName="last_name" required /></mat-form-field>
+        </div>
+        @if (patientForm.value.nationality === 'tc') {
+        <mat-form-field appearance="outline" class="full-width"><mat-label>{{ 'patients.tckn' | translate }}</mat-label><input matInput formControlName="tckn" maxlength="11" /></mat-form-field>
+        } @else {
+        <mat-form-field appearance="outline" class="full-width"><mat-label>{{ 'patients.foreignId' | translate }}</mat-label><input matInput formControlName="foreign_id" /></mat-form-field>
+        }
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ 'patients.birthDate' | translate }}</mat-label>
+          <input matInput [matDatepicker]="bdPicker" formControlName="birth_date" />
+          <mat-datepicker-toggle matSuffix [for]="bdPicker"></mat-datepicker-toggle>
+          <mat-datepicker #bdPicker></mat-datepicker>
+        </mat-form-field>
+        <div class="verify-row">
+          <button mat-stroked-button type="button" color="primary" (click)="verifyIdentity()">
+            {{ 'patients.verifyNvi' | translate }}
+          </button>
+          @if (nviVerified()) {
+          <span class="verified-badge">{{ 'patients.nviVerified' | translate }}</span>
+          }
+        </div>
+      </section>
+
+      <section class="dialog__section">
+        <h3 class="dialog__section-title">{{ 'patients.sectionContact' | translate }}</h3>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ 'patients.mobilePhone' | translate }}</mat-label>
+          <input matInput appPhoneInput formControlName="mobile_phone" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ 'customers.email' | translate }}</mat-label>
+          <input matInput type="email" formControlName="email" />
+        </mat-form-field>
+        <div class="dialog__row">
+          <mat-form-field appearance="outline"><mat-label>{{ 'patients.homePhone' | translate }}</mat-label><input matInput appPhoneInput formControlName="home_phone" /></mat-form-field>
+          <mat-form-field appearance="outline"><mat-label>{{ 'patients.workPhone' | translate }}</mat-label><input matInput appPhoneInput formControlName="work_phone" /></mat-form-field>
+        </div>
+      </section>
+
+      <section class="dialog__section">
+        <h3 class="dialog__section-title">{{ 'patients.sectionHomeAddress' | translate }}</h3>
+        <app-mernis-address-form [group]="$any(patientForm.get('home_address'))" />
+      </section>
+
+      <section class="dialog__section">
+        <h3 class="dialog__section-title">{{ 'patients.sectionWorkAddress' | translate }}</h3>
+        <app-mernis-address-form [group]="$any(patientForm.get('work_address'))" />
+      </section>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button mat-button type="button" (click)="editingPatient.set(false)">{{ 'common.cancel' | translate }}</button>
+        <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
+      </div>
+    </form>
+  </div>
+  }
+
+  @if (editingRecord()) {
+  <div class="overlay" (click)="editingRecord.set(false)"></div>
+  <div class="dialog">
+    <h2>{{ (recordForm.value.id ? 'common.edit' : 'customers.newMedicalRecord') | translate }}</h2>
+    <form [formGroup]="recordForm" (ngSubmit)="saveRecord()" style="display:flex;flex-direction:column;gap:8px">
+      <mat-form-field appearance="outline"><mat-label>{{ 'customers.patient' | translate }}</mat-label>
+        <mat-select formControlName="patient" required>
+          @for (p of patients(); track p.id) {
+          <mat-option [value]="p.id">{{ p.full_name || p.first_name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline"><mat-label>{{ 'customers.summary' | translate }}</mat-label><textarea matInput rows="4" formControlName="summary"></textarea></mat-form-field>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button mat-button type="button" (click)="editingRecord.set(false)">{{ 'common.cancel' | translate }}</button>
+        <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
+      </div>
+    </form>
+  </div>
+  }
+
+  @if (viewingPatientDetail() !== null) {
+  <div class="overlay" (click)="closePatientDetail()"></div>
+  <div class="dialog dialog--patient-detail" (click)="$event.stopPropagation()">
+    <app-patient-detail-dialog
+      [patientId]="viewingPatientDetail()!"
+      [patientSummary]="detailPatientSummary()"
+      [initialTab]="detailInitialTab()"
+      (closed)="closePatientDetail()"
+    />
+  </div>
+  }
+</div>

@@ -134,11 +134,53 @@ export const APP_ROUTES: Routes = [
       {
         path: 'patients',
         loadComponent: () =>
-          import('./features/patients/patients.component').then(
-            (m) => m.PatientsComponent
+          import('./features/patients/patients-shell.component').then(
+            (m) => m.PatientsShellComponent
           ),
         canActivate: [roleGuard],
         data: { module: 'patients', permission: 'patients.read' },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/patients/patients.component').then(
+                (m) => m.PatientsComponent
+              ),
+            data: { embedded: true },
+          },
+          {
+            path: ':patientId/oral',
+            loadComponent: () =>
+              import('./features/oral/oral-chart.component').then(
+                (m) => m.OralChartComponent
+              ),
+            canActivate: [roleGuard],
+            data: { module: 'oral', permission: 'oral.read', embedded: true },
+          },
+        ],
+      },
+      {
+        path: 'oral',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/oral/oral-chart.component').then(
+                (m) => m.OralChartComponent
+              ),
+            canActivate: [roleGuard],
+            data: { module: 'oral', permission: 'oral.read' },
+          },
+          {
+            path: ':patientId',
+            loadComponent: () =>
+              import('./features/oral/oral-chart.component').then(
+                (m) => m.OralChartComponent
+              ),
+            canActivate: [roleGuard],
+            data: { module: 'oral', permission: 'oral.read' },
+          },
+        ],
       },
       {
         path: 'appointments',

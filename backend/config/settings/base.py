@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.products",
     "apps.inventory",
     "apps.customers",
+    "apps.oral",
     "apps.appointments",
     "apps.billing",
     "apps.accounting",
@@ -237,3 +238,9 @@ AUDITLOG_MASK_CALLABLE = None
 AUDITLOG_LOGENTRY_MODEL = "auditlog.LogEntry"
 AUDITLOG_USE_BASE_MANAGER = False
 AUDITLOG_USE_FK_STRING_REPRESENTATION = False
+
+# NVI / MERNIS (adres.nvi.gov.tr + KPSPublic SOAP)
+NVI_RECAPTCHA_SITE_KEY = env(
+    "NVI_RECAPTCHA_SITE_KEY",
+    default="6LcrFjwUAAAAABui7fXG9wtscqRlt6Avzxfxkmdz",
+)

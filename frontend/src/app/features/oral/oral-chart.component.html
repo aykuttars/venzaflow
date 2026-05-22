@@ -1,0 +1,216 @@
+<div class="page" [class.page--embedded]="embedded || dialogMode">
+  @if (!embedded && !dialogMode) {
+  <app-page-header moduleSlug="oral" icon="medical_services">
+    @if (patientId()) {
+    <button mat-stroked-button routerLink="/oral">
+      <mat-icon>arrow_back</mat-icon> {{ 'oral.changePatient' | translate }}
+    </button>
+    }
+  </app-page-header>
+  }
+
+  @if (!patientId() && !dialogMode) {
+  <mat-card style="padding:16px; max-width:520px">
+    <p>{{ 'oral.selectPatientHint' | translate }}</p>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'customers.patient' | translate }}</mat-label>
+      <mat-select (selectionChange)="onPatientPicked($event.value)">
+        @for (p of patientOptions(); track p.id) {
+        <mat-option [value]="p.id">{{ p.full_name || (p.first_name + ' ' + p.last_name) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </mat-card>
+  } @else if (patient()) {
+  @if (!dialogMode) {
+  <div class="patient-header">
+    <div class="patient-photo">
+      @if (patient()?.has_photo) {
+      <app-auth-image
+        [url]="patientPhotoUrl(patientId()!)"
+        [alt]="patient()?.full_name"
+        style="width:72px;height:72px;border-radius:50%"
+      />
+      } @else {
+      <mat-icon style="font-size:48px;width:72px;height:72px;line-height:72px;text-align:center">person</mat-icon>
+      }
+    </div>
+    <div class="patient-header__info">
+      <h2>{{ patient()?.full_name || (patient()?.first_name + ' ' + patient()?.last_name) }}</h2>
+      <div class="patient-header__meta">
+        {{ patient()?.tckn || patient()?.foreign_id }} · {{ patient()?.mobile_phone || patient()?.phone }}
+        · {{ patient()?.email }}
+      </div>
+    </div>
+  </div>
+  }
+
+  <div class="oral-stack">
+    <mat-card style="padding:16px">
+      <h3 style="margin:0 0 12px">{{ 'oral.odontogram' | translate }}</h3>
+      <app-odontogram
+        [teethState]="chart()"
+        [selected]="selectedTeeth()"
+        [highlight]="highlightTooth()"
+        (toothSelect)="selectedTeeth.set($event)"
+      />
+      @if (activeTooth()) {
+      <div class="selected-tooth-banner">
+        <mat-icon color="primary">dentistry</mat-icon>
+        <strong>{{ 'oral.selectedTooth' | translate }}: {{ activeTooth() }}</strong>
+      </div>
+      } @else {
+      <p style="margin-top:12px;font-size:13px;opacity:0.7">{{ 'oral.selectToothFirst' | translate }}</p>
+      }
+    </mat-card>
+
+    @if (activeTooth()) {
+    <mat-card style="padding:16px">
+      <h3 style="margin:0 0 8px">{{ 'oral.doneTreatments' | translate }}</h3>
+      <mat-list class="oral-tooth-panel">
+        @for (t of doneForActiveTooth(); track t.id) {
+        <mat-list-item class="treatment-item">
+          <div matListItemTitle>{{ t.procedure_name }}</div>
+          <div matListItemLine class="treatment-item__meta">
+            {{ formatPrice(t.unit_price) }} ₺ · {{ t.session_date }}
+            <span class="status-badge" [class]="t.status">{{ ('oral.status.' + t.status) | translate }}</span>
+          </div>
+          @if (canWrite()) {
+          <div matListItemMeta style="display:flex;gap:4px">
+            @if (t.status === 'in_progress') {
+            <button mat-icon-button type="button" (click)="updateStatus(t, 'completed')" [matTooltip]="'oral.complete' | translate">
+              <mat-icon>check_circle</mat-icon>
+            </button>
+            }
+            <button mat-icon-button type="button" (click)="removeTreatment(t)"><mat-icon>delete</mat-icon></button>
+          </div>
+          }
+        </mat-list-item>
+        } @empty {
+        <mat-list-item><span matListItemTitle>{{ 'oral.noTreatmentsOnTooth' | translate }}</span></mat-list-item>
+        }
+      </mat-list>
+
+      <mat-divider style="margin:12px 0" />
+
+      <h3 style="margin:0 0 8px">{{ 'oral.plannedTreatments' | translate }}</h3>
+      <mat-list class="oral-tooth-panel">
+        @for (t of plannedForActiveTooth(); track t.id) {
+        <mat-list-item class="treatment-item">
+          <div matListItemTitle>{{ t.procedure_name }}</div>
+          <div matListItemLine class="treatment-item__meta">
+            {{ formatPrice(t.unit_price) }} ₺ · {{ t.session_date }}
+            <span class="status-badge planned">{{ ('oral.status.planned' | translate) }}</span>
+          </div>
+          @if (canWrite()) {
+          <div matListItemMeta style="display:flex;gap:4px">
+            <button mat-icon-button type="button" (click)="updateStatus(t, 'in_progress')" [matTooltip]="'oral.start' | translate">
+              <mat-icon>play_arrow</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="updateStatus(t, 'completed')" [matTooltip]="'oral.complete' | translate">
+              <mat-icon>check_circle</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="removeTreatment(t)"><mat-icon>delete</mat-icon></button>
+          </div>
+          }
+        </mat-list-item>
+        } @empty {
+        <mat-list-item><span matListItemTitle>{{ 'oral.noTreatmentsOnTooth' | translate }}</span></mat-list-item>
+        }
+      </mat-list>
+    </mat-card>
+
+    <mat-card style="padding:16px">
+      <h3 style="margin:0 0 12px">{{ 'oral.addProcedure' | translate }}</h3>
+      <mat-form-field appearance="outline" class="full-width" style="width:100%">
+        <mat-label>{{ 'common.search' | translate }}</mat-label>
+        <input matInput [formControl]="searchControl" />
+      </mat-form-field>
+      <mat-tab-group (selectedIndexChange)="categoryTab.set($event)">
+        <mat-tab [label]="'oral.categoryDiagnosis' | translate" />
+        <mat-tab [label]="'oral.categoryPlanning' | translate" />
+        <mat-tab [label]="'oral.categoryTreatment' | translate" />
+      </mat-tab-group>
+      @if (frequentProcedures().length) {
+      <p style="font-size:12px;margin:12px 0 4px;opacity:0.7">{{ 'oral.frequent' | translate }}</p>
+      <div class="catalog">
+        @for (p of frequentProcedures(); track p.id) {
+        @if (isTreatmentCategory()) {
+        <div class="catalog-item" style="padding:0">
+          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()" style="flex:1">
+            <span>{{ p.name }}</span>
+            <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
+          </button>
+          <button mat-stroked-button type="button" color="primary" (click)="applyProcedureAsCompleted(p)" [disabled]="!canWrite()">
+            {{ 'oral.addAsCompleted' | translate }}
+          </button>
+        </div>
+        } @else {
+        <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()">
+          <span>{{ p.name }}</span>
+          <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
+        </button>
+        }
+        }
+      </div>
+      }
+      <div class="catalog" style="margin-top:8px">
+        @for (p of filteredProcedures(); track p.id) {
+        @if (isTreatmentCategory()) {
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()" style="flex:1">
+            <span>{{ p.name }}</span>
+            <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
+          </button>
+          <button mat-stroked-button type="button" (click)="applyProcedureAsCompleted(p)" [disabled]="!canWrite()">
+            {{ 'oral.addAsCompleted' | translate }}
+          </button>
+        </div>
+        } @else {
+        <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()">
+          <span>{{ p.name }}</span>
+          <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
+        </button>
+        }
+        } @empty {
+        <p>{{ 'common.noRecords' | translate }}</p>
+        }
+      </div>
+    </mat-card>
+    }
+
+    @if (!dialogMode) {
+    <mat-card style="padding:16px">
+      <h3 style="margin:0 0 8px">{{ 'oral.allTreatmentsSummary' | translate }}</h3>
+      <table class="treatments-table">
+        <thead>
+          <tr>
+            <th>{{ 'oral.colDate' | translate }}</th>
+            <th>{{ 'oral.colProcedure' | translate }}</th>
+            <th>{{ 'oral.colTooth' | translate }}</th>
+            <th>{{ 'oral.colAmount' | translate }}</th>
+            <th>{{ 'oral.colStatus' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (group of groupedTreatments(); track group[0]) {
+          @for (t of group[1]; track t.id) {
+          <tr (click)="highlightTreatment(t)" style="cursor:pointer">
+            <td>{{ t.session_date }}</td>
+            <td>{{ t.procedure_name }}</td>
+            <td>{{ t.tooth_numbers.join(', ') }}</td>
+            <td>{{ formatPrice(t.unit_price) }} ₺</td>
+            <td><span class="status-badge" [class]="t.status">{{ ('oral.status.' + t.status) | translate }}</span></td>
+          </tr>
+          }
+          }
+        </tbody>
+      </table>
+      <div class="footer-bar">
+        <strong>{{ 'oral.totalAmount' | translate }}: {{ formatPrice(totalAmount()) }} ₺</strong>
+      </div>
+    </mat-card>
+    }
+  </div>
+  }
+</div>

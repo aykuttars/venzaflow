@@ -9,6 +9,7 @@ from apps.accounts.models import Department, User
 from apps.appointments.models import Appointment, Schedule
 from apps.billing.models import Invoice, InvoiceLine, Payment
 from apps.customers.models import Customer, MedicalRecord
+from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
 from apps.inventory.models import Stock, StockMovement, Warehouse
 from apps.products.models import Category, Product
 
@@ -22,6 +23,9 @@ def register_models() -> None:
         StockMovement,
         Customer,
         MedicalRecord,
+        ProcedureCatalog,
+        PatientOralChart,
+        OralTreatment,
         Appointment,
         Schedule,
         Invoice,

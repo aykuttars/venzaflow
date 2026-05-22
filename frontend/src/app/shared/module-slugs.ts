@@ -6,6 +6,7 @@ export const ALL_MODULE_SLUGS = [
   'inventory',
   'customers',
   'patients',
+  'oral',
   'appointments',
   'billing',
   'accounting',
