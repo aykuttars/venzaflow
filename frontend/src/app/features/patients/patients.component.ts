@@ -25,7 +25,7 @@ import {
   emailRequiredValidator,
   phoneRequiredValidator,
   phoneValidator,
-  tcknValidator,
+  patientIdentityValidator,
 } from '../../shared/form-validators';
 import { AuthImageComponent, patientPhotoUrl } from '../../shared/auth-image.component';
 import { PatientPhotoAvatarComponent } from '../../shared/patient-photo-avatar.component';
@@ -136,8 +136,7 @@ export class PatientsComponent implements OnInit {
     nationality: this.fb.control<'tc' | 'foreign'>('tc', Validators.required),
     first_name: ['', Validators.required],
     last_name: ['', Validators.required],
-    tckn: ['', tcknValidator()],
-    foreign_id: [''],
+    tckn: ['', patientIdentityValidator('tc')],
     birth_date: this.fb.control<Date | null>(null, Validators.required),
     mobile_phone: ['', phoneRequiredValidator()],
     email: ['', emailRequiredValidator()],
@@ -157,9 +156,12 @@ export class PatientsComponent implements OnInit {
     if (this.route.snapshot.data['embedded']) {
       this.embedded = true;
     }
-    this.patientForm.get('nationality')!.valueChanges.subscribe(() => {
+    this.patientForm.get('nationality')!.valueChanges.subscribe((nationality) => {
       this.nviVerified.set(false);
       this.nviReference.set('');
+      const tcknCtrl = this.patientForm.get('tckn')!;
+      tcknCtrl.setValidators(patientIdentityValidator(nationality || 'tc'));
+      tcknCtrl.updateValueAndValidity({ emitEvent: false });
     });
     this.reloadPatients();
     if (this.canAccessRecords()) {
@@ -223,7 +225,6 @@ export class PatientsComponent implements OnInit {
         first_name: p.first_name,
         last_name: p.last_name,
         tckn: p.tckn || '',
-        foreign_id: p.foreign_id || '',
         birth_date: p.birth_date ? new Date(p.birth_date) : null,
         mobile_phone: p.mobile_phone || p.phone || '',
         email: p.email || '',
@@ -239,7 +240,6 @@ export class PatientsComponent implements OnInit {
         first_name: '',
         last_name: '',
         tckn: '',
-        foreign_id: '',
         birth_date: null,
         mobile_phone: '',
         email: '',
@@ -249,6 +249,10 @@ export class PatientsComponent implements OnInit {
       this.patientForm.setControl('home_address', emptyAddressGroup(this.fb));
       this.patientForm.setControl('work_address', emptyAddressGroup(this.fb));
     }
+    const nationality = this.patientForm.value.nationality || 'tc';
+    const tcknCtrl = this.patientForm.get('tckn')!;
+    tcknCtrl.setValidators(patientIdentityValidator(nationality));
+    tcknCtrl.updateValueAndValidity({ emitEvent: false });
     this.editingPatient.set(true);
   }
 
@@ -281,8 +285,7 @@ export class PatientsComponent implements OnInit {
       first_name: v.first_name,
       last_name: v.last_name,
       birth_date: this.formatDate(v.birth_date),
-      tckn: v.nationality === 'tc' ? v.tckn : undefined,
-      foreign_id: v.nationality === 'foreign' ? v.foreign_id : undefined,
+      tckn: v.tckn,
     };
     this.nvi.verifyIdentity(payload as any).subscribe({
       next: (res) => {
@@ -314,8 +317,7 @@ export class PatientsComponent implements OnInit {
       nationality: v.nationality,
       first_name: v.first_name,
       last_name: v.last_name,
-      tckn: v.nationality === 'tc' ? v.tckn : '',
-      foreign_id: v.nationality === 'foreign' ? v.foreign_id : '',
+      tckn: v.tckn,
       birth_date: v.birth_date ? this.formatDate(v.birth_date) : null,
       mobile_phone: v.mobile_phone,
       email: v.email,

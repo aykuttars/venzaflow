@@ -38,7 +38,7 @@
     <div class="patient-header__info">
       <h2>{{ patient()?.full_name || (patient()?.first_name + ' ' + patient()?.last_name) }}</h2>
       <div class="patient-header__meta">
-        {{ patient()?.tckn || patient()?.foreign_id }} · {{ patient()?.mobile_phone || patient()?.phone }}
+        {{ patient()?.tckn }} · {{ patient()?.mobile_phone || patient()?.phone }}
         · {{ patient()?.email }}
       </div>
     </div>

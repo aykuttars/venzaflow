@@ -48,10 +48,10 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
           <p class="patient-detail-hero__eyebrow">{{ 'patients.detailTitle' | translate }}</p>
           <h2 class="patient-detail-hero__name">{{ displayName }}</h2>
           <div class="patient-detail-hero__chips">
-            @if (patient()?.['tckn'] || patient()?.['foreign_id']) {
+            @if (patient()?.['tckn']) {
             <span class="patient-detail-hero__chip">
               <mat-icon>badge</mat-icon>
-              {{ patient()?.['tckn'] || patient()?.['foreign_id'] }}
+              {{ patient()?.['tckn'] }}
             </span>
             }
             @if (patient()?.['mobile_phone'] || patient()?.['phone']) {

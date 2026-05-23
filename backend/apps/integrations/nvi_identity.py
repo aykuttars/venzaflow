@@ -1,86 +1,110 @@
 from __future__ import annotations
 
 import json
-import xml.etree.ElementTree as ET
+import threading
+from datetime import date
+from typing import Any
 
 import requests
 
+from apps.integrations.nvi import TcKimlikHandler, YabanciKimlikHandler
+
+_tc_handler: TcKimlikHandler | None = None
+_foreign_handler: YabanciKimlikHandler | None = None
+_handler_lock = threading.Lock()
+
+
+def _get_tc_handler() -> TcKimlikHandler:
+    global _tc_handler
+    if _tc_handler is not None:
+        return _tc_handler
+    with _handler_lock:
+        if _tc_handler is None:
+            _tc_handler = TcKimlikHandler()
+        return _tc_handler
+
+
+def _get_foreign_handler() -> YabanciKimlikHandler:
+    global _foreign_handler
+    if _foreign_handler is not None:
+        return _foreign_handler
+    with _handler_lock:
+        if _foreign_handler is None:
+            _foreign_handler = YabanciKimlikHandler()
+        return _foreign_handler
+
+
+def _identity_payload_ok(payload: Any) -> bool:
+    if isinstance(payload, bool):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("success", "Success", "basarili", "Basarili"):
+            if key in payload:
+                return bool(payload[key])
+    return str(payload).lower() == "true"
+
+
+def _normalize_handler_result(result: dict[str, Any]) -> dict[str, Any]:
+    if not result.get("success"):
+        return {
+            "success": False,
+            "reason": result.get("reason") or result.get("message") or "NVI verification failed.",
+        }
+    return {"success": True, "response": result.get("data")}
+
 
 class NviIdentityHandler:
-    """TCKN, yabanci kimlik no ve vergi no dogrulama."""
-
-    _KPS_URL = "https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx?WSDL"
-    _KPS_NS = {
-        "soap": "http://www.w3.org/2003/05/soap-envelope",
-        "a": "http://tckimlik.nvi.gov.tr/WS",
-    }
+    """Kimlik doğrulama — TcKimlikHandler / YabanciKimlikHandler üzerinden."""
 
     @staticmethod
-    def confirm_tckn(name: str, surname: str, tcno: str, byear: int):
-        body = f"""<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <TCKimlikNoDogrula xmlns="http://tckimlik.nvi.gov.tr/WS">
-      <TCKimlikNo>{int(tcno)}</TCKimlikNo>
-      <Ad>{name}</Ad>
-      <Soyad>{surname}</Soyad>
-      <DogumYili>{int(byear)}</DogumYili>
-    </TCKimlikNoDogrula>
-  </soap12:Body>
-</soap12:Envelope>"""
-        r = requests.post(
-            NviIdentityHandler._KPS_URL,
-            data=body.encode("utf-8"),
-            headers={"Content-Type": "application/soap+xml"},
-            timeout=30,
+    def confirm_tckn(
+        name: str,
+        surname: str,
+        tcno: str,
+        birth_date: date | int,
+    ) -> dict[str, Any]:
+        if isinstance(birth_date, date):
+            day, month, year = birth_date.day, birth_date.month, birth_date.year
+        else:
+            day, month, year = 1, 1, int(birth_date)
+
+        result = _get_tc_handler().tc_kimlik_dogrula(
+            tckn=str(tcno),
+            ad=name,
+            soyad=surname,
+            dogum_gun=day,
+            dogum_ay=month,
+            dogum_yil=year,
         )
-        if not r.ok:
-            return {"success": False, "reason": r.reason}
-        try:
-            tree = ET.fromstring(r.content)
-            node = tree.find(
-                "./soap:Body/a:TCKimlikNoDogrulaResponse/a:TCKimlikNoDogrulaResult",
-                NviIdentityHandler._KPS_NS,
-            )
-            if node is None or node.text is None:
-                return {"success": False, "reason": f"unexpected response: {r.content[:300]!r}"}
-            return {"success": True, "response": {"success": node.text.lower() == "true"}}
-        except ET.ParseError as exc:
-            return {"success": False, "reason": f"couldnt parse response: {exc}"}
+        normalized = _normalize_handler_result(result)
+        if normalized.get("success"):
+            normalized["response"] = {"success": _identity_payload_ok(normalized["response"])}
+        return normalized
 
     @staticmethod
-    def confirm_foreign(name: str, surname: str, foreign_id: str, birth_date: str):
-        bd_year, bd_month, bd_day = birth_date.split(".")
-        api_url = "https://tckimlik.nvi.gov.tr/yabanciKimlikNoDogrula/search"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0",
-            "Accept": "Application/Json",
-            "Accept-Encoding": "gzip,deflate,br,utf-8",
-            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Content-Type": "Application/Json",
-        }
-        jp = {
-            "ybkn": foreign_id,
-            "name": name.encode("utf-8").decode("latin-1"),
-            "surname": surname.encode("utf-8").decode("latin-1"),
-            "day": bd_day,
-            "month": bd_month,
-            "year": bd_year,
-        }
-        payload = (
-            '{"YbKimlikNo": "%s", "Ad": "%s",  "Soyad": "%s","DogumGun": "%s","DogumAy": "%s","DogumYil": "%s"}'
-            % (jp["ybkn"], jp["name"], jp["surname"], jp["day"], jp["month"], jp["year"])
+    def confirm_foreign(name: str, surname: str, foreign_id: str, birth_date: str) -> dict[str, Any]:
+        day, month, year = birth_date.split(".")
+        result = _get_foreign_handler().yabanci_kimlik_dogrula(
+            yb_kimlik_no=str(foreign_id),
+            ad=name,
+            soyad=surname,
+            dogum_gun=day,
+            dogum_ay=month,
+            dogum_yil=year,
         )
-        r = requests.post(api_url, data=payload, headers=headers)
-        if r.ok:
-            return {"success": True, "response": json.loads(r.content)}
-        return {"success": False, "reason": r.reason}
+        normalized = _normalize_handler_result(result)
+        if normalized.get("success"):
+            normalized["response"] = {"success": _identity_payload_ok(normalized["response"])}
+        return normalized
 
     @staticmethod
     def tax_no_confirm(tax_office, tax_no, kimlik_no):
         api_url = "https://intvrg.gib.gov.tr/intvrg_server/dispatch"
         headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36"
+            ),
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Accept-Encoding": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -97,7 +121,7 @@ class NviIdentityHandler:
             ' {"iller": "", "vergidaireleri": "%s", "vkn1": "%s",  "tckn1": "%s","tckn": ""}}'
             % (jp["vergidaireleri"], jp["vkn1"], jp["tckn1"])
         )
-        r = requests.post(api_url, data=payload, headers=headers)
+        r = requests.post(api_url, data=payload, headers=headers, timeout=30)
         if r.ok:
             return {"success": True, "response": json.loads(r.content)}
         return {"success": False, "reason": r.reason}

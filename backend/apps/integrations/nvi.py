@@ -12,17 +12,11 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 
 
-class NviHandler:
-    """NVI adres sorgulama + reCAPTCHA.
+class NviCaptchaBase:
+    """Google reCAPTCHA çözümü (anchor -> reload -> userverify)."""
 
-    >> nvi = NviHandler()
-    >> nvi.il_list()
-    >> nvi.ilce_list(34)
-    >> nvi.acik_adres(98696, 18978569)
-    """
-
-    RECAPTCHA_SITE_KEY = "6LcrFjwUAAAAABui7fXG9wtscqRlt6Avzxfxkmdz"
-    RECAPTCHA_SITE_URL = "https://adres.nvi.gov.tr:443"
+    RECAPTCHA_SITE_KEY: str = ""
+    RECAPTCHA_SITE_URL: str = ""
     RECAPTCHA_RESPONSE_BLOB = "eyJyZXNwb25zZSI6IiIsInMiOiI5NTYyIiwiZSI6ImJYVnMifQ.."
     RECAPTCHA_USER_AGENT = (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -44,64 +38,21 @@ class NviHandler:
         if proxies:
             sess.proxies.update(proxies)
 
-    def __init__(self) -> None:
-        self.homepage_url = "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu"
-        self.il_url = "https://adres.nvi.gov.tr/Harita/ilListesi"
-        self.ilce_url = "https://adres.nvi.gov.tr/Harita/ilceListesi"
-        self.mahalle_url = "https://adres.nvi.gov.tr/Harita/mahalleKoyBaglisiListesi"
-        self.yol_url = "https://adres.nvi.gov.tr/Harita/yolListesi"
-        self.bina_url = "https://adres.nvi.gov.tr/Harita/binaListesi"
-        self.bagimsizbolum_url = "https://adres.nvi.gov.tr/Harita/bagimsizBolumListesi"
-        self.acikadres_url = "https://adres.nvi.gov.tr/Harita/AcikAdres"
-        self.request_timeout = int(getattr(settings, "NVI_REQUEST_TIMEOUT", 25))
-        self.token = ""
-        self.cookies: dict = {}
+    def _init_captcha_state(self) -> None:
         self._captcha_token = ""
         self._captcha_until = 0.0
         self._captcha_lock = threading.Lock()
+
+    def _init_session(self, headers: dict[str, str]) -> None:
+        self.request_timeout = int(getattr(settings, "NVI_REQUEST_TIMEOUT", 25))
+        self._init_captcha_state()
         self.sess = requests.Session()
         self._apply_proxies(self.sess)
-        self.sess.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                    "(KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36"
-                ),
-            }
-        )
-
-    def _ensure_session(self) -> None:
-        if self.token:
-            return
-        with self._session_lock:
-            if self.token:
-                return
-            self.initialize_token()
-
-    def initialize_token(self) -> None:
-        r = self.sess.get(self.homepage_url, timeout=self.request_timeout)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.content, "html.parser")
-        field = soup.find("input", {"name": "__RequestVerificationToken"})
-        if not field or not field.get("value"):
-            raise RuntimeError("NVI verification token not found.")
-        self.token = field.get("value")
-        self.cookies = self.sess.cookies.get_dict()
-        self.sess.headers.update(
-            {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-Requested-With": "XMLHttpRequest",
-                "Referer": "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu",
-                "__RequestVerificationToken": self.token,
-                "Host": "adres.nvi.gov.tr",
-            }
-        )
+        self.sess.headers.update(headers)
 
     @staticmethod
     def _request_error(exc: Exception) -> dict:
         return {"success": False, "reason": f"NVI request failed: {exc}"}
-
-    # --- reCAPTCHA (anchor -> reload -> userverify) ---
 
     @classmethod
     def _rc_base64(cls, text: str) -> str:
@@ -270,7 +221,69 @@ class NviHandler:
         msg = str(result.get("message") or result.get("reason") or "").lower()
         return any(x in msg for x in ("doğrulama", "dogrulama", "görsel", "gorsel", "captcha"))
 
-    # --- adres API ---
+    def return_logic(self, r: requests.Response) -> dict:
+        try:
+            data = r.json()
+            if isinstance(data, dict):
+                if "success" in data.keys() and data.get("success") is False:
+                    return data
+            return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "reason": str(e)}
+
+
+class NviHandler(NviCaptchaBase):
+    """NVI adres sorgulama + reCAPTCHA."""
+
+    RECAPTCHA_SITE_KEY = "6LcrFjwUAAAAABui7fXG9wtscqRlt6Avzxfxkmdz"
+    RECAPTCHA_SITE_URL = "https://adres.nvi.gov.tr:443"
+
+    def __init__(self) -> None:
+        self.homepage_url = "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu"
+        self.il_url = "https://adres.nvi.gov.tr/Harita/ilListesi"
+        self.ilce_url = "https://adres.nvi.gov.tr/Harita/ilceListesi"
+        self.mahalle_url = "https://adres.nvi.gov.tr/Harita/mahalleKoyBaglisiListesi"
+        self.yol_url = "https://adres.nvi.gov.tr/Harita/yolListesi"
+        self.bina_url = "https://adres.nvi.gov.tr/Harita/binaListesi"
+        self.bagimsizbolum_url = "https://adres.nvi.gov.tr/Harita/bagimsizBolumListesi"
+        self.acikadres_url = "https://adres.nvi.gov.tr/Harita/AcikAdres"
+        self.token = ""
+        self.cookies: dict = {}
+        self._init_session(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36"
+                ),
+            }
+        )
+
+    def _ensure_session(self) -> None:
+        if self.token:
+            return
+        with self._session_lock:
+            if self.token:
+                return
+            self.initialize_token()
+
+    def initialize_token(self) -> None:
+        r = self.sess.get(self.homepage_url, timeout=self.request_timeout)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.content, "html.parser")
+        field = soup.find("input", {"name": "__RequestVerificationToken"})
+        if not field or not field.get("value"):
+            raise RuntimeError("NVI verification token not found.")
+        self.token = field.get("value")
+        self.cookies = self.sess.cookies.get_dict()
+        self.sess.headers.update(
+            {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "XMLHttpRequest",
+                "Referer": "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu",
+                "__RequestVerificationToken": self.token,
+                "Host": "adres.nvi.gov.tr",
+            }
+        )
 
     def il_list(self):
         try:
@@ -340,15 +353,144 @@ class NviHandler:
             },
         )
 
-    def return_logic(self, r):
+
+class TckimlikBaseHandler(NviCaptchaBase):
+    """tckimlik.nvi.gov.tr kimlik doğrulama tabanı."""
+
+    RECAPTCHA_SITE_KEY = "6LeWVA4fAAAAAFBO4hLr7KlS8WZiSOSKS_r0EIJF"
+    RECAPTCHA_SITE_URL = "https://tckimlik.nvi.gov.tr:443"
+
+    def __init__(self, homepage_url: str, search_url: str) -> None:
+        self.homepage_url = homepage_url
+        self.search_url = search_url
+        self._session_ready = False
+        self._init_session(
+            {
+                "User-Agent": self.RECAPTCHA_USER_AGENT,
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept": "application/json, text/plain, */*",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+            }
+        )
+
+    def _ensure_session(self) -> None:
+        if self._session_ready:
+            return
+        with self._session_lock:
+            if self._session_ready:
+                return
+            r = self.sess.get(self.homepage_url, timeout=self.request_timeout)
+            r.raise_for_status()
+            self._session_ready = True
+
+    def _search_headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "Application/Json",
+            "Origin": "https://tckimlik.nvi.gov.tr",
+            "Referer": self.homepage_url,
+        }
+
+    def _search_with_captcha(self, payload: dict, *, failure_message: str) -> dict:
+        last: dict | None = None
         try:
-            data = r.json()
-            if isinstance(data, dict):
-                if "success" in data.keys() and data.get("success") is False:
-                    return data
-            return {"success": True, "data": data}
-        except Exception as e:
-            return {"success": False, "reason": str(e)}
+            self._ensure_session()
+        except requests.RequestException as exc:
+            return self._request_error(exc)
+
+        for _ in range(2):
+            try:
+                captcha = self._resolve_captcha_cached()
+            except (RuntimeError, requests.RequestException) as exc:
+                return {"success": False, "reason": str(exc)}
+
+            body = dict(payload)
+            body["CaptchaResponse"] = captcha
+            try:
+                r = self.sess.post(
+                    self.search_url,
+                    json=body,
+                    headers=self._search_headers(),
+                    timeout=self.request_timeout,
+                )
+            except requests.RequestException as exc:
+                return self._request_error(exc)
+
+            last = self.return_logic(r)
+            if not self._is_captcha_failure(last):
+                return last
+
+        return last or {"success": False, "reason": failure_message}
+
+
+class TcKimlikHandler(TckimlikBaseHandler):
+    """TC Kimlik No doğrulama (tckimlik.nvi.gov.tr + reCAPTCHA)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            homepage_url="https://tckimlik.nvi.gov.tr/Modul/TcKimlikNoDogrula",
+            search_url="https://tckimlik.nvi.gov.tr/tcKimlikNoDogrula/search",
+        )
+
+    def tc_kimlik_dogrula(
+        self,
+        tckn: str,
+        ad: str,
+        soyad: str,
+        dogum_gun: str | int,
+        dogum_ay: str | int,
+        dogum_yil: str | int,
+        *,
+        cuzdan_seri_no: str = "",
+        tckk_seri_no: str | None = None,
+        gecici_kimlik_no: str | None = None,
+    ) -> dict:
+        return self._search_with_captcha(
+            {
+                "TCKimlikNo": str(tckn),
+                "CuzdanSeriNo": cuzdan_seri_no,
+                "TckkSeriNo": tckk_seri_no,
+                "GeciciKimlikNo": gecici_kimlik_no,
+                "Ad": ad.upper(),
+                "Soyad": soyad.upper(),
+                "DogumGun": f"{int(dogum_gun):02d}",
+                "DogumAy": f"{int(dogum_ay):02d}",
+                "DogumYil": str(int(dogum_yil)),
+            },
+            failure_message="TC Kimlik doğrulama başarısız.",
+        )
+
+
+class YabanciKimlikHandler(TckimlikBaseHandler):
+    """Yabancı Kimlik No doğrulama (tckimlik.nvi.gov.tr + reCAPTCHA)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            homepage_url="https://tckimlik.nvi.gov.tr/Modul/YabanciKimlikNoDogrula",
+            search_url="https://tckimlik.nvi.gov.tr/yabanciKimlikNoDogrula/search",
+        )
+
+    def yabanci_kimlik_dogrula(
+        self,
+        yb_kimlik_no: str,
+        ad: str,
+        soyad: str,
+        dogum_gun: str | int,
+        dogum_ay: str | int,
+        dogum_yil: str | int,
+    ) -> dict:
+        return self._search_with_captcha(
+            {
+                "YbKimlikNo": str(yb_kimlik_no),
+                "Ad": ad.upper(),
+                "Soyad": soyad.upper(),
+                "DogumGun": f"{int(dogum_gun):02d}",
+                "DogumAy": f"{int(dogum_ay):02d}",
+                "DogumYil": str(int(dogum_yil)),
+            },
+            failure_message="Yabancı Kimlik doğrulama başarısız.",
+        )
 
 
 NVI_RECAPTCHA_SITE_KEY = NviHandler.RECAPTCHA_SITE_KEY
+TC_KIMLIK_RECAPTCHA_SITE_KEY = TckimlikBaseHandler.RECAPTCHA_SITE_KEY

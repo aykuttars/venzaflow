@@ -64,3 +64,18 @@ export function tcknValidator(): ValidatorFn {
     return isValidTckn(v) ? null : { tcknInvalid: true };
   };
 }
+
+export function foreignKimlikValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const v = String(control.value || '').trim();
+    if (!v) return { identityRequired: true };
+    if (v.length !== 11 || !/^\d+$/.test(v) || v[0] !== '9') {
+      return { foreignKimlikInvalid: true };
+    }
+    return null;
+  };
+}
+
+export function patientIdentityValidator(nationality: 'tc' | 'foreign'): ValidatorFn {
+  return nationality === 'tc' ? tcknValidator() : foreignKimlikValidator();
+}

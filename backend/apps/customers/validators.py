@@ -26,3 +26,12 @@ def is_valid_tckn(value: str) -> bool:
         return True
     except ValidationError:
         return False
+
+
+def validate_foreign_kimlik_no(value: str) -> str:
+    text = (value or "").strip()
+    if len(text) != 11 or not text.isdigit():
+        raise ValidationError(_("Foreign ID must be 11 digits."))
+    if text[0] != "9":
+        raise ValidationError(_("Invalid foreign ID."))
+    return text

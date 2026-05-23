@@ -6,6 +6,20 @@ from apps.customers.patient_photo import patient_photo_upload_to
 from apps.tenants.models import TenantOwnedModel
 
 
+class TurkishProvince(models.Model):
+    plate_code = models.PositiveSmallIntegerField(primary_key=True)
+    name = models.CharField(max_length=64)
+
+    class Meta:
+        db_table = "turkish_province"
+        ordering = ["name"]
+        verbose_name = "Turkish province"
+        verbose_name_plural = "Turkish provinces"
+
+    def __str__(self) -> str:
+        return f"{self.plate_code:02d} {self.name}"
+
+
 class Customer(TenantOwnedModel):
     class Kind(models.TextChoices):
         CUSTOMER = "customer", "Customer"
@@ -27,7 +41,6 @@ class Customer(TenantOwnedModel):
         blank=True,
     )
     tckn = models.CharField(max_length=11, blank=True, db_index=True)
-    foreign_id = models.CharField(max_length=64, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     mobile_phone = models.CharField(max_length=32, blank=True)
     home_phone = models.CharField(max_length=32, blank=True)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
 from collections.abc import Callable
@@ -8,6 +9,8 @@ from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -20,7 +23,6 @@ from apps.integrations.nvi_identity import NviIdentityHandler
 
 _handler: NviHandler | None = None
 _handler_lock = threading.Lock()
-_PROVINCES_CACHE_KEY = "nvi:address:provinces"
 _RATE_WINDOW_KEY = "nvi:rate:minute"
 
 
@@ -28,8 +30,19 @@ def _address_cache_ttl() -> int:
     return int(getattr(settings, "NVI_ADDRESS_CACHE_TTL", 60 * 60 * 24 * 7))
 
 
-def _provinces_cache_ttl() -> int:
-    return int(getattr(settings, "NVI_PROVINCES_CACHE_TTL", 60 * 60 * 24))
+def _cache_get(key: str, default: Any = None) -> Any:
+    try:
+        return cache.get(key, default)
+    except Exception:
+        logger.warning("NVI cache get failed for %s", key, exc_info=True)
+        return default
+
+
+def _cache_set(key: str, value: Any, *, timeout: int) -> None:
+    try:
+        cache.set(key, value, timeout=timeout)
+    except Exception:
+        logger.warning("NVI cache set failed for %s", key, exc_info=True)
 
 
 def _rate_limit_nvi_call() -> None:
@@ -39,8 +52,11 @@ def _rate_limit_nvi_call() -> None:
     try:
         count = cache.incr(_RATE_WINDOW_KEY)
     except ValueError:
-        cache.set(_RATE_WINDOW_KEY, 1, timeout=60)
+        _cache_set(_RATE_WINDOW_KEY, 1, timeout=60)
         count = 1
+    except Exception:
+        logger.warning("NVI rate limit cache unavailable", exc_info=True)
+        return
     if count > limit:
         raise NviError(
             "NVI istek limiti aşıldı; kısa süre sonra tekrar deneyin veya cache dolana kadar bekleyin."
@@ -48,12 +64,12 @@ def _rate_limit_nvi_call() -> None:
 
 
 def _cached_list(cache_key: str, fetch: Callable[[], dict[str, Any]]) -> list[dict[str, int | str]]:
-    cached = cache.get(cache_key)
+    cached = _cache_get(cache_key)
     if cached is not None:
         return cached
     _rate_limit_nvi_call()
     rows = _parse_result(fetch())
-    cache.set(cache_key, rows, timeout=_address_cache_ttl())
+    _cache_set(cache_key, rows, timeout=_address_cache_ttl())
     return rows
 
 
@@ -92,13 +108,10 @@ def _parse_result(result: dict[str, Any]) -> list[dict[str, int | str]]:
 
 
 def list_provinces() -> list[dict[str, int | str]]:
-    cached = cache.get(_PROVINCES_CACHE_KEY)
-    if cached is not None:
-        return cached
-    _rate_limit_nvi_call()
-    rows = _parse_result(_get_handler().il_list())
-    cache.set(_PROVINCES_CACHE_KEY, rows, timeout=_provinces_cache_ttl())
-    return rows
+    from apps.customers.models import TurkishProvince
+
+    rows = TurkishProvince.objects.order_by("name").values("plate_code", "name")
+    return [{"code": row["plate_code"], "name": row["name"]} for row in rows]
 
 
 def list_districts(il_kimlik_no: int) -> list[dict[str, int | str]]:
@@ -174,7 +187,7 @@ def get_open_address(
         raise NviError("Query parameter 'unit' or 'bina' is required.")
 
     cache_key = f"nvi:address:open:{mahalle_kimlik_no}:{attempts[0]}"
-    cached = cache.get(cache_key)
+    cached = _cache_get(cache_key)
     if cached is not None:
         return cached
 
@@ -190,7 +203,7 @@ def get_open_address(
             continue
         try:
             row = _format_open_address(data)
-            cache.set(cache_key, row, timeout=_address_cache_ttl())
+            _cache_set(cache_key, row, timeout=_address_cache_ttl())
             return row
         except NviError as exc:
             last_error = str(exc)
@@ -214,11 +227,10 @@ def verify_identity(
     last_name: str,
     birth_date: date,
     tckn: str = "",
-    foreign_id: str = "",
 ) -> dict[str, Any]:
     from django.core.exceptions import ValidationError
 
-    from apps.customers.validators import validate_tckn
+    from apps.customers.validators import validate_foreign_kimlik_no, validate_tckn
 
     first = (first_name or "").strip()
     last = (last_name or "").strip()
@@ -231,7 +243,7 @@ def verify_identity(
         except ValidationError as exc:
             raise NviIdentityMismatch(str(exc.messages[0])) from exc
 
-        result = NviIdentityHandler.confirm_tckn(first, last, tckn_clean, birth_date.year)
+        result = NviIdentityHandler.confirm_tckn(first, last, tckn_clean, birth_date)
         if not result.get("success"):
             raise NviIdentityMismatch(result.get("reason") or "NVI verification failed.")
         if not result["response"].get("success"):
@@ -244,18 +256,21 @@ def verify_identity(
         }
 
     if nationality == "foreign":
-        fid = (foreign_id or "").strip()
-        if not fid:
-            raise NviIdentityMismatch("Foreign ID is required.")
+        try:
+            kimlik_no = validate_foreign_kimlik_no(tckn)
+        except ValidationError as exc:
+            raise NviIdentityMismatch(str(exc.messages[0])) from exc
 
-        result = NviIdentityHandler.confirm_foreign(first, last, fid, birth_date.strftime("%d.%m.%Y"))
+        result = NviIdentityHandler.confirm_foreign(
+            first, last, kimlik_no, birth_date.strftime("%d.%m.%Y")
+        )
         if not result.get("success"):
             raise NviIdentityMismatch(result.get("reason") or "NVI verification failed.")
         if not _foreign_ok(result["response"]):
             raise NviIdentityMismatch("Identity does not match NVI records.")
         return {
             "verified": True,
-            "reference": f"kps-foreign-{fid}-{uuid.uuid4().hex[:8]}",
+            "reference": f"kps-foreign-{kimlik_no}-{uuid.uuid4().hex[:8]}",
             "normalized_first_name": first.upper(),
             "normalized_last_name": last.upper(),
         }
@@ -355,7 +370,6 @@ class NviIdentityVerifyView(APIView):
         last_name = (data.get("last_name") or "").strip()
         birth_date_raw = data.get("birth_date")
         tckn = (data.get("tckn") or "").strip()
-        foreign_id = (data.get("foreign_id") or "").strip()
 
         if not birth_date_raw:
             return Response({"detail": "birth_date is required."}, status=400)
@@ -371,7 +385,6 @@ class NviIdentityVerifyView(APIView):
                 last_name=last_name,
                 birth_date=birth_date,
                 tckn=tckn,
-                foreign_id=foreign_id,
             )
         except Exception as exc:
             return Response({"detail": str(exc)}, status=400)

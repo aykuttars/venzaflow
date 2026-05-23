@@ -35,17 +35,10 @@ import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
               <input matInput readonly [value]="patient['last_name'] || '—'" />
             </mat-form-field>
           </div>
-          @if (patient['nationality'] === 'tc') {
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>{{ 'patients.tckn' | translate }}</mat-label>
+            <mat-label>{{ (patient['nationality'] === 'foreign' ? 'patients.foreignId' : 'patients.tckn') | translate }}</mat-label>
             <input matInput readonly [value]="patient['tckn'] || '—'" />
           </mat-form-field>
-          } @else {
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>{{ 'patients.foreignId' | translate }}</mat-label>
-            <input matInput readonly [value]="patient['foreign_id'] || '—'" />
-          </mat-form-field>
-          }
           <div class="dialog__row">
             <mat-form-field appearance="outline">
               <mat-label>{{ 'patients.birthDate' | translate }}</mat-label>

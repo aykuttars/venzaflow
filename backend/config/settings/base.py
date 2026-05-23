@@ -247,7 +247,7 @@ AUDITLOG_LOGENTRY_MODEL = "auditlog.LogEntry"
 AUDITLOG_USE_BASE_MANAGER = False
 AUDITLOG_USE_FK_STRING_REPRESENTATION = False
 
-# NVI / MERNIS (adres.nvi.gov.tr + KPSPublic SOAP)
+# NVI / MERNIS (adres.nvi.gov.tr + tckimlik.nvi.gov.tr reCAPTCHA)
 NVI_REQUEST_TIMEOUT = env.int("NVI_REQUEST_TIMEOUT", default=25)
 NVI_PROVINCES_CACHE_TTL = env.int("NVI_PROVINCES_CACHE_TTL", default=60 * 60 * 24)
 NVI_ADDRESS_CACHE_TTL = env.int("NVI_ADDRESS_CACHE_TTL", default=60 * 60 * 24 * 7)

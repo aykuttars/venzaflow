@@ -106,3 +106,17 @@ class CustomerPatientApiTests(TestCase):
         )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["module_parents"], {"patients": "customers"})
+
+    def test_list_provinces_from_database(self):
+        from unittest.mock import patch
+
+        from apps.customers.models import TurkishProvince
+        from apps.customers.nvi_views import list_provinces
+
+        self.assertGreaterEqual(TurkishProvince.objects.count(), 81)
+        with patch("apps.customers.nvi_views._get_handler") as mock_handler:
+            rows = list_provinces()
+            mock_handler.assert_not_called()
+        self.assertGreaterEqual(len(rows), 81)
+        istanbul = next(row for row in rows if row["code"] == 34)
+        self.assertEqual(istanbul["name"], "İSTANBUL")

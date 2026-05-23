@@ -312,6 +312,13 @@ type EditMode = 'invoice' | 'payment' | 'medical' | null;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
         border: 1px solid rgba(0, 0, 0, 0.06);
       }
+      .records-tab--cards {
+        background: #fff;
+        border-radius: 12px;
+        padding: 8px 20px 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+      }
       .records-tab__section { margin-bottom: 24px; }
       .muted { opacity: 0.7; font-size: 14px; }
       .full-width { width: 100%; }

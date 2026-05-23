@@ -14,8 +14,7 @@ export interface NviIdentityVerifyPayload {
   first_name: string;
   last_name: string;
   birth_date: string;
-  tckn?: string;
-  foreign_id?: string;
+  tckn: string;
 }
 
 export interface NviIdentityVerifyResult {

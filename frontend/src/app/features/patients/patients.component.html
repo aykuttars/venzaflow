@@ -58,7 +58,7 @@
                 {{ p.full_name || (p.first_name + ' ' + p.last_name) }}
               </button>
             </td>
-            <td>{{ p.tckn ? maskTckn(p.tckn) : p.foreign_id }}</td>
+            <td>{{ p.tckn ? maskTckn(p.tckn) : '—' }}</td>
             <td>{{ p.mobile_phone || p.phone }}</td>
             <td>{{ p.email }}</td>
             @if (canWritePatients() || canAccessOral()) {
@@ -148,11 +148,10 @@
           <mat-form-field appearance="outline"><mat-label>{{ 'employees.firstName' | translate }}</mat-label><input matInput formControlName="first_name" required /></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ 'employees.lastName' | translate }}</mat-label><input matInput formControlName="last_name" required /></mat-form-field>
         </div>
-        @if (patientForm.value.nationality === 'tc') {
-        <mat-form-field appearance="outline" class="full-width"><mat-label>{{ 'patients.tckn' | translate }}</mat-label><input matInput formControlName="tckn" maxlength="11" /></mat-form-field>
-        } @else {
-        <mat-form-field appearance="outline" class="full-width"><mat-label>{{ 'patients.foreignId' | translate }}</mat-label><input matInput formControlName="foreign_id" /></mat-form-field>
-        }
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>{{ (patientForm.value.nationality === 'foreign' ? 'patients.foreignId' : 'patients.tckn') | translate }}</mat-label>
+          <input matInput formControlName="tckn" maxlength="11" />
+        </mat-form-field>
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>{{ 'patients.birthDate' | translate }}</mat-label>
           <input matInput [matDatepicker]="bdPicker" formControlName="birth_date" />

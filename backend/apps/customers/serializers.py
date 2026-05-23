@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.customers.models import Customer, MedicalRecord
-from apps.customers.validators import validate_tckn
+from apps.customers.validators import validate_foreign_kimlik_no, validate_tckn
 from apps.customers.nvi_views import NviIdentityMismatch, verify_identity
 
 PHONE_CHARS = re.compile(r"^[+()\d\s\-]*$")
@@ -158,7 +158,6 @@ class PatientSerializer(serializers.ModelSerializer):
             "full_name",
             "nationality",
             "tckn",
-            "foreign_id",
             "birth_date",
             "mobile_phone",
             "email",
@@ -203,21 +202,17 @@ class PatientSerializer(serializers.ModelSerializer):
             getattr(self.instance, "nationality", "") if self.instance else "",
         )
         tckn = attrs.get("tckn", getattr(self.instance, "tckn", "") if self.instance else "")
-        foreign_id = attrs.get(
-            "foreign_id", getattr(self.instance, "foreign_id", "") if self.instance else ""
-        )
 
         if nationality == Customer.Nationality.TC:
             try:
                 attrs["tckn"] = validate_tckn(tckn)
             except DjangoValidationError as exc:
                 raise serializers.ValidationError({"tckn": exc.messages[0]}) from exc
-            attrs["foreign_id"] = ""
         elif nationality == Customer.Nationality.FOREIGN:
-            if not (foreign_id or "").strip():
-                raise serializers.ValidationError({"foreign_id": _("Foreign ID is required.")})
-            attrs["foreign_id"] = foreign_id.strip()
-            attrs["tckn"] = ""
+            try:
+                attrs["tckn"] = validate_foreign_kimlik_no(tckn)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError({"tckn": exc.messages[0]}) from exc
         else:
             raise serializers.ValidationError({"nationality": _("Nationality is required.")})
 
@@ -249,11 +244,10 @@ class PatientSerializer(serializers.ModelSerializer):
         birth = attrs.get("birth_date", getattr(self.instance, "birth_date", None))
         nationality = attrs.get("nationality", getattr(self.instance, "nationality", ""))
         tckn = attrs.get("tckn", getattr(self.instance, "tckn", ""))
-        foreign_id = attrs.get("foreign_id", getattr(self.instance, "foreign_id", ""))
 
         identity_changed = self.instance is None
         if self.instance:
-            for field in ("first_name", "last_name", "birth_date", "nationality", "tckn", "foreign_id"):
+            for field in ("first_name", "last_name", "birth_date", "nationality", "tckn"):
                 if field in attrs and attrs[field] != getattr(self.instance, field):
                     identity_changed = True
                     break
@@ -267,7 +261,6 @@ class PatientSerializer(serializers.ModelSerializer):
                 last_name=last,
                 birth_date=birth,
                 tckn=tckn,
-                foreign_id=foreign_id,
             )
         except NviIdentityMismatch as exc:
             raise serializers.ValidationError({"detail": str(exc)}) from exc
