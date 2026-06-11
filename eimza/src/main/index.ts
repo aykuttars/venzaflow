@@ -9,10 +9,11 @@ import { APP_DISPLAY_NAME } from '../shared/brand'
 // invisible window. Force X11/XWayland and software rendering so the packaged
 // app works on double-click without any terminal flags.
 if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('ozone-platform', 'x11')
   if (!process.env.GDK_BACKEND) {
     process.env.GDK_BACKEND = 'x11'
   }
+  app.commandLine.appendSwitch('ozone-platform', 'x11')
+  app.commandLine.appendSwitch('no-sandbox')
   app.disableHardwareAcceleration()
   app.commandLine.appendSwitch('disable-gpu')
   app.commandLine.appendSwitch('disable-gpu-compositing')

@@ -1,5 +1,6 @@
 appId: com.tenancysoft.eimza
-productName: TenancySoft e-imza
+# Spaceless productName → /opt/TenancySoft-e-imza (GNOME breaks on spaced install paths).
+productName: TenancySoft-e-imza
 copyright: Copyright © 2026 Aykut Arslantas
 directories:
   buildResources: build
@@ -62,11 +63,13 @@ linux:
   executableName: eimza
   desktop:
     entry:
-      StartupWMClass: eimza
+      Name: TenancySoft e-imza
+      StartupWMClass: TenancySoft-e-imza
 appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
 deb:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
+  afterInstall: build/linux-postinst.sh
   depends:
     - libnotify4
     - libsecret-1-0
