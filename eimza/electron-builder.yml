@@ -57,8 +57,12 @@ linux:
   synopsis: TenancySoft e-imza masaüstü imza köprüsü
   description: USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama uygulaması.
   category: Office
+  executableName: eimza
   desktop:
     entry:
+      # Use the spaceless /usr/bin symlink; GNOME fails to launch quoted
+      # Exec paths that contain spaces (/opt/TenancySoft e-imza/...).
+      Exec: /usr/bin/eimza %U
       StartupWMClass: TenancySoft e-imza
 appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
