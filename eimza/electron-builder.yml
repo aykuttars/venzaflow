@@ -57,13 +57,12 @@ linux:
   synopsis: TenancySoft e-imza masaüstü imza köprüsü
   description: USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama uygulaması.
   category: Office
+  # executableName drives the binary name, the /usr/bin symlink and the
+  # generated desktop Exec. electron-builder 26 forbids a custom desktop Exec.
   executableName: eimza
   desktop:
     entry:
-      # Use the spaceless /usr/bin symlink; GNOME fails to launch quoted
-      # Exec paths that contain spaces (/opt/TenancySoft e-imza/...).
-      Exec: env GDK_BACKEND=x11 /usr/bin/eimza --ozone-platform=x11 --disable-gpu %U
-      StartupWMClass: TenancySoft e-imza
+      StartupWMClass: eimza
 appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
 deb:
