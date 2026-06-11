@@ -37,8 +37,12 @@ nsis:
   createDesktopShortcut: always
 mac:
   category: public.app-category.business
+  # Ad-hoc signature ('-') so Apple Silicon shows a bypassable "unverified"
+  # warning instead of the unrecoverable "app is damaged" Gatekeeper error.
+  identity: '-'
   hardenedRuntime: true
   gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg

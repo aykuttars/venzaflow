@@ -98,9 +98,10 @@ jobs:
         run: npm run build
 
       - name: Package ${{ matrix.label }}
+        # No CSC_IDENTITY_AUTO_DISCOVERY=false: that would skip signing entirely.
+        # mac.identity '-' makes electron-builder apply an ad-hoc signature instead,
+        # which avoids the "app is damaged" error on Apple Silicon.
         run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }}
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Verify pkcs11 native binary
         shell: bash

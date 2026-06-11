@@ -45,6 +45,11 @@ eimza/release/
 eimza/.eslintcache
 eimza/.env.local
 
+# eimza/build holds electron-builder buildResources (icons, entitlements, hooks);
+# re-include it even though the generic `build/` rule above ignores build dirs.
+!eimza/build/
+!eimza/build/**
+
 # IDE
 .idea/
 .vscode/*
