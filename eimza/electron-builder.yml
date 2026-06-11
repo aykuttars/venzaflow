@@ -24,7 +24,6 @@ extraResources:
       - '**/*'
 win:
   executableName: TenancySoft-e-imza
-  publisherName: Aykut Arslantas
   target:
     - nsis
   artifactName: tenancysoft-eimza-${version}-win-${arch}.${ext}
