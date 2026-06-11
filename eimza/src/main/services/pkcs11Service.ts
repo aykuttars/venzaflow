@@ -57,11 +57,28 @@ class Pkcs11Service {
   listSlots(): TokenSlotInfo[] {
     this.ensureDriver()
     const mod = this.activeModule!
-    const slotCollection = mod.getSlots(false)
-    const slots: TokenSlotInfo[] = []
 
+    // Some drivers (SafeNet/AKİS) throw CKR_ARGUMENTS_BAD or similar when no
+    // token is inserted. Treat any slot enumeration failure as "no token".
+    let slotCollection: ReturnType<GrapheneModule['getSlots']>
+    try {
+      slotCollection = mod.getSlots(true)
+    } catch {
+      try {
+        slotCollection = mod.getSlots(false)
+      } catch {
+        return []
+      }
+    }
+
+    const slots: TokenSlotInfo[] = []
     for (let i = 0; i < slotCollection.length; i++) {
-      const slot = slotCollection.items(i)
+      let slot: graphene.Slot
+      try {
+        slot = slotCollection.items(i)
+      } catch {
+        continue
+      }
       const tokenPresent = Boolean(slot.flags & graphene.SlotFlag.TOKEN_PRESENT)
       slots.push({
         slotIndex: i,

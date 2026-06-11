@@ -52,8 +52,9 @@ export default function CertificateSelectPage({
       } else {
         setCertificates([])
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Token algılanamadı')
+    } catch {
+      // No token / driver enumeration failure: show the empty-state hint,
+      // not a raw PKCS#11 error code.
       setSlots([])
       setCertificates([])
     }
