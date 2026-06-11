@@ -69,7 +69,7 @@ appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
 deb:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
-  afterInstall: build/linux-postinst.sh
+  afterInstall: scripts/linux-postinst.sh
   depends:
     - libnotify4
     - libsecret-1-0
