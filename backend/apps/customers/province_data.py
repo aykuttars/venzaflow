@@ -86,3 +86,28 @@ TURKISH_PROVINCES: list[tuple[int, str]] = [
     (80, "OSMANİYE"),
     (81, "DÜZCE"),
 ]
+
+
+def ensure_turkish_provinces() -> dict[str, int]:
+    """Insert or update all provinces from TURKISH_PROVINCES (idempotent)."""
+    from apps.customers.models import TurkishProvince
+
+    existing = {row.plate_code: row for row in TurkishProvince.objects.all()}
+    to_create: list[TurkishProvince] = []
+    to_update: list[TurkishProvince] = []
+    for plate_code, name in TURKISH_PROVINCES:
+        row = existing.get(plate_code)
+        if row is None:
+            to_create.append(TurkishProvince(plate_code=plate_code, name=name))
+        elif row.name != name:
+            row.name = name
+            to_update.append(row)
+    if to_create:
+        TurkishProvince.objects.bulk_create(to_create)
+    if to_update:
+        TurkishProvince.objects.bulk_update(to_update, ["name"])
+    return {
+        "created": len(to_create),
+        "updated": len(to_update),
+        "total": len(TURKISH_PROVINCES),
+    }

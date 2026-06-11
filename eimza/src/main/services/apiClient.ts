@@ -6,8 +6,41 @@ import type {
   SignPrepareResponse,
   SignTask
 } from '../../shared/types'
+import { SESSION_EXPIRED_MESSAGE } from '../../shared/types'
+import { clearSession, loadSession, saveSession } from './secureStore'
 
 const DEFAULT_BASE_URL = 'https://tenancysoft-api.aykut.in'
+
+export class SessionExpiredError extends Error {
+  constructor(message = SESSION_EXPIRED_MESSAGE) {
+    super(message)
+    this.name = 'SessionExpiredError'
+  }
+}
+
+class AuthUnauthorizedError extends Error {
+  constructor() {
+    super('Unauthorized')
+    this.name = 'AuthUnauthorizedError'
+  }
+}
+
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error instanceof AuthUnauthorizedError || error instanceof SessionExpiredError) {
+    return false
+  }
+  const msg = error.message.toLowerCase()
+  return (
+    error.name === 'AbortError' ||
+    msg.includes('fetch failed') ||
+    msg.includes('network') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('etimedout') ||
+    msg.includes('socket')
+  )
+}
 
 function getBaseUrl(): string {
   return process.env.EIMZA_API_BASE_URL?.replace(/\/$/, '') || DEFAULT_BASE_URL
@@ -85,6 +118,7 @@ async function parseError(response: Response): Promise<string> {
 
 class ApiClient {
   private session: AuthSession | null = null
+  private refreshPromise: Promise<void> | null = null
 
   setSession(session: AuthSession | null): void {
     this.session = session
@@ -92,6 +126,11 @@ class ApiClient {
 
   getSession(): AuthSession | null {
     return this.session
+  }
+
+  private clearInvalidSession(): void {
+    this.setSession(null)
+    clearSession()
   }
 
   private headers(includeAuth = true): Record<string, string> {
@@ -108,6 +147,164 @@ class ApiClient {
       headers.Authorization = `Bearer ${this.session.accessToken}`
     }
     return headers
+  }
+
+  private mergeHeaders(init?: RequestInit): Record<string, string> {
+    const base = this.headers(true)
+    if (init?.headers) {
+      const extra =
+        init.headers instanceof Headers
+          ? Object.fromEntries(init.headers.entries())
+          : (init.headers as Record<string, string>)
+      return { ...base, ...extra }
+    }
+    return base
+  }
+
+  async fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
+    let response: Response
+    try {
+      response = await fetch(url, { ...init, headers: this.mergeHeaders(init) })
+    } catch (error) {
+      throw error
+    }
+
+    if (response.status !== 401 || url.includes('/auth/refresh/')) {
+      return response
+    }
+
+    if (!this.session?.refreshToken) {
+      this.clearInvalidSession()
+      throw new SessionExpiredError()
+    }
+
+    try {
+      await this.refreshAccessToken()
+    } catch (error) {
+      if (isNetworkError(error)) throw error
+      this.clearInvalidSession()
+      throw new SessionExpiredError()
+    }
+
+    const retryResponse = await fetch(url, { ...init, headers: this.mergeHeaders(init) })
+
+    if (retryResponse.status === 401 || retryResponse.status === 403) {
+      this.clearInvalidSession()
+      throw new SessionExpiredError()
+    }
+
+    return retryResponse
+  }
+
+  async getMe(): Promise<void> {
+    let response: Response
+    try {
+      response = await fetch(`${getBaseUrl()}/api/v1/auth/me/`, {
+        headers: this.headers(true)
+      })
+    } catch (error) {
+      throw error
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new AuthUnauthorizedError()
+    }
+
+    if (!response.ok) {
+      throw new Error(await parseError(response))
+    }
+  }
+
+  async refreshAccessToken(): Promise<void> {
+    if (!this.session?.refreshToken) {
+      throw new AuthUnauthorizedError()
+    }
+
+    if (this.refreshPromise) {
+      await this.refreshPromise
+      return
+    }
+
+    this.refreshPromise = (async () => {
+      let response: Response
+      try {
+        response = await fetch(`${getBaseUrl()}/api/v1/auth/refresh/`, {
+          method: 'POST',
+          headers: this.headers(false),
+          body: JSON.stringify({ refresh: this.session!.refreshToken })
+        })
+      } catch (error) {
+        throw error
+      }
+
+      if (!response.ok) {
+        throw new AuthUnauthorizedError()
+      }
+
+      const data = (await response.json()) as Record<string, unknown>
+      const { accessToken, refreshToken } = parseTokenPayload(data)
+
+      this.session = {
+        ...this.session!,
+        accessToken,
+        ...(refreshToken ? { refreshToken } : {})
+      }
+      saveSession(this.session)
+    })()
+
+    try {
+      await this.refreshPromise
+    } finally {
+      this.refreshPromise = null
+    }
+  }
+
+  async restoreAndValidateSession(): Promise<AuthSession | null> {
+    const stored = loadSession()
+    if (!stored) return null
+
+    this.setSession(stored)
+
+    try {
+      await this.getMe()
+      return this.session
+    } catch (error) {
+      if (isNetworkError(error)) {
+        return stored
+      }
+
+      if (!(error instanceof AuthUnauthorizedError)) {
+        return stored
+      }
+    }
+
+    try {
+      await this.refreshAccessToken()
+      await this.getMe()
+      return this.session
+    } catch (error) {
+      if (isNetworkError(error)) {
+        return stored
+      }
+      this.clearInvalidSession()
+      return null
+    }
+  }
+
+  async logout(): Promise<void> {
+    const refreshToken = this.session?.refreshToken
+    if (refreshToken) {
+      try {
+        await fetch(`${getBaseUrl()}/api/v1/auth/logout/`, {
+          method: 'POST',
+          headers: this.headers(true),
+          body: JSON.stringify({ refresh: refreshToken })
+        })
+      } catch {
+        // Best-effort server logout; always clear local session.
+      }
+    }
+    this.clearInvalidSession()
   }
 
   async checkHealth(timeoutMs = 5000): Promise<boolean> {
@@ -169,9 +366,8 @@ class ApiClient {
   }
 
   async listSignTasks(documentType: DocumentType): Promise<SignTask[]> {
-    const response = await fetch(
-      `${getBaseUrl()}/api/v1/sign/tasks/?document_type=${documentType}`,
-      { headers: this.headers() }
+    const response = await this.fetchWithAuth(
+      `${getBaseUrl()}/api/v1/sign/tasks/?document_type=${documentType}`
     )
 
     if (!response.ok) {
@@ -188,13 +384,15 @@ class ApiClient {
     taskId: string,
     certificateDerBase64: string
   ): Promise<SignPrepareResponse> {
-    const response = await fetch(`${getBaseUrl()}/api/v1/sign/tasks/${taskId}/prepare/`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({
-        certificate_der_base64: certificateDerBase64
-      })
-    })
+    const response = await this.fetchWithAuth(
+      `${getBaseUrl()}/api/v1/sign/tasks/${taskId}/prepare/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          certificate_der_base64: certificateDerBase64
+        })
+      }
+    )
 
     if (!response.ok) {
       throw new Error(await parseError(response))
@@ -216,14 +414,16 @@ class ApiClient {
     signatureBase64: string,
     certificateDerBase64: string
   ): Promise<SignCompleteResponse> {
-    const response = await fetch(`${getBaseUrl()}/api/v1/sign/tasks/${taskId}/complete/`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify({
-        signature_base64: signatureBase64,
-        certificate_der_base64: certificateDerBase64
-      })
-    })
+    const response = await this.fetchWithAuth(
+      `${getBaseUrl()}/api/v1/sign/tasks/${taskId}/complete/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          signature_base64: signatureBase64,
+          certificate_der_base64: certificateDerBase64
+        })
+      }
+    )
 
     if (!response.ok) {
       throw new Error(await parseError(response))
@@ -247,9 +447,8 @@ class ApiClient {
     certificateDerBase64: string,
     metadata?: Record<string, string>
   ): Promise<SignPrepareResponse> {
-    const response = await fetch(`${getBaseUrl()}/api/v1/sign/tasks/`, {
+    const response = await this.fetchWithAuth(`${getBaseUrl()}/api/v1/sign/tasks/`, {
       method: 'POST',
-      headers: this.headers(),
       body: JSON.stringify({
         document_type: documentType,
         certificate_der_base64: certificateDerBase64,

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Build all release artifacts sequentially (one arch at a time).
 #
-# pkcs11js is a native module — it cannot be cross-compiled (e.g. win-arm64 on macOS).
-#   macOS host:  mac arm64 + mac x64 + win x64
-#   Windows host: win x64 + win arm64
-#   Linux host:  linux x64 + arm64
+# pkcs11js is a native module — each OS/arch must be built on matching hardware
+# (or GitHub Actions). See .github/workflows/build.yml for all targets:
+#   mac arm64, mac x64, win x64, win arm64, linux x64, linux arm64
 #
 # Usage:
 #   ./scripts/release.sh           # platform defaults
@@ -25,12 +24,13 @@ Usage: ./scripts/release.sh [--clean]
 
 Builds release installers for the current host OS (native arch targets only).
 
-  macOS:    eimza-*-mac-arm64.dmg, eimza-*-mac-x64.dmg, eimza-*-setup-x64.exe
+  macOS:    eimza-*-mac-arm64.dmg, eimza-*-mac-x64.dmg
   Windows:  eimza-*-setup-x64.exe, eimza-*-setup-arm64.exe
   Linux:    eimza-*-linux-x64.AppImage, eimza-*-linux-arm64.AppImage
 
-Windows ARM64 cannot be built on macOS (pkcs11js native module).
-Build win-arm64 on a Windows machine or use CI (see .github/workflows/build.yml).
+pkcs11js is a native module — Windows/Linux installers MUST be built on their
+target OS (or via CI). macOS builds cannot produce valid pkcs11.node for Windows.
+See .github/workflows/build.yml or run: npm run build:win:x64 (on Windows).
 EOF
       exit 0
       ;;
@@ -50,8 +50,9 @@ SKIPPED=()
 
 case "$OS" in
   Darwin)
-    TARGETS+=("mac:arm64" "mac:x64" "win:x64")
-    SKIPPED+=("win:arm64 (native module — build on Windows or CI)")
+    TARGETS+=("mac:arm64" "mac:x64")
+    SKIPPED+=("win:x64 (pkcs11js — build on Windows or CI)")
+    SKIPPED+=("win:arm64 (pkcs11js — build on Windows or CI)")
     ;;
   MINGW* | MSYS* | CYGWIN* | Windows_NT)
     TARGETS+=("win:x64" "win:arm64")
@@ -97,6 +98,10 @@ for target in "${TARGETS[@]}"; do
   if ! npx electron-builder "--${platform}" "--${arch}"; then
     FAILED+=("${platform}-${arch}")
     echo "FAILED: ${platform} ${arch}" >&2
+    continue
+  fi
+  if ! bash "$ROOT/scripts/verify-pkcs11-binary.sh" "$platform" "$arch"; then
+    FAILED+=("${platform}-${arch} (invalid pkcs11.node)")
   fi
 done
 

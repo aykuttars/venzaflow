@@ -13,6 +13,9 @@ export interface AuthSession {
   email: string
 }
 
+export const SESSION_EXPIRED_MESSAGE =
+  'Oturum sonlandırıldı veya süresi doldu. Lütfen tekrar giriş yapın.'
+
 export interface Pkcs11Driver {
   id: string
   name: string

@@ -5,6 +5,7 @@ set -euo pipefail
 # concurrent migrate races (django_migrations / sequence conflicts).
 if [ "${SKIP_MIGRATE:-false}" != "true" ]; then
   python manage.py migrate --noinput
+  python manage.py load_turkish_provinces
 fi
 
 if [ "${SKIP_MIGRATE:-false}" != "true" ]; then

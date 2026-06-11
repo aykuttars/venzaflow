@@ -2,7 +2,7 @@ import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
 import type { IpcResponse, LoginCredentials } from '../../shared/types'
 import { apiClient } from '../services/apiClient'
-import { clearSession, loadSession, saveSession } from '../services/secureStore'
+import { saveSession } from '../services/secureStore'
 
 function ok<T>(data: T): IpcResponse<T> {
   return { ok: true, data }
@@ -26,8 +26,7 @@ export function registerAuthIpc(): void {
 
   ipcMain.handle(IPC.AUTH_LOGOUT, async () => {
     try {
-      apiClient.setSession(null)
-      clearSession()
+      await apiClient.logout()
       return ok(true)
     } catch (error) {
       return fail(error)
@@ -46,10 +45,9 @@ export function registerAuthIpc(): void {
 
   ipcMain.handle(IPC.AUTH_RESTORE, async () => {
     try {
-      const stored = loadSession()
-      if (!stored) return ok(null)
-      apiClient.setSession(stored)
-      return ok({ email: stored.email, customerCode: stored.customerCode })
+      const session = await apiClient.restoreAndValidateSession()
+      if (!session) return ok(null)
+      return ok({ email: session.email, customerCode: session.customerCode })
     } catch (error) {
       return fail(error)
     }

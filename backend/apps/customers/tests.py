@@ -11,6 +11,7 @@ from apps.common.permission_codes import PERMISSION_CODENAMES
 from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
 from apps.customers.nvi_views import NviVerificationError
+from apps.customers.province_data import ensure_turkish_provinces
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
@@ -27,6 +28,7 @@ _MOCK_IDENTITY = {
 class CustomerPatientApiTests(TestCase):
     @classmethod
     def setUpTestData(cls):
+        ensure_turkish_provinces()
         for codename, name in PERMISSION_CODENAMES:
             Permission.objects.get_or_create(codename=codename, defaults={"name": name})
 
@@ -130,6 +132,17 @@ class CustomerPatientApiTests(TestCase):
         self.assertGreaterEqual(len(rows), 81)
         istanbul = next(row for row in rows if row["code"] == 34)
         self.assertEqual(istanbul["name"], "İSTANBUL")
+
+    def test_load_turkish_provinces_command(self):
+        from django.core.management import call_command
+
+        from apps.customers.models import TurkishProvince
+
+        TurkishProvince.objects.all().delete()
+        call_command("load_turkish_provinces")
+        self.assertEqual(TurkishProvince.objects.count(), 81)
+        call_command("load_turkish_provinces")
+        self.assertEqual(TurkishProvince.objects.count(), 81)
 
     @patch("apps.customers.serializers.verify_patient_nvi")
     def test_patients_api_returns_nvi_step_on_failure(self, mock_verify):

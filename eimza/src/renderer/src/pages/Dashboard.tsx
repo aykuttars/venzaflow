@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DocumentList from '../components/DocumentList'
 import PinDialog from '../components/PinDialog'
 import type { SelectedCertificate, SignTask } from '@shared/types'
+import { SESSION_EXPIRED_MESSAGE } from '@shared/types'
 
 type TabKey = 'erecete' | 'earsiv' | 'efatura'
 
@@ -59,6 +60,17 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
     setCertificate(cert)
   }
 
+  async function handleSessionExpired(): Promise<void> {
+    await window.api.pkcs11.logout()
+    await window.api.auth.logout()
+    onLogout()
+    navigate('/login')
+  }
+
+  function isSessionExpiredError(err: unknown): boolean {
+    return err instanceof Error && err.message === SESSION_EXPIRED_MESSAGE
+  }
+
   async function loadTasks(tab: TabKey): Promise<void> {
     setLoading(true)
     setError(null)
@@ -73,6 +85,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       }
       setTasks(items)
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        await handleSessionExpired()
+        return
+      }
       setError(err instanceof Error ? err.message : 'Görevler yüklenemedi')
       setTasks([])
     } finally {
@@ -102,6 +118,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       setPinDialog(null)
       await loadTasks(activeTab)
     } catch (err) {
+      if (isSessionExpiredError(err)) {
+        await handleSessionExpired()
+        return
+      }
       setError(err instanceof Error ? err.message : 'İmzalama başarısız')
     } finally {
       setSigning(false)
