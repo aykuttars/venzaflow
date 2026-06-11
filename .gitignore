@@ -37,6 +37,14 @@ frontend/.angular/
 npm-debug.log*
 *.tsbuildinfo
 
+# Electron / eimza
+eimza/node_modules/
+eimza/dist/
+eimza/out/
+eimza/release/
+eimza/.eslintcache
+eimza/.env.local
+
 # IDE
 .idea/
 .vscode/*

@@ -30,7 +30,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: eimza-${version}-setup.${ext}
+  artifactName: eimza-${version}-setup-${arch}.${ext}
   shortcutName: eimza
   uninstallDisplayName: eimza
   createDesktopShortcut: always
@@ -47,7 +47,7 @@ mac:
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
   notarize: false
 dmg:
-  artifactName: eimza-${version}.${ext}
+  artifactName: eimza-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage

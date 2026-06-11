@@ -36,16 +36,48 @@ function parseTokenPayload(data: Record<string, unknown>): {
   return { accessToken, refreshToken }
 }
 
+function formatApiErrorBody(body: Record<string, unknown>): string {
+  const detail = body.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail.filter(
+      (item): item is string => typeof item === 'string' && item.trim().length > 0
+    )
+    if (messages.length) return messages.join(' ')
+  }
+
+  if (typeof body.message === 'string' && body.message.trim()) return body.message
+  if (typeof body.error === 'string' && body.error.trim()) return body.error
+
+  const nonField = body.non_field_errors
+  if (Array.isArray(nonField)) {
+    const messages = nonField.filter(
+      (item): item is string => typeof item === 'string' && item.trim().length > 0
+    )
+    if (messages.length) return messages.join(' ')
+  }
+
+  const fieldMessages: string[] = []
+  for (const [field, value] of Object.entries(body)) {
+    if (field === 'detail' || field === 'message' || field === 'error') continue
+    if (Array.isArray(value)) {
+      const msgs = value.filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0
+      )
+      if (msgs.length) fieldMessages.push(msgs.join(' '))
+    } else if (typeof value === 'string' && value.trim()) {
+      fieldMessages.push(value)
+    }
+  }
+  if (fieldMessages.length) return fieldMessages.join(' ')
+
+  return 'İşlem başarısız oldu.'
+}
+
 async function parseError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as Record<string, unknown>
-    if (typeof body.detail === 'string') return body.detail
-    if (typeof body.message === 'string') return body.message
-    if (typeof body.error === 'string') return body.error
-    if (body.non_field_errors && Array.isArray(body.non_field_errors)) {
-      return body.non_field_errors.join(', ')
-    }
-    return JSON.stringify(body)
+    return formatApiErrorBody(body)
   } catch {
     return `HTTP ${response.status}: ${response.statusText}`
   }

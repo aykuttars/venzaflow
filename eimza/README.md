@@ -25,10 +25,25 @@ npm run dev
 
 ## Derleme
 
+Tek mimari:
+
 ```bash
-npm run build:mac   # macOS dmg
-npm run build:win   # Windows nsis installer
+npm run build:mac:arm64   # Apple Silicon .dmg
+npm run build:mac:x64     # Intel Mac .dmg
+npm run build:win:x64     # Windows x64 installer
+npm run build:win:arm64   # Windows ARM64 installer
 ```
+
+Tüm release paketleri (sırayla, mimari başına ayrı dosya):
+
+```bash
+npm run release          # macOS'ta: arm64 + x64 dmg + win x64 setup
+npm run release:clean    # release/ temizleyip yeniden build
+./scripts/release.sh --help
+```
+
+**Windows ARM64** (`setup-arm64.exe`) native modül (`pkcs11js`) nedeniyle **macOS'tan build edilemez**.
+Windows makinede `npm run build:win:arm64` veya CI (`windows-latest`) kullanın.
 
 ## API Uçları
 
