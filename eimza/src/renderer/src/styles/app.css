@@ -54,6 +54,13 @@ body {
   text-align: center;
 }
 
+.error-text {
+  color: var(--error);
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
 .spinner {
   width: 36px;
   height: 36px;

@@ -1,25 +1,32 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import LoginPage from './pages/Login'
 import CertificateSelectPage from './pages/CertificateSelect'
 import DashboardPage from './pages/Dashboard'
 import ConnectionBanner from './components/ConnectionBanner'
+import { APP_DISPLAY_NAME } from '@shared/brand'
 import './styles/app.css'
 
 function App(): React.JSX.Element {
   const [booting, setBooting] = useState(true)
+  const [bootError, setBootError] = useState<string | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [hasCertificate, setHasCertificate] = useState(false)
 
   useEffect(() => {
     async function bootstrap(): Promise<void> {
       try {
+        if (!window.api) {
+          throw new Error('Uygulama köprüsü yüklenemedi. Kurulumu yeniden deneyin.')
+        }
         const session = await window.api.auth.restoreSession()
         setAuthenticated(Boolean(session))
         if (session) {
           const cert = await window.api.pkcs11.getSelectedCertificate()
           setHasCertificate(Boolean(cert))
         }
+      } catch (error) {
+        setBootError(error instanceof Error ? error.message : 'Başlatma hatası')
       } finally {
         setBooting(false)
       }
@@ -31,13 +38,21 @@ function App(): React.JSX.Element {
     return (
       <div className="boot-screen">
         <div className="spinner" />
-        <p>eimza yükleniyor...</p>
+        <p>{APP_DISPLAY_NAME} yükleniyor...</p>
+      </div>
+    )
+  }
+
+  if (bootError) {
+    return (
+      <div className="boot-screen">
+        <p className="error-text">{bootError}</p>
       </div>
     )
   }
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <ConnectionBanner />
       <Routes>
         <Route
@@ -87,7 +102,7 @@ function App(): React.JSX.Element {
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 

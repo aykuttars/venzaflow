@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllIpc } from './ipc'
 import { pkcs11Service } from './services/pkcs11Service'
+import { APP_DISPLAY_NAME } from '../shared/brand'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -12,7 +13,7 @@ function createWindow(): void {
     minHeight: 640,
     show: false,
     autoHideMenuBar: true,
-    title: 'eimza',
+    title: APP_DISPLAY_NAME,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -44,6 +45,16 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  mainWindow.webContents.on('did-fail-load', (_event, code, description, url) => {
+    console.error(`Renderer failed to load (${code}): ${description} — ${url}`)
+  })
+
+  mainWindow.webContents.on('console-message', (_event, level, message) => {
+    if (level >= 2) {
+      console.error(`[renderer] ${message}`)
+    }
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -52,7 +63,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.aykut.eimza')
+  electronApp.setAppUserModelId('com.tenancysoft.eimza')
   registerAllIpc()
 
   app.on('browser-window-created', (_, window) => {

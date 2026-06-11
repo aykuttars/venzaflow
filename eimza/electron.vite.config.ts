@@ -15,6 +15,8 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
+    // Relative asset paths required for loadFile() / file:// in packaged apps.
+    base: './',
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),

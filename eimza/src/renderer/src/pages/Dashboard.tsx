@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DocumentList from '../components/DocumentList'
 import PinDialog from '../components/PinDialog'
+import { APP_DISPLAY_NAME } from '@shared/brand'
 import type { SelectedCertificate, SignTask } from '@shared/types'
 import { SESSION_EXPIRED_MESSAGE } from '@shared/types'
 
@@ -139,7 +140,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
     <div className="page dashboard">
       <header className="topbar">
         <div>
-          <h1>eimza Panel</h1>
+          <h1>{APP_DISPLAY_NAME}</h1>
           <p>
             {sessionInfo?.customerCode} · {sessionInfo?.email}
           </p>

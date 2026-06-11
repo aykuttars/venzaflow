@@ -24,9 +24,9 @@ Usage: ./scripts/release.sh [--clean]
 
 Builds release installers for the current host OS (native arch targets only).
 
-  macOS:    eimza-*-mac-arm64.dmg, eimza-*-mac-x64.dmg
-  Windows:  eimza-*-setup-x64.exe, eimza-*-setup-arm64.exe
-  Linux:    eimza-*-linux-x64.AppImage, eimza-*-linux-arm64.AppImage
+  macOS:    tenancysoft-eimza-*-mac-arm64.dmg, tenancysoft-eimza-*-mac-x64.dmg
+  Windows:  tenancysoft-eimza-*-setup-x64.exe, tenancysoft-eimza-*-setup-arm64.exe
+  Linux:    tenancysoft-eimza-*-linux-x64.AppImage, tenancysoft-eimza-*-linux-arm64.AppImage
 
 pkcs11js is a native module — Windows/Linux installers MUST be built on their
 target OS (or via CI). macOS builds cannot produce valid pkcs11.node for Windows.

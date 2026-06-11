@@ -58,16 +58,17 @@ jobs:
               eimza/release/*setup*.exe
               eimza/release/*.exe
 
+          # ubuntu-22.04: glibc 2.35 — AppImage runs on Ubuntu 22.04+ (ubuntu-latest uses glibc 2.38+)
           - label: Linux x64
             platform: linux
             arch: x64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             artifact: eimza/release/*.AppImage
 
           - label: Linux arm64
             platform: linux
             arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             artifact: eimza/release/*.AppImage
 
     steps:

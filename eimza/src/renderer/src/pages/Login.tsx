@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { APP_DISPLAY_NAME } from '@shared/brand'
 
 interface LoginPageProps {
   onSuccess: () => void
@@ -32,9 +33,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Elem
     <div className="page login-page">
       <div className="card auth-card">
         <div className="brand">
-          <div className="brand-icon">e</div>
+          <div className="brand-icon">T</div>
           <div>
-            <h1>eimza</h1>
+            <h1>{APP_DISPLAY_NAME}</h1>
             <p>Masaüstü İmza Köprüsü</p>
           </div>
         </div>

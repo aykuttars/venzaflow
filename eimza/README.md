@@ -1,4 +1,4 @@
-# eimza — Masaüstü İmza Köprüsü
+# TenancySoft e-imza — Masaüstü İmza Köprüsü
 
 macOS ve Windows üzerinde USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama işlemlerini backend API üzerinden yöneten Electron uygulaması.
 
