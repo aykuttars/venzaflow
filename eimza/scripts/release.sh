@@ -2,7 +2,7 @@
 # Build all release artifacts sequentially (one arch at a time).
 #
 # pkcs11js is a native module — each OS/arch must be built on matching hardware
-# (or GitHub Actions). See .github/workflows/build.yml for all targets:
+# (or GitHub Actions). See .github/workflows/eimza-build.yml for all targets:
 #   mac arm64, mac x64, win x64, win arm64, linux x64, linux arm64
 #
 # Usage:
@@ -30,7 +30,7 @@ Builds release installers for the current host OS (native arch targets only).
 
 pkcs11js is a native module — Windows/Linux installers MUST be built on their
 target OS (or via CI). macOS builds cannot produce valid pkcs11.node for Windows.
-See .github/workflows/build.yml or run: npm run build:win:x64 (on Windows).
+See .github/workflows/eimza-build.yml or run: npm run build:win:x64 (on Windows).
 EOF
       exit 0
       ;;

@@ -2,15 +2,25 @@ name: Build eimza
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
     tags: ['v*']
+    paths:
+      - 'eimza/**'
+      - '.github/workflows/eimza-build.yml'
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
+    paths:
+      - 'eimza/**'
+      - '.github/workflows/eimza-build.yml'
   workflow_dispatch:
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
+  group: eimza-build-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: eimza
 
 jobs:
   build:
@@ -24,41 +34,41 @@ jobs:
             platform: mac
             arch: arm64
             runner: macos-latest
-            artifact: release/*.dmg
+            artifact: eimza/release/*.dmg
 
           - label: macOS x64
             platform: mac
             arch: x64
             runner: macos-latest
-            artifact: release/*.dmg
+            artifact: eimza/release/*.dmg
 
           - label: Windows x64
             platform: win
             arch: x64
             runner: windows-latest
             artifact: |
-              release/*setup*.exe
-              release/*.exe
+              eimza/release/*setup*.exe
+              eimza/release/*.exe
 
           - label: Windows arm64
             platform: win
             arch: arm64
             runner: windows-11-arm
             artifact: |
-              release/*setup*.exe
-              release/*.exe
+              eimza/release/*setup*.exe
+              eimza/release/*.exe
 
           - label: Linux x64
             platform: linux
             arch: x64
             runner: ubuntu-latest
-            artifact: release/*.AppImage
+            artifact: eimza/release/*.AppImage
 
           - label: Linux arm64
             platform: linux
             arch: arm64
             runner: ubuntu-24.04-arm
-            artifact: release/*.AppImage
+            artifact: eimza/release/*.AppImage
 
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +77,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: eimza/package-lock.json
 
       - name: Install dependencies
         run: npm ci
