@@ -83,11 +83,17 @@ jobs:
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y libfuse2 build-essential python3
 
+      - name: Configure node-gyp (Windows)
+        if: matrix.platform == 'win'
+        run: npm config set msvs_version 2022
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Rebuild native modules for Electron
         run: npm run rebuild:native
+        env:
+          GYP_MSVS_VERSION: '2022'
 
       - name: Typecheck and bundle
         run: npm run build
