@@ -11,7 +11,7 @@ from rest_framework import serializers
 
 from apps.customers.models import Customer, MedicalRecord
 from apps.customers.validators import validate_foreign_kimlik_no, validate_tckn
-from apps.customers.nvi_views import NviIdentityMismatch, verify_identity
+from apps.customers.nvi_views import NviVerificationError, verify_patient_nvi
 
 PHONE_CHARS = re.compile(r"^[+()\d\s\-]*$")
 PHONE_MIN_DIGITS = 7
@@ -146,7 +146,6 @@ class PatientSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     home_address = PatientAddressSerializer(required=False)
     work_address = PatientAddressSerializer(required=False, allow_null=True)
-    nvi_reference = serializers.CharField(required=False, allow_blank=True, write_only=True)
     has_photo = serializers.SerializerMethodField()
 
     class Meta:
@@ -167,11 +166,10 @@ class PatientSerializer(serializers.ModelSerializer):
             "work_address",
             "nvi_verified",
             "nvi_verified_at",
-            "nvi_reference",
             "has_photo",
             "phone",
         )
-        read_only_fields = ("nvi_verified", "nvi_verified_at", "phone", "has_photo")
+        read_only_fields = ("nvi_verified", "nvi_verified_at", "nvi_reference", "phone", "has_photo")
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
@@ -235,44 +233,16 @@ class PatientSerializer(serializers.ModelSerializer):
         elif self.instance and "work_address" not in attrs:
             attrs["work_address"] = self.instance.work_address or {}
 
-        self._verify_nvi_identity(attrs)
+        self._verify_patient_nvi(attrs)
         return attrs
 
-    def _verify_nvi_identity(self, attrs: dict) -> None:
-        first = attrs.get("first_name", getattr(self.instance, "first_name", ""))
-        last = attrs.get("last_name", getattr(self.instance, "last_name", ""))
-        birth = attrs.get("birth_date", getattr(self.instance, "birth_date", None))
-        nationality = attrs.get("nationality", getattr(self.instance, "nationality", ""))
-        tckn = attrs.get("tckn", getattr(self.instance, "tckn", ""))
-
-        identity_changed = self.instance is None
-        if self.instance:
-            for field in ("first_name", "last_name", "birth_date", "nationality", "tckn"):
-                if field in attrs and attrs[field] != getattr(self.instance, field):
-                    identity_changed = True
-                    break
-        if self.instance and not identity_changed and self.instance.nvi_verified:
-            return
-
+    def _verify_patient_nvi(self, attrs: dict) -> None:
         try:
-            result = verify_identity(
-                nationality=nationality,
-                first_name=first,
-                last_name=last,
-                birth_date=birth,
-                tckn=tckn,
-            )
-        except NviIdentityMismatch as exc:
-            raise serializers.ValidationError({"detail": str(exc)}) from exc
-
-        attrs.pop("nvi_reference", None)
-        attrs["nvi_verified"] = True
-        attrs["nvi_verified_at"] = timezone.now()
-        attrs["nvi_reference"] = result["reference"]
-        if result["normalized_first_name"]:
-            attrs["first_name"] = result["normalized_first_name"]
-        if result["normalized_last_name"]:
-            attrs["last_name"] = result["normalized_last_name"]
+            verify_patient_nvi(instance=self.instance, attrs=attrs)
+        except NviVerificationError as exc:
+            raise serializers.ValidationError(
+                {"nvi_step": exc.step, "detail": str(exc)}
+            ) from exc
 
     def create(self, validated_data):
         validated_data.pop("nvi_reference", None)

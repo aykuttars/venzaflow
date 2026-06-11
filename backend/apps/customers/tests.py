@@ -10,6 +10,7 @@ from apps.accounts.models import Department, Permission
 from apps.common.permission_codes import PERMISSION_CODENAMES
 from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
+from apps.customers.nvi_views import NviVerificationError
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
@@ -65,8 +66,17 @@ class CustomerPatientApiTests(TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.json()['access']}")
 
-    @patch("apps.customers.serializers.verify_identity", return_value=_MOCK_IDENTITY)
-    def test_patients_api_creates_patient_kind(self, _mock_identity):
+    @patch("apps.customers.serializers.verify_patient_nvi")
+    def test_patients_api_creates_patient_kind(self, mock_verify):
+        def _apply_nvi(*, instance, attrs):
+            attrs.update(
+                {
+                    "nvi_verified": True,
+                    "nvi_reference": "mock-ref",
+                }
+            )
+
+        mock_verify.side_effect = _apply_nvi
         r = self.client.post(
             "/api/v1/patients/",
             {
@@ -120,3 +130,27 @@ class CustomerPatientApiTests(TestCase):
         self.assertGreaterEqual(len(rows), 81)
         istanbul = next(row for row in rows if row["code"] == 34)
         self.assertEqual(istanbul["name"], "İSTANBUL")
+
+    @patch("apps.customers.serializers.verify_patient_nvi")
+    def test_patients_api_returns_nvi_step_on_failure(self, mock_verify):
+        mock_verify.side_effect = NviVerificationError(
+            "address_residence", "Given address does not match NVI records."
+        )
+        r = self.client.post(
+            "/api/v1/patients/",
+            {
+                "nationality": "tc",
+                "first_name": "Ayşe",
+                "last_name": "Yılmaz",
+                "tckn": "11111111110",
+                "birth_date": "1990-01-01",
+                "mobile_phone": "5321234567",
+                "email": "ayse@test.com",
+                "home_address": SAMPLE_HOME_ADDRESS,
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400, r.content)
+        body = r.json()
+        self.assertEqual(body["nvi_step"], "address_residence")
+        self.assertIn("NVI", body["detail"])

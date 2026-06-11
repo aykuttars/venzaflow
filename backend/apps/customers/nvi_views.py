@@ -91,6 +91,29 @@ class NviIdentityMismatch(NviError):
     pass
 
 
+class NviAddressMismatch(NviError):
+    pass
+
+
+class NviVerificationError(NviError):
+    def __init__(self, step: str, message: str) -> None:
+        self.step = step
+        super().__init__(message)
+
+
+_IDENTITY_FIELDS = ("first_name", "last_name", "birth_date", "nationality", "tckn")
+_HOME_NVI_FIELDS = (
+    "province_code",
+    "district_code",
+    "neighborhood_code",
+    "street_code",
+    "building_code",
+    "unit_code",
+    "address_code",
+    "full_address",
+)
+
+
 def _parse_result(result: dict[str, Any]) -> list[dict[str, int | str]]:
     if not result.get("success"):
         raise NviError(result.get("reason") or result.get("message") or "NVI error")
@@ -210,10 +233,65 @@ def get_open_address(
     raise NviError(last_error)
 
 
+def _residence_query_no(address: dict[str, Any]) -> int | None:
+    """NVI KisiAdresOturuyormuAra expects AcikAdres ``adresNo`` as bagimsizBolumKimlikNo."""
+    code = address.get("address_code")
+    if code in (None, ""):
+        return None
+    return int(code)
+
+
+def _parse_residence_result(result: dict[str, Any]) -> dict[str, bool]:
+    if not result.get("success"):
+        raise NviError(result.get("reason") or result.get("message") or "NVI error")
+    data = result.get("data")
+    if not isinstance(data, dict):
+        raise NviError("NVI address residency check failed.")
+    if data.get("success") is False:
+        raise NviError(data.get("message") or "NVI address residency check failed.")
+    payload = data.get("result")
+    if not isinstance(payload, dict):
+        raise NviError("NVI address residency check failed.")
+    return {
+        "verified": bool(payload.get("verilenAdresDogru")),
+        "address_correct": bool(payload.get("verilenAdresDogru")),
+        "has_registered_address": bool(payload.get("kisininOturduguAdresVar")),
+        "address_incorrect": bool(payload.get("verilenAdresDogruDegil")),
+        "no_registered_address": bool(payload.get("kisininOturduguAdresYok")),
+    }
+
+
+def verify_residence_address(*, tckn: str, home_address: dict[str, Any]) -> dict[str, Any]:
+    from django.core.exceptions import ValidationError
+
+    from apps.customers.validators import validate_tckn
+
+    try:
+        tckn_clean = validate_tckn(tckn)
+    except ValidationError as exc:
+        raise NviAddressMismatch(str(exc.messages[0])) from exc
+
+    query_no = _residence_query_no(home_address or {})
+    if not query_no:
+        raise NviAddressMismatch("Open address code (adresNo) is required.")
+
+    _rate_limit_nvi_call()
+    result = _get_handler().kisi_adres_oturuyormu(tckn_clean, query_no)
+    parsed = _parse_residence_result(result)
+    if not parsed["verified"]:
+        if parsed["no_registered_address"]:
+            raise NviAddressMismatch("Person has no registered address at NVI.")
+        raise NviAddressMismatch("Given address does not match NVI records.")
+    return parsed
+
+
 def _foreign_ok(payload: Any) -> bool:
     if isinstance(payload, bool):
         return payload
     if isinstance(payload, dict):
+        if "HataAciklama" in payload:
+            err = payload.get("HataAciklama")
+            return err in (None, "")
         for key in ("success", "Success", "basarili", "Basarili"):
             if key in payload:
                 return bool(payload[key])
@@ -276,6 +354,73 @@ def verify_identity(
         }
 
     raise NviIdentityMismatch("Invalid nationality.")
+
+
+def _identity_verification_needed(instance: Any, attrs: dict[str, Any]) -> bool:
+    if instance is None or not instance.nvi_verified:
+        return True
+    for field in _IDENTITY_FIELDS:
+        if field in attrs and attrs[field] != getattr(instance, field):
+            return True
+    return False
+
+
+def _home_residence_verification_needed(instance: Any, home: dict[str, Any]) -> bool:
+    if not home.get("address_code"):
+        return False
+    if instance is None:
+        return True
+    old = instance.home_address or {}
+    if not old.get("nvi_residence_verified"):
+        return True
+    for field in _HOME_NVI_FIELDS:
+        if home.get(field) != old.get(field):
+            return True
+    return False
+
+
+def verify_patient_nvi(*, instance: Any, attrs: dict[str, Any]) -> None:
+    """Kimlik ve (TC ise) ev adresi teyidini sırayla çalıştırır; attrs güncellenir."""
+    nationality = attrs.get(
+        "nationality",
+        getattr(instance, "nationality", "") if instance else "",
+    )
+    first = attrs.get("first_name", getattr(instance, "first_name", ""))
+    last = attrs.get("last_name", getattr(instance, "last_name", ""))
+    birth = attrs.get("birth_date", getattr(instance, "birth_date", None))
+    tckn = attrs.get("tckn", getattr(instance, "tckn", ""))
+    home = dict(attrs.get("home_address") or {})
+
+    if _identity_verification_needed(instance, attrs):
+        try:
+            result = verify_identity(
+                nationality=nationality,
+                first_name=first,
+                last_name=last,
+                birth_date=birth,
+                tckn=tckn,
+            )
+        except NviIdentityMismatch as exc:
+            raise NviVerificationError("identity", str(exc)) from exc
+
+        attrs.pop("nvi_reference", None)
+        attrs["nvi_verified"] = True
+        attrs["nvi_verified_at"] = timezone.now()
+        attrs["nvi_reference"] = result["reference"]
+        if result["normalized_first_name"]:
+            attrs["first_name"] = result["normalized_first_name"]
+        if result["normalized_last_name"]:
+            attrs["last_name"] = result["normalized_last_name"]
+
+    if nationality == "tc" and _home_residence_verification_needed(instance, home):
+        try:
+            verify_residence_address(tckn=attrs.get("tckn", tckn), home_address=home)
+        except NviAddressMismatch as exc:
+            raise NviVerificationError("address_residence", str(exc)) from exc
+
+        home["nvi_residence_verified"] = True
+        home["nvi_residence_verified_at"] = timezone.now().isoformat()
+        attrs["home_address"] = home
 
 
 class NviAddressBaseView(APIView):
@@ -395,6 +540,36 @@ class NviIdentityVerifyView(APIView):
                 "reference": result["reference"],
                 "normalized_first_name": result["normalized_first_name"],
                 "normalized_last_name": result["normalized_last_name"],
+                "verified_at": timezone.now().isoformat(),
+            }
+        )
+
+
+class NviAddressVerifyResidenceView(APIView):
+    permission_classes = [IsAuthenticated, HasModule, HasViewPermission]
+    required_module = "patients"
+    required_permission = "patients.write"
+
+    def post(self, request):
+        data = request.data
+        tckn = (data.get("tckn") or "").strip()
+        home_address = data.get("home_address") or {}
+
+        if not isinstance(home_address, dict):
+            return Response({"detail": "home_address must be an object."}, status=400)
+
+        try:
+            result = verify_residence_address(tckn=tckn, home_address=home_address)
+        except NviAddressMismatch as exc:
+            return Response({"detail": str(exc)}, status=400)
+        except NviError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(
+            {
+                "verified": result["verified"],
+                "address_correct": result["address_correct"],
+                "has_registered_address": result["has_registered_address"],
                 "verified_at": timezone.now().isoformat(),
             }
         )

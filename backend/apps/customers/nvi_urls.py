@@ -8,6 +8,7 @@ from apps.customers.nvi_views import (
     NviAddressProvincesView,
     NviAddressStreetsView,
     NviAddressUnitsView,
+    NviAddressVerifyResidenceView,
     NviIdentityVerifyView,
 )
 
@@ -23,5 +24,10 @@ urlpatterns = [
     path("address/buildings/", NviAddressBuildingsView.as_view(), name="nvi-address-buildings"),
     path("address/units/", NviAddressUnitsView.as_view(), name="nvi-address-units"),
     path("address/open/", NviAddressOpenAddressView.as_view(), name="nvi-address-open"),
+    path(
+        "address/verify-residence/",
+        NviAddressVerifyResidenceView.as_view(),
+        name="nvi-address-verify-residence",
+    ),
     path("identity/verify/", NviIdentityVerifyView.as_view(), name="nvi-identity-verify"),
 ]

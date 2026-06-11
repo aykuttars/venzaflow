@@ -13,6 +13,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PartyListService } from '../../shared/party-list.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
@@ -128,6 +129,7 @@ export class BillingComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   private partiesApi = inject(PartyListService);
   tab = signal(0);
@@ -241,24 +243,28 @@ export class BillingComponent implements OnInit {
   }
 
   removeInvoice(i: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${i.number})`)) return;
-    this.invCrud.remove(i.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete(i.number).then((ok) => {
+      if (!ok) return;
+      this.invCrud.remove(i.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 
   removePayment(p: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
-    this.payCrud.remove(p.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete().then((ok) => {
+      if (!ok) return;
+      this.payCrud.remove(p.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 }

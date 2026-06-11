@@ -10,17 +10,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Observable, of } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
-import { NviService } from '../../core/nvi.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { PhoneInputDirective } from '../../shared/phone-input.directive';
+import { MobilePhoneFieldComponent } from '../../shared/mobile-phone-field.component';
+import { MaskedBirthDateFieldComponent } from '../../shared/masked-birth-date-field.component';
 import {
   emailRequiredValidator,
   phoneRequiredValidator,
@@ -64,11 +64,11 @@ function emptyAddressGroup(fb: FormBuilder) {
     MatSelectModule,
     MatSnackBarModule,
     MatTabsModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     TranslateModule,
     PageHeaderComponent,
     PhoneInputDirective,
+    MobilePhoneFieldComponent,
+    MaskedBirthDateFieldComponent,
     MernisAddressFormComponent,
     AuthImageComponent,
     PatientPhotoAvatarComponent,
@@ -80,7 +80,7 @@ function emptyAddressGroup(fb: FormBuilder) {
     `
       .page--embedded { padding-top: 0; }
       .embedded-actions { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-      .dialog { max-width: 920px; width: min(920px, 96vw); }
+      .dialog { max-width: 1080px; width: min(1080px, 96vw); }
       .dialog__section { margin-bottom: 16px; }
       .dialog__section-title {
         margin: 0 0 8px;
@@ -90,8 +90,10 @@ function emptyAddressGroup(fb: FormBuilder) {
         text-transform: uppercase;
         opacity: 0.75;
       }
-      .dialog__row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .dialog__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+      .dialog__row--doc { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
       .verify-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+      .dialog__hint { margin: 0 0 8px; font-size: 12px; opacity: 0.7; }
       .verified-badge { color: #2e7d32; font-size: 13px; }
       .full-width { width: 100%; }
       .photo-row { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
@@ -111,7 +113,7 @@ export class PatientsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
-  private nvi = inject(NviService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   private patientCrud = new CrudService<any>(this.http, 'patients', this.auth, 'patients');
   private recordCrud = new CrudService<any>(this.http, 'medical-records', this.auth, 'patients');
@@ -121,8 +123,7 @@ export class PatientsComponent implements OnInit {
   records = signal<any[]>([]);
   editingPatient = signal(false);
   editingRecord = signal(false);
-  nviVerified = signal(false);
-  nviReference = signal('');
+  savingPatient = signal(false);
   patientHasPhoto = signal(false);
   pendingPhotoFile = signal<File | null>(null);
   pendingPhotoPreview = signal<string | null>(null);
@@ -157,8 +158,6 @@ export class PatientsComponent implements OnInit {
       this.embedded = true;
     }
     this.patientForm.get('nationality')!.valueChanges.subscribe((nationality) => {
-      this.nviVerified.set(false);
-      this.nviReference.set('');
       const tcknCtrl = this.patientForm.get('tckn')!;
       tcknCtrl.setValidators(patientIdentityValidator(nationality || 'tc'));
       tcknCtrl.updateValueAndValidity({ emitEvent: false });
@@ -214,8 +213,6 @@ export class PatientsComponent implements OnInit {
 
   openPatientForm(p?: any): void {
     this.clearPendingPhoto();
-    this.nviVerified.set(!!p?.nvi_verified);
-    this.nviReference.set(p?.nvi_reference || '');
     this.patientHasPhoto.set(!!p?.has_photo);
     this.removePhotoOnSave.set(false);
     if (p) {
@@ -277,41 +274,8 @@ export class PatientsComponent implements OnInit {
     return g;
   }
 
-  verifyIdentity(): void {
-    const v = this.patientForm.getRawValue();
-    if (!v.birth_date) return;
-    const payload = {
-      nationality: v.nationality,
-      first_name: v.first_name,
-      last_name: v.last_name,
-      birth_date: this.formatDate(v.birth_date),
-      tckn: v.tckn,
-    };
-    this.nvi.verifyIdentity(payload as any).subscribe({
-      next: (res) => {
-        this.nviVerified.set(res.verified);
-        this.nviReference.set(res.reference);
-        if (res.normalized_first_name) {
-          this.patientForm.patchValue({ first_name: res.normalized_first_name });
-        }
-        if (res.normalized_last_name) {
-          this.patientForm.patchValue({ last_name: res.normalized_last_name });
-        }
-        this.snack.open(this.translate.instant('patients.nviVerified'), 'OK', { duration: 2000 });
-      },
-      error: (e) =>
-        this.snack.open(e?.error?.detail || this.translate.instant('patients.nviFailed'), 'OK', {
-          duration: 3500,
-        }),
-    });
-  }
-
   savePatient(): void {
-    if (this.patientForm.invalid) return;
-    if (!this.nviVerified()) {
-      this.snack.open(this.translate.instant('patients.nviRequired'), 'OK', { duration: 3000 });
-      return;
-    }
+    if (this.patientForm.invalid || this.savingPatient()) return;
     const v = this.patientForm.getRawValue();
     const payload: Record<string, unknown> = {
       nationality: v.nationality,
@@ -325,8 +289,8 @@ export class PatientsComponent implements OnInit {
       work_phone: v.work_phone,
       home_address: v.home_address,
       work_address: this.hasWorkAddress(v.work_address) ? v.work_address : {},
-      nvi_reference: this.nviReference(),
     };
+    this.savingPatient.set(true);
     const op = v.id
       ? this.patientCrud.update(v.id!, payload)
       : this.patientCrud.create(payload);
@@ -334,26 +298,40 @@ export class PatientsComponent implements OnInit {
       next: (saved) => {
         this.syncPatientPhoto(saved.id).subscribe({
           next: () => {
+            this.savingPatient.set(false);
             this.editingPatient.set(false);
             this.clearPendingPhoto();
             this.reloadPatients();
             this.snack.open(this.translate.instant('common.saved'), 'OK', { duration: 1500 });
           },
-          error: (e) =>
+          error: (e) => {
+            this.savingPatient.set(false);
             this.snack.open(
               e?.error?.detail || this.translate.instant('common.error'),
               'OK',
               { duration: 4000 }
-            ),
+            );
+          },
         });
       },
-      error: (e) =>
-        this.snack.open(
-          e?.error?.detail || Object.values(e?.error || {})[0] || this.translate.instant('common.error'),
-          'OK',
-          { duration: 4000 }
-        ),
+      error: (e) => {
+        this.savingPatient.set(false);
+        this.snack.open(this.formatNviError(e), 'OK', { duration: 4500 });
+      },
     });
+  }
+
+  private formatNviError(e: any): string {
+    const err = e?.error || {};
+    const detail = Array.isArray(err.detail) ? err.detail[0] : err.detail;
+    const step = err.nvi_step;
+    if (step === 'identity') {
+      return `${this.translate.instant('patients.nviStepIdentity')}: ${detail || this.translate.instant('patients.nviFailed')}`;
+    }
+    if (step === 'address_residence') {
+      return `${this.translate.instant('patients.nviStepAddressResidence')}: ${detail || this.translate.instant('patients.addressResidenceFailed')}`;
+    }
+    return detail || Object.values(err)[0] || this.translate.instant('common.error');
   }
 
   onPhotoSelected(event: Event): void {
@@ -430,13 +408,15 @@ export class PatientsComponent implements OnInit {
 
   removePatient(p: any): void {
     const name = p.full_name || `${p.first_name} ${p.last_name}`;
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${name})`)) return;
-    this.patientCrud.remove(p.id).subscribe({
-      next: () => {
-        this.reloadPatients();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete(name).then((ok) => {
+      if (!ok) return;
+      this.patientCrud.remove(p.id).subscribe({
+        next: () => {
+          this.reloadPatients();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 
@@ -461,13 +441,15 @@ export class PatientsComponent implements OnInit {
   }
 
   removeRecord(r: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
-    this.recordCrud.remove(r.id).subscribe({
-      next: () => {
-        this.reloadRecords();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete().then((ok) => {
+      if (!ok) return;
+      this.recordCrud.remove(r.id).subscribe({
+        next: () => {
+          this.reloadRecords();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 }

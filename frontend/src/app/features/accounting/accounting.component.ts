@@ -13,6 +13,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { DateFieldComponent } from '../../shared/date-field.component';
@@ -147,6 +148,7 @@ export class AccountingComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   tab = signal(0);
   editing = signal(false);
@@ -283,33 +285,39 @@ export class AccountingComponent implements OnInit {
   }
 
   removeAccount(a: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${a.code})`)) return;
-    this.accCrud.remove(a.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete(a.code).then((ok) => {
+      if (!ok) return;
+      this.accCrud.remove(a.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
   removeExpense(e: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
-    this.expCrud.remove(e.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete().then((ok) => {
+      if (!ok) return;
+      this.expCrud.remove(e.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
   removeTransaction(t: any): void {
-    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
-    this.txCrud.remove(t.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete().then((ok) => {
+      if (!ok) return;
+      this.txCrud.remove(t.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 }

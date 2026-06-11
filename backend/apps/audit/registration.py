@@ -10,15 +10,29 @@ from apps.appointments.models import Appointment, Schedule
 from apps.billing.models import Invoice, InvoiceLine, Payment
 from apps.customers.models import Customer, MedicalRecord
 from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
-from apps.inventory.models import Stock, StockMovement, Warehouse
-from apps.products.models import Category, Product
+from apps.inventory.models import Location, Stock, StockMovement, Warehouse
+from apps.products.models import (
+    Category,
+    Product,
+    ProductDetailConfig,
+    ProductFieldDefinition,
+    ProductFieldValue,
+    ProductFormConfig,
+    ProductListColumnConfig,
+)
 
 
 def register_models() -> None:
     models = [
         Category,
         Product,
+        ProductFieldDefinition,
+        ProductFieldValue,
+        ProductListColumnConfig,
+        ProductFormConfig,
+        ProductDetailConfig,
         Warehouse,
+        Location,
         Stock,
         StockMovement,
         Customer,

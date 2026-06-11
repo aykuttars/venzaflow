@@ -247,6 +247,9 @@ class NviHandler(NviCaptchaBase):
         self.bina_url = "https://adres.nvi.gov.tr/Harita/binaListesi"
         self.bagimsizbolum_url = "https://adres.nvi.gov.tr/Harita/bagimsizBolumListesi"
         self.acikadres_url = "https://adres.nvi.gov.tr/Harita/AcikAdres"
+        self.kisi_adres_url = (
+            "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu/KisiAdresOturuyormuAra"
+        )
         self.token = ""
         self.cookies: dict = {}
         self._init_session(
@@ -352,6 +355,47 @@ class NviHandler(NviCaptchaBase):
                 "bagimsizBolumAdresNo": mahalleKoyBaglisiKimlikNo,
             },
         )
+
+    def kisi_adres_oturuyormu(self, tc_kimlik_no: str, adres_no: int) -> dict:
+        """Check whether person lives at address. ``adres_no`` is AcikAdres ``adresNo``."""
+        last: dict | None = None
+        try:
+            self._ensure_session()
+        except requests.RequestException as exc:
+            return self._request_error(exc)
+
+        for _ in range(2):
+            try:
+                captcha = self._resolve_captcha_cached()
+            except (RuntimeError, requests.RequestException) as exc:
+                return {"success": False, "reason": str(exc)}
+
+            data = {
+                "query[bagimsizBolumKimlikNo]": str(adres_no),
+                "query[tcKimlikNo]": str(tc_kimlik_no),
+                "query[reCaptchaEncodedResponse]": captcha,
+            }
+            try:
+                r = self.sess.post(
+                    self.kisi_adres_url,
+                    data=urlencode(data),
+                    timeout=self.request_timeout,
+                )
+            except requests.RequestException as exc:
+                return self._request_error(exc)
+
+            last = self.return_logic(r)
+            payload = last.get("data") if isinstance(last.get("data"), dict) else last
+            if isinstance(payload, dict) and payload.get("success") is False:
+                return {
+                    "success": False,
+                    "reason": payload.get("message") or "NVI address residency check failed.",
+                    "data": payload,
+                }
+            if not self._is_captcha_failure(last):
+                return last
+
+        return last or {"success": False, "reason": "NVI address residency check failed."}
 
 
 class TckimlikBaseHandler(NviCaptchaBase):

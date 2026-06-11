@@ -12,8 +12,22 @@ from apps.customers.views import CustomerViewSet, MedicalRecordViewSet, PatientV
 from apps.oral.views import OralTreatmentViewSet, ProcedureCatalogViewSet
 from apps.dashboard.views import DashboardSummaryView
 from apps.accounts.views_employees import EmployeeViewSet
-from apps.inventory.views import StockMovementViewSet, StockViewSet, WarehouseViewSet
-from apps.products.views import CategoryViewSet, ProductViewSet
+from apps.inventory.views import (
+    LocationViewSet,
+    StockMovementViewSet,
+    StockViewSet,
+    WarehouseViewSet,
+)
+from apps.products.views import (
+    CategoryViewSet,
+    InventoryDashboardView,
+    ProductDetailConfigViewSet,
+    ProductFieldDefinitionViewSet,
+    ProductFieldValueViewSet,
+    ProductFormConfigViewSet,
+    ProductListColumnConfigViewSet,
+    ProductViewSet,
+)
 from apps.tenants.views_platform import PlatformTenantViewSet
 
 router = DefaultRouter()
@@ -22,8 +36,14 @@ platform_router.register(r"tenants", PlatformTenantViewSet, basename="platform-t
 router.register(r"departments", DepartmentViewSet, basename="department")
 router.register(r"employees", EmployeeViewSet, basename="employee")
 router.register(r"products/categories", CategoryViewSet, basename="category")
+router.register(r"products/field-definitions", ProductFieldDefinitionViewSet, basename="productfielddefinition")
+router.register(r"products/field-values", ProductFieldValueViewSet, basename="productfieldvalue")
+router.register(r"products/list-config", ProductListColumnConfigViewSet, basename="productlistconfig")
+router.register(r"products/form-config", ProductFormConfigViewSet, basename="productformconfig")
+router.register(r"products/detail-config", ProductDetailConfigViewSet, basename="productdetailconfig")
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"inventory/warehouses", WarehouseViewSet, basename="warehouse")
+router.register(r"inventory/locations", LocationViewSet, basename="location")
 router.register(r"inventory/stock", StockViewSet, basename="stock")
 router.register(r"inventory/movements", StockMovementViewSet, basename="stockmovement")
 router.register(r"customers", CustomerViewSet, basename="customer")
@@ -48,7 +68,9 @@ urlpatterns = [
     path("v1/", include("apps.accounts.urls_api")),
     path("v1/nvi/", include("apps.customers.nvi_urls")),
     path("v1/oral/", include("apps.oral.urls")),
+    path("v1/sign/", include("apps.signing.urls")),
     path("v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
+    path("v1/inventory/dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),
     path("v1/audit/", ActivityLogView.as_view(), name="audit-activity"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

@@ -21,6 +21,8 @@ PERMISSION_CODENAMES = [
     ("accounting.write", "Manage accounting"),
     ("dashboard.read", "View dashboard"),
     ("audit.read", "View audit logs"),
+    ("signing.read", "View signing tasks"),
+    ("signing.write", "Manage signing tasks"),
 ]
 
 ALL_MODULES = [
@@ -36,6 +38,7 @@ ALL_MODULES = [
     "accounting",
     "dashboard",
     "audit",
+    "signing",
 ]
 
 # Always included for every tenant by default; default is_billable=False on subscription row.

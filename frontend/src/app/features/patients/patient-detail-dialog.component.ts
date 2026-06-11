@@ -2,14 +2,14 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, Input, OnInit, Output, EventEmitter, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
-import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CrudService } from '../../shared/crud.service';
+import { PATIENT_DETAIL_DIALOG_STYLES } from '../../shared/crud-styles';
+import { PHONE_COUNTRIES, formatGenericPhoneDisplay } from '../../shared/phone-format.utils';
 import { PatientPhotoAvatarComponent } from '../../shared/patient-photo-avatar.component';
 import { PatientOverviewTabComponent } from './patient-overview-tab.component';
 import { PatientOralTabComponent } from './patient-oral-tab.component';
@@ -21,10 +21,8 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
   imports: [
     CommonModule,
     MatButtonModule,
-    MatChipsModule,
     MatIconModule,
     MatTabsModule,
-    RouterLink,
     TranslateModule,
     PatientPhotoAvatarComponent,
     PatientOverviewTabComponent,
@@ -32,69 +30,34 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
     PatientRecordsTabComponent,
   ],
   template: `
-    <header class="patient-detail-hero">
+    <header class="patient-detail-header">
       <button
         mat-icon-button
         type="button"
-        class="patient-detail-hero__close"
+        class="patient-detail-header__close"
         (click)="closed.emit()"
         [attr.aria-label]="'common.cancel' | translate"
       >
         <mat-icon>close</mat-icon>
       </button>
 
-      <div class="patient-detail-hero__main">
-        <div class="patient-detail-hero__info">
-          <p class="patient-detail-hero__eyebrow">{{ 'patients.detailTitle' | translate }}</p>
-          <h2 class="patient-detail-hero__name">{{ displayName }}</h2>
-          <div class="patient-detail-hero__chips">
-            @if (patient()?.['tckn']) {
-            <span class="patient-detail-hero__chip">
-              <mat-icon>badge</mat-icon>
-              {{ patient()?.['tckn'] }}
-            </span>
-            }
-            @if (patient()?.['mobile_phone'] || patient()?.['phone']) {
-            <span class="patient-detail-hero__chip">
-              <mat-icon>phone_iphone</mat-icon>
-              {{ patient()?.['mobile_phone'] || patient()?.['phone'] }}
-            </span>
-            }
-            @if (patient()?.['email']) {
-            <span class="patient-detail-hero__chip patient-detail-hero__chip--truncate">
-              <mat-icon>mail</mat-icon>
-              {{ patient()?.['email'] }}
-            </span>
-            }
-            @if (patient()?.['nvi_verified']) {
-            <span class="patient-detail-hero__chip patient-detail-hero__chip--success">
-              <mat-icon>verified</mat-icon>
-              {{ 'patients.nviVerified' | translate }}
-            </span>
-            }
-          </div>
-          @if (canAccessOral()) {
-          <div class="patient-detail-hero__actions">
-            <a mat-stroked-button class="patient-detail-hero__oral-btn" [routerLink]="oralFullPageLink()" (click)="closed.emit()">
-              <mat-icon>medical_services</mat-icon>
-              {{ 'oral.openChart' | translate }}
-            </a>
-          </div>
-          }
+      <div class="patient-detail-header__body">
+        <div class="patient-detail-header__text">
+          <p class="patient-detail-header__line patient-detail-header__line--name">{{ displayFullName }}</p>
+          <hr class="patient-detail-header__rule" />
+          <p class="patient-detail-header__line patient-detail-header__line--meta">{{ mobilePhoneLabel }}</p>
+          <hr class="patient-detail-header__rule" />
+          <p class="patient-detail-header__line patient-detail-header__line--meta">{{ patient()?.['email'] || '—' }}</p>
         </div>
 
-        <div class="patient-detail-hero__avatar-wrap">
+        <div class="patient-detail-header__avatar">
           <app-patient-photo-avatar
             [patientId]="patientId"
             [hasPhoto]="!!patient()?.['has_photo']"
             [initials]="initials"
-            [editable]="canWritePatients()"
-            [size]="96"
-            (photoChanged)="onPhotoChanged($event)"
+            [editable]="false"
+            [size]="112"
           />
-          @if (canWritePatients()) {
-          <span class="patient-detail-hero__avatar-hint">{{ 'patients.photoUpload' | translate }}</span>
-          }
         </div>
       </div>
     </header>
@@ -142,7 +105,7 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
       </mat-tab-group>
     </div>
   `,
-  styles: [`:host { display: contents; }`],
+  styles: [PATIENT_DETAIL_DIALOG_STYLES],
 })
 export class PatientDetailDialogComponent implements OnInit {
   @Input({ required: true }) patientId!: number;
@@ -160,8 +123,6 @@ export class PatientDetailDialogComponent implements OnInit {
   oralTabVisited = signal(false);
   recordsTabVisited = signal(false);
 
-  canWritePatients = () => this.auth.hasPermission('patients.write');
-
   ngOnInit(): void {
     this.patient.set(this.patientSummary);
     this.selectedTab.set(this.initialTab);
@@ -177,10 +138,22 @@ export class PatientDetailDialogComponent implements OnInit {
     });
   }
 
-  get displayName(): string {
+  get displayFullName(): string {
     const p = this.patient();
-    if (!p) return '';
-    return p['full_name'] || `${p['first_name'] || ''} ${p['last_name'] || ''}`.trim();
+    if (!p) return '—';
+    const name = [p['first_name'], p['last_name']]
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return name || '—';
+  }
+
+  get mobilePhoneLabel(): string {
+    const p = this.patient();
+    const raw = String(p?.['mobile_phone'] || p?.['phone'] || '').trim();
+    if (!raw) return '—';
+    const formatted = formatGenericPhoneDisplay(raw, PHONE_COUNTRIES[0]);
+    return `${PHONE_COUNTRIES[0].dial} ${formatted}`;
   }
 
   get initials(): string {
@@ -189,15 +162,6 @@ export class PatientDetailDialogComponent implements OnInit {
     const f = (p['first_name'] || '')[0] || '';
     const l = (p['last_name'] || '')[0] || '';
     return (f + l).toUpperCase();
-  }
-
-  onPhotoChanged(event: { hasPhoto: boolean }): void {
-    const p = this.patient();
-    if (p) {
-      const updated = { ...p, has_photo: event.hasPhoto };
-      this.patient.set(updated);
-      this.fullPatient.set(updated);
-    }
   }
 
   canAccessOral = () => this.auth.hasModule('oral') && this.auth.hasPermission('oral.read');
@@ -217,13 +181,6 @@ export class PatientDetailDialogComponent implements OnInit {
     if (!this.hasRecordsTab()) return -1;
     return this.canAccessOral() ? 2 : 1;
   };
-
-  oralFullPageLink(): string[] {
-    if (this.auth.moduleParent('oral') === 'patients') {
-      return ['/patients', String(this.patientId), 'oral'];
-    }
-    return ['/oral', String(this.patientId)];
-  }
 
   onTabChange(index: number): void {
     this.selectedTab.set(index);

@@ -75,16 +75,20 @@ const CODE_FIELDS = [
           <span>{{ group.get('apartment_no')?.value || '—' }}</span>
         </div>
       </div>
-      @if (group.get('address_code')?.value) {
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>{{ 'patients.address.addressCode' | translate }}</mat-label>
-        <input matInput readonly [value]="group.get('address_code')?.value" />
-      </mat-form-field>
-      }
-      @if (group.get('full_address')?.value) {
-      <div class="address-preview">
-        <span class="address-preview__label">{{ 'patients.address.openAddress' | translate }}</span>
-        <p>{{ group.get('full_address')?.value }}</p>
+      @if (group.get('address_code')?.value || group.get('full_address')?.value) {
+      <div class="address-open-row">
+        @if (group.get('address_code')?.value) {
+        <div class="address-open-row__item address-open-row__item--code">
+          <span class="address-open-row__label">{{ 'patients.address.addressCode' | translate }}</span>
+          <span class="address-open-row__value">{{ group.get('address_code')?.value }}</span>
+        </div>
+        }
+        @if (group.get('full_address')?.value) {
+        <div class="address-open-row__item address-open-row__item--address">
+          <span class="address-open-row__label">{{ 'patients.address.openAddress' | translate }}</span>
+          <span class="address-open-row__value">{{ group.get('full_address')?.value }}</span>
+        </div>
+        }
       </div>
       }
       <button mat-stroked-button type="button" class="address-saved__change" (click)="unlockForEdit()">
@@ -173,16 +177,20 @@ const CODE_FIELDS = [
         </mat-select>
       </mat-form-field>
     </div>
-    @if (group.get('address_code')?.value) {
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>{{ 'patients.address.addressCode' | translate }}</mat-label>
-      <input matInput readonly [value]="group.get('address_code')?.value" />
-    </mat-form-field>
-    }
-    @if (group.get('full_address')?.value) {
-    <div class="address-preview">
-      <span class="address-preview__label">{{ 'patients.address.openAddress' | translate }}</span>
-      <p>{{ group.get('full_address')?.value }}</p>
+    @if (group.get('address_code')?.value || group.get('full_address')?.value) {
+    <div class="address-open-row">
+      @if (group.get('address_code')?.value) {
+      <div class="address-open-row__item address-open-row__item--code">
+        <span class="address-open-row__label">{{ 'patients.address.addressCode' | translate }}</span>
+        <span class="address-open-row__value">{{ group.get('address_code')?.value }}</span>
+      </div>
+      }
+      @if (group.get('full_address')?.value) {
+      <div class="address-open-row__item address-open-row__item--address">
+        <span class="address-open-row__label">{{ 'patients.address.openAddress' | translate }}</span>
+        <span class="address-open-row__value">{{ group.get('full_address')?.value }}</span>
+      </div>
+      }
     </div>
     }
     }
@@ -206,29 +214,41 @@ const CODE_FIELDS = [
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 8px;
       }
-      .full-width {
-        width: 100%;
+      .address-open-row {
+        display: grid;
+        grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+        gap: 16px;
+        align-items: baseline;
         margin-top: 8px;
-      }
-      .address-preview {
-        margin: 8px 0 0;
         padding: 10px 12px;
         border-radius: 8px;
         background: rgba(0, 0, 0, 0.04);
       }
-      .address-preview__label {
-        display: block;
+      .address-open-row__item {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+      }
+      .address-open-row__label {
+        flex-shrink: 0;
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         opacity: 0.65;
-        margin-bottom: 4px;
       }
-      .address-preview p {
-        margin: 0;
+      .address-open-row__value {
         font-size: 13px;
         line-height: 1.45;
+        color: rgba(0, 0, 0, 0.87);
+        min-width: 0;
+        word-break: break-word;
+      }
+      @media (max-width: 640px) {
+        .address-open-row {
+          grid-template-columns: 1fr;
+        }
       }
       .address-saved__grid {
         display: grid;

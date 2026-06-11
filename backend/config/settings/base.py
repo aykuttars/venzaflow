@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.accounting",
     "apps.audit.apps.AuditConfig",
     "apps.dashboard",
+    "apps.signing",
 ]
 
 MIDDLEWARE = [

@@ -34,6 +34,13 @@ export interface NviOpenAddress {
   resolved_at?: 'unit' | 'building';
 }
 
+export interface NviResidenceVerifyResult {
+  verified: boolean;
+  address_correct: boolean;
+  has_registered_address: boolean;
+  verified_at: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class NviService {
   private http = inject(HttpClient);
@@ -105,6 +112,16 @@ export class NviService {
 
   verifyIdentity(payload: NviIdentityVerifyPayload): Observable<NviIdentityVerifyResult> {
     return this.http.post<NviIdentityVerifyResult>(`${API_BASE}/nvi/identity/verify/`, payload);
+  }
+
+  verifyResidenceAddress(payload: {
+    tckn: string;
+    home_address: Record<string, unknown>;
+  }): Observable<NviResidenceVerifyResult> {
+    return this.http.post<NviResidenceVerifyResult>(
+      `${API_BASE}/nvi/address/verify-residence/`,
+      payload
+    );
   }
 
   private cachedList(

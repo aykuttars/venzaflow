@@ -3,12 +3,16 @@ import { RouterOutlet } from '@angular/router';
 
 import { AuthService } from './core/auth.service';
 import { LanguageService } from './core/language.service';
+import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
-  template: `<router-outlet />`,
+  imports: [RouterOutlet, ConfirmDialogComponent],
+  template: `
+    <router-outlet />
+    <app-confirm-dialog />
+  `,
 })
 export class AppComponent implements OnInit {
   private auth = inject(AuthService);

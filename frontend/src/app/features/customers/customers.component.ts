@@ -11,6 +11,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PhoneInputDirective } from '../../shared/phone-input.directive';
 import { emailOptionalValidator, phoneValidator } from '../../shared/form-validators';
@@ -103,6 +104,7 @@ export class CustomersComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   private customerCrud = new CrudService<any>(this.http, 'customers', this.auth, 'customers');
 
@@ -153,13 +155,15 @@ export class CustomersComponent implements OnInit {
 
   removeCustomer(c: any): void {
     const name = c.full_name || `${c.first_name} ${c.last_name}`;
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${name})`)) return;
-    this.customerCrud.remove(c.id).subscribe({
-      next: () => {
-        this.reloadCustomers();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    this.confirmDialog.confirmDelete(name).then((ok) => {
+      if (!ok) return;
+      this.customerCrud.remove(c.id).subscribe({
+        next: () => {
+          this.reloadCustomers();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+      });
     });
   }
 }

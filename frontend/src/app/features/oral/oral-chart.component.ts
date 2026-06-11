@@ -22,6 +22,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { AuthService } from '../../core/auth.service';
 import { OralService, OralTreatment, ProcedureCatalog } from '../../core/oral.service';
 import { AuthImageComponent, patientPhotoUrl } from '../../shared/auth-image.component';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { OdontogramComponent } from './odontogram.component';
@@ -107,6 +108,7 @@ export class OralChartComponent implements OnInit {
   private oral = inject(OralService);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
 
   patientId = signal<number | null>(null);
@@ -328,16 +330,18 @@ export class OralChartComponent implements OnInit {
   }
 
   removeTreatment(t: OralTreatment): void {
-    if (!confirm(this.translate.instant('common.confirmDelete'))) return;
-    this.oral.deleteTreatment(t.id).subscribe({
-      next: () => {
-        this.reloadChartAndTreatments();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) =>
-        this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', {
-          duration: 2500,
-        }),
+    this.confirmDialog.confirmDelete().then((ok) => {
+      if (!ok) return;
+      this.oral.deleteTreatment(t.id).subscribe({
+        next: () => {
+          this.reloadChartAndTreatments();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) =>
+          this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', {
+            duration: 2500,
+          }),
+      });
     });
   }
 

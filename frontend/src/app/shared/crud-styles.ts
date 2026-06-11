@@ -28,6 +28,7 @@ export const CRUD_DIALOG_STYLES = `
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
     overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: contain;
     box-sizing: border-box;
   }
 
@@ -274,148 +275,25 @@ export const CRUD_DIALOG_STYLES = `
     max-height: 92vh;
   }
 
-  .dialog--patient-detail .dialog__body-tabs {
-    flex: 1;
-    min-height: 0;
+  .dialog--form {
+    padding: 0;
     overflow: hidden;
-  }
-
-  .dialog--patient-detail .mat-mdc-tab-body-wrapper {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .dialog--patient-detail .mat-mdc-tab-body-content {
-    overflow-y: auto;
-    max-height: calc(92vh - 220px);
-    padding: 20px 24px 28px;
-    background: #f5f7fa;
-  }
-
-  .patient-detail-hero {
-    position: relative;
-    padding: 20px 24px 18px;
-    background: linear-gradient(135deg, #3949ab 0%, #5c6bc0 45%, #7986cb 100%);
-    color: #fff;
-  }
-
-  .patient-detail-hero__close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    color: rgba(255, 255, 255, 0.92) !important;
-    z-index: 2;
-  }
-
-  .patient-detail-hero__main {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-    padding-right: 40px;
-  }
-
-  .patient-detail-hero__info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .patient-detail-hero__eyebrow {
-    margin: 0 0 4px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.82;
-  }
-
-  .patient-detail-hero__name {
-    margin: 0 0 12px;
-    font-size: 26px;
-    font-weight: 500;
-    line-height: 1.2;
-  }
-
-  .patient-detail-hero__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .patient-detail-hero__chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.16);
-    font-size: 12px;
-    max-width: 100%;
-  }
-
-  .patient-detail-hero__chip mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-  }
-
-  .patient-detail-hero__chip--truncate {
-    max-width: 240px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .patient-detail-hero__chip--success {
-    background: rgba(46, 125, 50, 0.35);
-  }
-
-  .patient-detail-hero__actions {
-    margin-top: 4px;
-  }
-
-  .patient-detail-hero__oral-btn {
-    background: rgba(255, 255, 255, 0.95) !important;
-    color: #3949ab !important;
-    border: none !important;
-  }
-
-  .patient-detail-hero__avatar-wrap {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 6px;
+  }
+
+  .dialog--form .dialog__header-edit {
     flex-shrink: 0;
+    margin-bottom: 0;
+    padding: 24px 24px 0;
   }
 
-  .patient-detail-hero__avatar-hint {
-    font-size: 10px;
-    opacity: 0.85;
-    text-align: center;
-    max-width: 96px;
-  }
-
-  .patient-detail-tabs .mat-mdc-tab-header {
-    background: #fff;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  }
-
-  .patient-detail-tabs__icon {
-    margin-right: 6px;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    vertical-align: middle;
-  }
-
-  .patient-detail-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 48px;
-    color: rgba(0, 0, 0, 0.55);
+  .dialog--form .dialog__body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px 24px 24px;
   }
 
   .overview-layout {
@@ -594,5 +472,147 @@ export const CRUD_DIALOG_STYLES = `
   .patient-name-link:hover {
     color: #3f51b5;
     text-decoration: underline;
+  }
+`;
+
+export const PATIENT_DETAIL_DIALOG_STYLES = `
+  :host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .patient-detail-header {
+    position: relative;
+    flex-shrink: 0;
+    padding: 20px 24px 18px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fff;
+  }
+
+  .patient-detail-header__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+  }
+
+  .patient-detail-header__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-right: 36px;
+  }
+
+  .patient-detail-header__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .patient-detail-header__line {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .patient-detail-header__line--name {
+    font-size: 28px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.87);
+  }
+
+  .patient-detail-header__line--meta {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.72);
+  }
+
+  .patient-detail-header__rule {
+    width: 100%;
+    margin: 10px 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+  }
+
+  .patient-detail-header__avatar {
+    flex-shrink: 0;
+  }
+
+  .dialog__body-tabs {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .patient-detail-tabs {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .patient-detail-tabs ::ng-deep .mat-mdc-tab-header {
+    flex-shrink: 0;
+    background: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .patient-detail-tabs ::ng-deep .mat-mdc-tab-body-wrapper {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .patient-detail-tabs ::ng-deep .mat-mdc-tab-body-content {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 20px 24px 28px;
+    background: #f5f7fa;
+  }
+
+  .patient-detail-tabs ::ng-deep .mat-mdc-tab-group {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .patient-detail-tabs__icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+  }
+
+  .patient-detail-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px;
+    color: rgba(0, 0, 0, 0.55);
+  }
+
+  @media (max-width: 640px) {
+    .patient-detail-header__line--name {
+      font-size: 22px;
+    }
+
+    .patient-detail-header__line--meta {
+      font-size: 14px;
+    }
   }
 `;

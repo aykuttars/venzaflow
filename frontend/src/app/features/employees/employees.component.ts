@@ -20,6 +20,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { API_BASE } from '../../core/api';
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { PasswordFieldsComponent } from '../../shared/password-fields.component';
@@ -84,6 +85,7 @@ export class EmployeesComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   private staffCrud = new CrudService<StaffUser>(this.http, 'employees', this.auth, 'employees');
 
@@ -239,14 +241,16 @@ export class EmployeesComponent implements OnInit {
 
   remove(u: StaffUser): void {
     if (!this.canManageRow(u) || this.isSelf(u)) return;
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${u.email})`)) return;
-    this.staffCrud.remove(u.id).subscribe({
-      next: () => {
-        this.reload();
-        this.auth.loadMe().subscribe({ error: () => undefined });
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
+    this.confirmDialog.confirmDelete(u.email).then((ok) => {
+      if (!ok) return;
+      this.staffCrud.remove(u.id).subscribe({
+        next: () => {
+          this.reload();
+          this.auth.loadMe().subscribe({ error: () => undefined });
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
+      });
     });
   }
 }

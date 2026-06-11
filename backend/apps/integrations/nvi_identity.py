@@ -38,6 +38,9 @@ def _identity_payload_ok(payload: Any) -> bool:
     if isinstance(payload, bool):
         return payload
     if isinstance(payload, dict):
+        if "HataAciklama" in payload:
+            err = payload.get("HataAciklama")
+            return err in (None, "")
         for key in ("success", "Success", "basarili", "Basarili"):
             if key in payload:
                 return bool(payload[key])

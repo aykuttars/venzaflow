@@ -27,6 +27,12 @@ body {
   background: #f5f6fa;
 }
 
+body:has(.overlay),
+body:has(.confirm-overlay) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .spacer {
   flex: 1 1 auto;
 }

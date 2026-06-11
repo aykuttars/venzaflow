@@ -23,10 +23,11 @@ from apps.platform_billing.models import (
     TaxRate,
     TaxType,
 )
-from apps.products.models import Category
+from apps.products.models import Category, Product
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 from apps.oral.seed_data import ensure_clinic_demo_patients, ensure_oral_procedures
+from apps.products.seed_hardware_retail import seed_hardware_retail_tenant
 
 User = get_user_model()
 
@@ -289,6 +290,14 @@ class Command(BaseCommand):
         pstatus = "created" if pcreated else "updated"
         self.stdout.write(
             self.style.SUCCESS(f"{pstatus} platform admin {platform_email}")
+        )
+
+        hw = seed_hardware_retail_tenant(payment_currency=currencies.get("TRY"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"hardware retail tenant {hw.customer_code} ({hw.name}) — "
+                f"{Product.objects.filter(tenant=hw).count()} products"
+            )
         )
 
         self.stdout.write(self.style.SUCCESS("seed_demo completed."))

@@ -16,6 +16,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService, Page } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { PermissionPickerComponent } from '../../shared/permission-picker.component';
@@ -121,6 +122,7 @@ export class DepartmentsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
   private crud = new CrudService<Department>(this.http, 'departments', this.auth, 'settings');
 
@@ -209,14 +211,16 @@ export class DepartmentsComponent implements OnInit {
 
   remove(d: Department): void {
     if (!this.canManageRow(d)) return;
-    if (!confirm(this.translate.instant('common.confirmDelete') + ` (${d.name})`)) return;
-    this.crud.remove(d.id).subscribe({
-      next: () => {
-        this.reload();
-        this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
-      },
-      error: (e) =>
-        this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
+    this.confirmDialog.confirmDelete(d.name).then((ok) => {
+      if (!ok) return;
+      this.crud.remove(d.id).subscribe({
+        next: () => {
+          this.reload();
+          this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 1500 });
+        },
+        error: (e) =>
+          this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 3000 }),
+      });
     });
   }
 }

@@ -117,7 +117,7 @@
 
   @if (editingPatient()) {
   <div class="overlay" (click)="editingPatient.set(false)"></div>
-  <div class="dialog" (click)="$event.stopPropagation()">
+  <div class="dialog dialog--form" (click)="$event.stopPropagation()">
     <div class="dialog__header-edit">
       <h2>{{ (patientForm.value.id ? 'common.edit' : 'patients.newPatient') | translate }}</h2>
       @if (canWritePatients()) {
@@ -128,56 +128,46 @@
         [initials]="formInitials()"
         [editable]="true"
         [immediateUpload]="false"
-        [size]="88"
+        [size]="112"
         (fileSelected)="onAvatarFileSelected($event)"
         (removeRequested)="markPhotoForRemoval()"
       />
       }
     </div>
+    <div class="dialog__body">
     <form [formGroup]="patientForm" (ngSubmit)="savePatient()">
       <section class="dialog__section">
         <h3 class="dialog__section-title">{{ 'patients.sectionIdentity' | translate }}</h3>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ 'patients.nationality' | translate }}</mat-label>
-          <mat-select formControlName="nationality">
-            <mat-option value="tc">{{ 'patients.nationalityTc' | translate }}</mat-option>
-            <mat-option value="foreign">{{ 'patients.nationalityForeign' | translate }}</mat-option>
-          </mat-select>
-        </mat-form-field>
+        <div class="dialog__row dialog__row--doc">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'patients.nationality' | translate }}</mat-label>
+            <mat-select formControlName="nationality">
+              <mat-option value="tc">{{ 'patients.nationalityTc' | translate }}</mat-option>
+              <mat-option value="foreign">{{ 'patients.nationalityForeign' | translate }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ (patientForm.value.nationality === 'foreign' ? 'patients.foreignId' : 'patients.tckn') | translate }}</mat-label>
+            <input matInput formControlName="tckn" maxlength="11" inputmode="numeric" />
+          </mat-form-field>
+        </div>
         <div class="dialog__row">
           <mat-form-field appearance="outline"><mat-label>{{ 'employees.firstName' | translate }}</mat-label><input matInput formControlName="first_name" required /></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ 'employees.lastName' | translate }}</mat-label><input matInput formControlName="last_name" required /></mat-form-field>
         </div>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ (patientForm.value.nationality === 'foreign' ? 'patients.foreignId' : 'patients.tckn') | translate }}</mat-label>
-          <input matInput formControlName="tckn" maxlength="11" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ 'patients.birthDate' | translate }}</mat-label>
-          <input matInput [matDatepicker]="bdPicker" formControlName="birth_date" />
-          <mat-datepicker-toggle matSuffix [for]="bdPicker"></mat-datepicker-toggle>
-          <mat-datepicker #bdPicker></mat-datepicker>
-        </mat-form-field>
-        <div class="verify-row">
-          <button mat-stroked-button type="button" color="primary" (click)="verifyIdentity()">
-            {{ 'patients.verifyNvi' | translate }}
-          </button>
-          @if (nviVerified()) {
-          <span class="verified-badge">{{ 'patients.nviVerified' | translate }}</span>
-          }
-        </div>
+        <app-masked-birth-date-field formControlName="birth_date" labelKey="patients.birthDate" [required]="true" />
+        <p class="dialog__hint">{{ 'patients.nviOnSaveHint' | translate }}</p>
       </section>
 
       <section class="dialog__section">
         <h3 class="dialog__section-title">{{ 'patients.sectionContact' | translate }}</h3>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ 'patients.mobilePhone' | translate }}</mat-label>
-          <input matInput appPhoneInput formControlName="mobile_phone" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ 'customers.email' | translate }}</mat-label>
-          <input matInput type="email" formControlName="email" />
-        </mat-form-field>
+        <div class="dialog__row">
+          <app-mobile-phone-field formControlName="mobile_phone" labelKey="patients.mobilePhone" [required]="true" />
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'customers.email' | translate }}</mat-label>
+            <input matInput type="email" inputmode="email" autocomplete="email" formControlName="email" placeholder="ornek@eposta.com" />
+          </mat-form-field>
+        </div>
         <div class="dialog__row">
           <mat-form-field appearance="outline"><mat-label>{{ 'patients.homePhone' | translate }}</mat-label><input matInput appPhoneInput formControlName="home_phone" /></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>{{ 'patients.workPhone' | translate }}</mat-label><input matInput appPhoneInput formControlName="work_phone" /></mat-form-field>
@@ -196,9 +186,12 @@
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
         <button mat-button type="button" (click)="editingPatient.set(false)">{{ 'common.cancel' | translate }}</button>
-        <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
+        <button mat-flat-button color="primary" type="submit" [disabled]="savingPatient()">
+          {{ (savingPatient() ? 'patients.nviSaving' : 'common.save') | translate }}
+        </button>
       </div>
     </form>
+    </div>
   </div>
   }
 
