@@ -62,7 +62,7 @@ linux:
     entry:
       # Use the spaceless /usr/bin symlink; GNOME fails to launch quoted
       # Exec paths that contain spaces (/opt/TenancySoft e-imza/...).
-      Exec: /usr/bin/eimza %U
+      Exec: env GDK_BACKEND=x11 /usr/bin/eimza --ozone-platform=x11 --disable-gpu %U
       StartupWMClass: TenancySoft e-imza
 appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
