@@ -5,6 +5,19 @@ import { registerAllIpc } from './ipc'
 import { pkcs11Service } from './services/pkcs11Service'
 import { APP_DISPLAY_NAME } from '../shared/brand'
 
+// Linux: native Wayland (esp. under VMware/VirtualBox) often opens a blank or
+// invisible window. Force X11/XWayland and software rendering so the packaged
+// app works on double-click without any terminal flags.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform', 'x11')
+  if (!process.env.GDK_BACKEND) {
+    process.env.GDK_BACKEND = 'x11'
+  }
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+}
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1100,

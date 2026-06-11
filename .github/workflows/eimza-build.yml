@@ -63,13 +63,17 @@ jobs:
             platform: linux
             arch: x64
             runner: ubuntu-22.04
-            artifact: eimza/release/*.AppImage
+            artifact: |
+              eimza/release/*.AppImage
+              eimza/release/*.deb
 
           - label: Linux arm64
             platform: linux
             arch: arm64
             runner: ubuntu-22.04-arm
-            artifact: eimza/release/*.AppImage
+            artifact: |
+              eimza/release/*.AppImage
+              eimza/release/*.deb
 
     steps:
       - uses: actions/checkout@v4

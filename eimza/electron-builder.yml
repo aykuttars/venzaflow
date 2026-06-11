@@ -51,10 +51,24 @@ dmg:
 linux:
   target:
     - AppImage
+    - deb
   maintainer: Aykut Arslantas
+  vendor: Aykut Arslantas
+  synopsis: TenancySoft e-imza masaüstü imza köprüsü
+  description: USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama uygulaması.
   category: Office
+  desktop:
+    entry:
+      StartupWMClass: TenancySoft e-imza
 appImage:
   artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
+deb:
+  artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
+  depends:
+    - libnotify4
+    - libsecret-1-0
+    - pcscd
+    - libpcsclite1
 npmRebuild: true
 publish:
   provider: generic
