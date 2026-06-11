@@ -260,3 +260,42 @@ NVI_RECAPTCHA_SITE_KEY = env(
     "NVI_RECAPTCHA_SITE_KEY",
     default="6LcrFjwUAAAAABui7fXG9wtscqRlt6Avzxfxkmdz",
 )
+
+# ---------------------------------------------------------------------------
+# e-Signature authority integration (e-Reçete / e-Arşiv / e-Fatura)
+#
+# The signing pipeline is provider-agnostic: each document family resolves an
+# adapter at runtime via apps.integrations.authority.registry. When no real
+# credentials are configured (or AUTHORITY_MOCK is on) the mock adapters keep
+# the whole prepare -> sign -> submit flow testable end to end without GİB /
+# integrator / Medula sandbox access.
+# ---------------------------------------------------------------------------
+
+# Per-tenant integrator configuration lives in the database (connection +
+# routing models in apps.signing). Settings only carry global toggles and the
+# secret used to encrypt stored integrator credentials at rest.
+
+# Global kill-switch: force the mock adapters regardless of tenant config. Keep
+# this on until at least one tenant has real, tested integrator credentials.
+AUTHORITY_MOCK = env.bool("AUTHORITY_MOCK", default=True)
+# Default environment ("test"/"prod") applied to newly created connections.
+AUTHORITY_ENVIRONMENT = env("AUTHORITY_ENVIRONMENT", default="test").lower()
+# Default KDV (VAT) rate used when an invoice line carries no explicit rate.
+AUTHORITY_DEFAULT_VAT_RATE = env("AUTHORITY_DEFAULT_VAT_RATE", default="20")
+
+# Fernet key (urlsafe base64, 32 bytes) used to encrypt integrator credentials.
+# When unset it is derived from SECRET_KEY so dev works out of the box; set an
+# explicit, rotated key in production.
+AUTHORITY_ENCRYPTION_KEY = env("AUTHORITY_ENCRYPTION_KEY", default="")
+
+# Seed defaults for a tenant's signing profile (supplier identity) when none
+# has been configured yet. Real values are edited per tenant in the panel.
+AUTHORITY_SUPPLIER_DEFAULTS = {
+    "vkn": env("AUTHORITY_SUPPLIER_VKN", default=""),
+    "title": env("AUTHORITY_SUPPLIER_TITLE", default=""),
+    "tax_office": env("AUTHORITY_SUPPLIER_TAX_OFFICE", default=""),
+    "city": env("AUTHORITY_SUPPLIER_CITY", default=""),
+    "district": env("AUTHORITY_SUPPLIER_DISTRICT", default=""),
+    "street": env("AUTHORITY_SUPPLIER_STREET", default=""),
+    "country": env("AUTHORITY_SUPPLIER_COUNTRY", default="Türkiye"),
+}

@@ -28,7 +28,7 @@ export const MODULE_NAV: readonly ModuleNavItem[] = [
   { path: '/accounting', labelKey: 'nav.accounting', icon: 'savings', module: 'accounting', permission: 'accounting.read' },
   { path: '/signing', labelKey: 'nav.signing', labelSlug: 'signing', icon: 'draw', module: 'signing', permission: 'signing.read' },
   { path: '/audit-logs', labelKey: 'nav.auditLogs', icon: 'history', module: 'audit', permission: 'audit.read' },
-  { path: '/sessions', labelKey: 'nav.sessions', icon: 'devices', module: 'settings', permission: 'settings.read' },
+  { path: '/sessions', labelKey: 'nav.sessions', labelSlug: 'sessions', icon: 'devices', module: 'settings', permission: 'settings.read' },
   {
     path: '/departments',
     labelKey: 'nav.departments',

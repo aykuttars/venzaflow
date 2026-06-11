@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.viewsets import TenantScopedViewSet
-from apps.integrations.authority import submit_to_authority
+from apps.integrations.authority import AuthorityError, submit_to_authority
 from apps.signing.models import SignTask
 from apps.signing.serializers import (
     SignCompleteRequestSerializer,
@@ -19,8 +19,14 @@ from apps.signing.serializers import (
     SignTaskSerializer,
 )
 from apps.signing.services.document_builder import build_payload
+from apps.signing.services.integration_config import supplier_dict
 from apps.signing.services.task_factory import sync_tasks
+from apps.signing.services.ubl import build_invoice_ubl
 from apps.signing.services.verifier import SignatureVerificationError, verify_signature
+from apps.signing.services.xades import inject_signature, prepare_xades
+
+# Document families that are signed as XAdES-BES over UBL-TR XML.
+GIB_XADES_DOCS = {SignTask.DocumentType.EFATURA, SignTask.DocumentType.EARSIV}
 
 
 class SignTaskViewSet(TenantScopedViewSet):
@@ -65,6 +71,14 @@ class SignTaskViewSet(TenantScopedViewSet):
         out = SignTaskSerializer(task)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
+    def _is_xades(self, task: SignTask) -> bool:
+        """e-Fatura/e-Arşiv tasks backed by a real Invoice are signed as XAdES."""
+        return (
+            task.document_type in GIB_XADES_DOCS
+            and task.content_type is not None
+            and task.content_type.model == "invoice"
+        )
+
     @action(detail=True, methods=["post"], url_path="prepare")
     def prepare(self, request, pk=None):
         task: SignTask = self.get_object()
@@ -77,8 +91,39 @@ class SignTaskViewSet(TenantScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        payload = build_payload(task)
-        task.data_to_sign = base64.b64encode(payload).decode("ascii")
+        metadata = dict(task.metadata or {})
+
+        if self._is_xades(task):
+            cert_b64 = ser.validated_data.get("certificate_der_base64") or ""
+            if not cert_b64:
+                return Response(
+                    {"detail": "e-Fatura/e-Arşiv imzası için sertifika (certificate_der_base64) zorunludur."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                cert_der = base64.b64decode(cert_b64)
+            except Exception:
+                return Response(
+                    {"detail": "Geçersiz sertifika base64 verisi."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            xml_bytes, doc_meta = build_invoice_ubl(
+                task.source, task.document_type, supplier=supplier_dict(task.tenant)
+            )
+            prepared = prepare_xades(
+                xml_bytes, cert_der, signing_time=timezone.now().isoformat()
+            )
+            task.data_to_sign = base64.b64encode(prepared.signed_info_c14n).decode("ascii")
+            task.signed_document = prepared.signed_document_template.decode("utf-8")
+            metadata.update(doc_meta)
+            metadata["xades"] = True
+        else:
+            payload = build_payload(task)
+            task.data_to_sign = base64.b64encode(payload).decode("ascii")
+            metadata["xades"] = False
+
+        task.metadata = metadata
         task.algorithm = "SHA256_RSA_PKCS"
         task.status = SignTask.Status.PREPARED
         task.prepared_at = timezone.now()
@@ -86,6 +131,8 @@ class SignTaskViewSet(TenantScopedViewSet):
         task.save(
             update_fields=[
                 "data_to_sign",
+                "signed_document",
+                "metadata",
                 "algorithm",
                 "status",
                 "prepared_at",
@@ -134,6 +181,24 @@ class SignTaskViewSet(TenantScopedViewSet):
         task.signer = request.user
         task.status = SignTask.Status.SIGNED
         task.signed_at = timezone.now()
+
+        # For XAdES documents, embed the signature value into the UBL template
+        # so the stored artifact is the final signed XML submitted to GİB.
+        signed_document_bytes: bytes | None = None
+        if (task.metadata or {}).get("xades") and task.signed_document:
+            try:
+                signature_bytes = base64.b64decode(data["signature_base64"])
+                final_xml = inject_signature(
+                    task.signed_document.encode("utf-8"), signature_bytes
+                )
+                task.signed_document = final_xml.decode("utf-8")
+                signed_document_bytes = final_xml
+            except Exception as exc:
+                task.status = SignTask.Status.FAILED
+                task.error_message = f"İmzalı belge oluşturulamadı: {exc}"
+                task.save(update_fields=["status", "error_message", "updated_at"])
+                return Response({"detail": task.error_message}, status=status.HTTP_400_BAD_REQUEST)
+
         task.save(
             update_fields=[
                 "signature",
@@ -141,30 +206,46 @@ class SignTaskViewSet(TenantScopedViewSet):
                 "signer",
                 "status",
                 "signed_at",
+                "signed_document",
                 "updated_at",
             ]
         )
 
         try:
-            external_ref = submit_to_authority(task)
-            task.external_reference = external_ref
-            task.status = SignTask.Status.SUBMITTED
-            task.submitted_at = timezone.now()
-            task.error_message = ""
+            result = submit_to_authority(task, signed_document=signed_document_bytes)
+        except AuthorityError as exc:
+            task.status = SignTask.Status.FAILED
+            task.error_message = f"Otorite gönderimi başarısız: {exc}"
+            task.provider_payload = exc.payload or {}
             task.save(
-                update_fields=[
-                    "external_reference",
-                    "status",
-                    "submitted_at",
-                    "error_message",
-                    "updated_at",
-                ]
+                update_fields=["status", "error_message", "provider_payload", "updated_at"]
             )
-        except Exception as exc:
+            return Response({"detail": task.error_message}, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception as exc:  # defensive: never leak a 500 on submission
             task.status = SignTask.Status.FAILED
             task.error_message = f"Otorite gönderimi başarısız: {exc}"
             task.save(update_fields=["status", "error_message", "updated_at"])
             return Response({"detail": task.error_message}, status=status.HTTP_502_BAD_GATEWAY)
+
+        task.external_reference = result.external_reference
+        task.provider = result.provider
+        task.provider_status = result.status
+        task.provider_payload = result.payload or {}
+        task.status = SignTask.Status.SUBMITTED
+        task.submitted_at = timezone.now()
+        task.error_message = ""
+        task.save(
+            update_fields=[
+                "external_reference",
+                "provider",
+                "provider_status",
+                "provider_payload",
+                "status",
+                "submitted_at",
+                "error_message",
+                "updated_at",
+            ]
+        )
 
         out = SignCompleteResponseSerializer(task)
         return Response(out.data)

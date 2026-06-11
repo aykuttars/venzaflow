@@ -20,3 +20,4 @@ weasyprint>=62.0
 uvicorn[standard]>=0.30
 openpyxl>=3.1
 cryptography>=42.0
+lxml>=5.2

@@ -140,6 +140,53 @@
       "failed": "Failed"
     }
   },
+  "signingIntegration": {
+    "title": "Integration Settings",
+    "subtitle": "Configure the e-document integrators and signing identity for this tenant.",
+    "backToTasks": "Back to tasks",
+    "profile": {
+      "title": "Sender identity",
+      "hint": "Used as the supplier on UBL-TR documents (e-Invoice / e-Archive).",
+      "vkn": "Tax / ID number (VKN/TCKN)",
+      "companyTitle": "Company title",
+      "taxOffice": "Tax office",
+      "city": "City",
+      "district": "District",
+      "street": "Address",
+      "certType": "Certificate type"
+    },
+    "certType": {
+      "personal": "Personal e-signature",
+      "mali_muhur": "Financial seal (corporate)"
+    },
+    "connections": {
+      "title": "Integrator connections",
+      "add": "Add connection",
+      "addTitle": "New connection",
+      "editTitle": "Edit connection",
+      "name": "Name",
+      "provider": "Provider",
+      "env": "Environment",
+      "signingMode": "Signing",
+      "status": "Status",
+      "credentials": "Credentials",
+      "test": "Test connection",
+      "active": "Active",
+      "inactive": "inactive",
+      "none": "No connections yet."
+    },
+    "env": { "test": "Test / Sandbox", "prod": "Production" },
+    "mode": {
+      "client_xades": "We sign (XAdES)",
+      "provider_seal": "Integrator seals (financial seal)"
+    },
+    "connStatus": { "untested": "Untested", "ok": "Connected", "error": "Error" },
+    "routing": {
+      "title": "Document routing",
+      "hint": "Map each document type to the connection that should handle it.",
+      "none": "Not routed"
+    }
+  },
   "sessions": {
     "title": "Sessions",
     "subtitle": "Users' active connections via the web or the e-signature desktop app.",

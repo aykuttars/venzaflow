@@ -121,6 +121,11 @@ interface Page<T> {
               <a mat-icon-button [routerLink]="['/admin/tenants', t.id, 'invoices']" [attr.aria-label]="'platform.invoices' | translate">
                 <mat-icon>receipt_long</mat-icon>
               </a>
+              @if (t.enabled_modules.includes('signing')) {
+              <a mat-icon-button [routerLink]="['/admin/tenants', t.id, 'integration']" [attr.aria-label]="'signingIntegration.title' | translate">
+                <mat-icon>hub</mat-icon>
+              </a>
+              }
               <button mat-icon-button (click)="openForm(t)" [attr.aria-label]="'common.edit' | translate">
                 <mat-icon>edit</mat-icon>
               </button>

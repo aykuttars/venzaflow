@@ -24,6 +24,8 @@ class SignTaskSerializer(serializers.ModelSerializer):
             "signed_at",
             "submitted_at",
             "external_reference",
+            "provider",
+            "provider_status",
             "error_message",
             "metadata",
         )

@@ -37,6 +37,13 @@ export const APP_ROUTES: Routes = [
           ),
       },
       {
+        path: 'tenants/:tenantId/integration',
+        loadComponent: () =>
+          import('./features/signing/signing-integration.component').then(
+            (m) => m.SigningIntegrationComponent
+          ),
+      },
+      {
         path: 'billing',
         loadComponent: () =>
           import('./features/platform/platform-billing.component').then(
@@ -208,6 +215,15 @@ export const APP_ROUTES: Routes = [
           ),
         canActivate: [roleGuard],
         data: { module: 'accounting', permission: 'accounting.read' },
+      },
+      {
+        path: 'signing/integration',
+        loadComponent: () =>
+          import('./features/signing/signing-integration.component').then(
+            (m) => m.SigningIntegrationComponent
+          ),
+        canActivate: [roleGuard],
+        data: { module: 'signing', permission: 'signing.read' },
       },
       {
         path: 'signing',

@@ -140,6 +140,53 @@
       "failed": "Başarısız"
     }
   },
+  "signingIntegration": {
+    "title": "Entegrasyon Ayarları",
+    "subtitle": "Bu tenant için e-belge entegratörlerini ve imza kimliğini yapılandırın.",
+    "backToTasks": "Görevlere dön",
+    "profile": {
+      "title": "Gönderici kimliği",
+      "hint": "UBL-TR belgelerinde (e-Fatura / e-Arşiv) satıcı bilgisi olarak kullanılır.",
+      "vkn": "Vergi / Kimlik No (VKN/TCKN)",
+      "companyTitle": "Ünvan",
+      "taxOffice": "Vergi dairesi",
+      "city": "İl",
+      "district": "İlçe",
+      "street": "Adres",
+      "certType": "Sertifika tipi"
+    },
+    "certType": {
+      "personal": "Kişisel e-imza",
+      "mali_muhur": "Mali Mühür (kurumsal)"
+    },
+    "connections": {
+      "title": "Entegratör bağlantıları",
+      "add": "Bağlantı ekle",
+      "addTitle": "Yeni bağlantı",
+      "editTitle": "Bağlantıyı düzenle",
+      "name": "Ad",
+      "provider": "Sağlayıcı",
+      "env": "Ortam",
+      "signingMode": "İmza",
+      "status": "Durum",
+      "credentials": "Kimlik bilgileri",
+      "test": "Bağlantıyı test et",
+      "active": "Aktif",
+      "inactive": "pasif",
+      "none": "Henüz bağlantı yok."
+    },
+    "env": { "test": "Test / Sandbox", "prod": "Canlı" },
+    "mode": {
+      "client_xades": "İmza bizde (XAdES)",
+      "provider_seal": "İmza entegratörde (mali mühür)"
+    },
+    "connStatus": { "untested": "Test edilmedi", "ok": "Bağlandı", "error": "Hata" },
+    "routing": {
+      "title": "Belge yönlendirme",
+      "hint": "Her belge tipini, onu işleyecek bağlantıya eşleyin.",
+      "none": "Yönlendirilmedi"
+    }
+  },
   "sessions": {
     "title": "Oturumlar",
     "subtitle": "Kullanıcıların web veya e-İmza masaüstü uygulaması ile aktif bağlantıları.",

@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
+import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 
 type DocumentType = 'erecete' | 'earsiv' | 'efatura';
@@ -36,6 +38,7 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     MatButtonModule,
     MatIconModule,
     TranslateModule,
@@ -44,6 +47,12 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
   template: `
     <div class="page">
       <app-page-header moduleSlug="signing" icon="draw">
+        @if (canConfigure()) {
+        <a mat-stroked-button routerLink="/signing/integration">
+          <mat-icon>hub</mat-icon>
+          {{ 'signingIntegration.title' | translate }}
+        </a>
+        }
         <button mat-stroked-button (click)="loadTasks()">
           <mat-icon>refresh</mat-icon>
           {{ 'common.refresh' | translate }}
@@ -169,6 +178,7 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
 })
 export class SigningComponent implements OnInit {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
 
   readonly tabs = TABS;
   activeTab = signal<DocumentType>('erecete');
@@ -177,6 +187,10 @@ export class SigningComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTasks();
+  }
+
+  canConfigure(): boolean {
+    return this.auth.hasPermission('signing.write');
   }
 
   setTab(tab: DocumentType): void {

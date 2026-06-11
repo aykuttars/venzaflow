@@ -29,6 +29,12 @@ from apps.products.views import (
     ProductViewSet,
 )
 from apps.tenants.views_platform import PlatformTenantViewSet
+from apps.signing.views_integration import (
+    PlatformTenantConnectionTestView,
+    PlatformTenantConnectionView,
+    PlatformTenantIntegrationView,
+    PlatformTenantRoutingView,
+)
 
 router = DefaultRouter()
 platform_router = DefaultRouter()
@@ -65,6 +71,31 @@ urlpatterns = [
     path("v1/platform/", include(platform_router.urls)),
     path("v1/platform/", include("apps.accounts.urls_platform")),
     path("v1/platform/", include("apps.platform_billing.urls")),
+    path(
+        "v1/platform/tenants/<int:tenant_pk>/integration/",
+        PlatformTenantIntegrationView.as_view(),
+        name="platform-tenant-integration",
+    ),
+    path(
+        "v1/platform/tenants/<int:tenant_pk>/integration/routing/",
+        PlatformTenantRoutingView.as_view(),
+        name="platform-tenant-routing",
+    ),
+    path(
+        "v1/platform/tenants/<int:tenant_pk>/integration/connections/",
+        PlatformTenantConnectionView.as_view(),
+        name="platform-tenant-connections",
+    ),
+    path(
+        "v1/platform/tenants/<int:tenant_pk>/integration/connections/<int:pk>/",
+        PlatformTenantConnectionView.as_view(),
+        name="platform-tenant-connection-detail",
+    ),
+    path(
+        "v1/platform/tenants/<int:tenant_pk>/integration/connections/<int:pk>/test/",
+        PlatformTenantConnectionTestView.as_view(),
+        name="platform-tenant-connection-test",
+    ),
     path("v1/", include("apps.accounts.urls_api")),
     path("v1/nvi/", include("apps.customers.nvi_urls")),
     path("v1/oral/", include("apps.oral.urls")),
