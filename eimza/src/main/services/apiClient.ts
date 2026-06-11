@@ -98,7 +98,11 @@ class ApiClient {
     const headers: Record<string, string> = {
       Accept: 'application/json, text/plain, */*',
       'Accept-Language': 'tr',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      // Tags the login session as the e-signature desktop client so tenant
+      // admins can see eimza connections separately from browser sessions.
+      'X-Client-Id': 'eimza',
+      'X-Client-Version': process.env.npm_package_version || '1.0.0'
     }
     if (includeAuth && this.session?.accessToken) {
       headers.Authorization = `Bearer ${this.session.accessToken}`

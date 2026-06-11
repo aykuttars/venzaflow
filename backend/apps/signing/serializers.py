@@ -7,6 +7,8 @@ from apps.signing.models import SignTask
 
 class SignTaskSerializer(serializers.ModelSerializer):
     metadata = serializers.JSONField(required=False)
+    signer_email = serializers.EmailField(source="signer.email", read_only=True, default=None)
+    signer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SignTask
@@ -17,9 +19,20 @@ class SignTaskSerializer(serializers.ModelSerializer):
             "description",
             "status",
             "created_at",
+            "signer_email",
+            "signer_name",
+            "signed_at",
+            "submitted_at",
+            "external_reference",
+            "error_message",
             "metadata",
         )
         read_only_fields = fields
+
+    def get_signer_name(self, obj: SignTask) -> str:
+        if not obj.signer_id:
+            return ""
+        return f"{obj.signer.first_name} {obj.signer.last_name}".strip()
 
 
 class SignTaskCreateSerializer(serializers.Serializer):

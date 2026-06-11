@@ -45,7 +45,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Elem
             <input
               value={customerCode}
               onChange={(e) => setCustomerCode(e.target.value)}
-              placeholder="1000"
+              placeholder="Customer Code"
               required
               autoFocus
             />
@@ -57,7 +57,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Elem
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@admin.com"
+              placeholder="Email"
               required
             />
           </label>

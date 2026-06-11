@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apps.accounts.models import Department, Permission
+from apps.accounts.models import Department, Permission, UserSession
 from apps.accounts.rbac import (
     assert_department_manageable,
     department_manageable_by,
@@ -155,6 +155,37 @@ class UserSerializer(serializers.ModelSerializer):
             "department",
             "is_active",
         )
+
+
+class UserSessionSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    user_name = serializers.SerializerMethodField()
+    is_current = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSession
+        fields = (
+            "id",
+            "user",
+            "user_email",
+            "user_name",
+            "client",
+            "client_version",
+            "ip_address",
+            "user_agent",
+            "created_at",
+            "last_seen_at",
+            "revoked",
+            "is_current",
+        )
+        read_only_fields = fields
+
+    def get_user_name(self, obj: UserSession) -> str:
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_is_current(self, obj: UserSession) -> bool:
+        sid = self.context.get("current_sid")
+        return bool(sid and obj.jti == sid)
 
 
 class LoginSerializer(serializers.Serializer):

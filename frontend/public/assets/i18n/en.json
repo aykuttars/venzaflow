@@ -14,9 +14,11 @@
     "appointments": "Appointments",
     "billing": "Billing",
     "accounting": "Accounting",
+    "signing": "e-Signature",
     "auditLogs": "Audit logs",
     "departments": "Departments",
-    "settings": "Settings"
+    "settings": "Settings",
+    "sessions": "Sessions"
   },
   "common": {
     "new": "New",
@@ -37,6 +39,7 @@
     "noRecords": "No records.",
     "import": "Import",
     "close": "Close",
+    "refresh": "Refresh",
     "loading": "Loading…",
     "language": "Language",
     "turkish": "Turkish",
@@ -116,6 +119,44 @@
     "dashboard": "Dashboard",
     "audit": "Audit",
     "signing": "e-Signature"
+  },
+  "signing": {
+    "subtitle": "Documents signed via the e-signature desktop app and their status.",
+    "document": "Document",
+    "status": "Status",
+    "signer": "Signer",
+    "signedAt": "Signed at",
+    "reference": "Reference",
+    "docType": {
+      "erecete": "e-Prescription",
+      "earsiv": "e-Archive",
+      "efatura": "e-Invoice"
+    },
+    "statusType": {
+      "pending": "Pending",
+      "prepared": "Prepared",
+      "signed": "Signed",
+      "submitted": "Submitted",
+      "failed": "Failed"
+    }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "subtitle": "Users' active connections via the web or the e-signature desktop app.",
+    "user": "User",
+    "client": "Client",
+    "status": "Status",
+    "ip": "IP",
+    "lastSeen": "Last seen",
+    "online": "Online",
+    "offline": "Offline",
+    "current": "this session",
+    "revoke": "Revoke session",
+    "clientType": {
+      "web": "Web",
+      "eimza": "e-Signature App",
+      "unknown": "Unknown"
+    }
   },
   "departments": {
     "title": "Departments",

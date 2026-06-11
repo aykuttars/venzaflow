@@ -14,9 +14,11 @@
     "appointments": "Randevular",
     "billing": "Faturalama",
     "accounting": "Muhasebe",
+    "signing": "e-İmza",
     "auditLogs": "Denetim kayıtları",
     "departments": "Departmanlar",
-    "settings": "Ayarlar"
+    "settings": "Ayarlar",
+    "sessions": "Oturumlar"
   },
   "common": {
     "new": "Yeni",
@@ -37,6 +39,7 @@
     "noRecords": "Kayıt yok.",
     "import": "İçe aktar",
     "close": "Kapat",
+    "refresh": "Yenile",
     "loading": "Yükleniyor…",
     "language": "Dil",
     "turkish": "Türkçe",
@@ -116,6 +119,44 @@
     "dashboard": "Panel",
     "audit": "Denetim",
     "signing": "e-İmza"
+  },
+  "signing": {
+    "subtitle": "e-İmza masaüstü uygulaması ile imzalanan belgeler ve durumları.",
+    "document": "Belge",
+    "status": "Durum",
+    "signer": "İmzalayan",
+    "signedAt": "İmza Tarihi",
+    "reference": "Referans",
+    "docType": {
+      "erecete": "e-Reçete",
+      "earsiv": "e-Arşiv",
+      "efatura": "e-Fatura"
+    },
+    "statusType": {
+      "pending": "Bekliyor",
+      "prepared": "Hazırlandı",
+      "signed": "İmzalandı",
+      "submitted": "Gönderildi",
+      "failed": "Başarısız"
+    }
+  },
+  "sessions": {
+    "title": "Oturumlar",
+    "subtitle": "Kullanıcıların web veya e-İmza masaüstü uygulaması ile aktif bağlantıları.",
+    "user": "Kullanıcı",
+    "client": "İstemci",
+    "status": "Durum",
+    "ip": "IP",
+    "lastSeen": "Son Görülme",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "current": "bu oturum",
+    "revoke": "Oturumu Kapat",
+    "clientType": {
+      "web": "Web",
+      "eimza": "e-İmza Uygulaması",
+      "unknown": "Bilinmiyor"
+    }
   },
   "departments": {
     "title": "Departmanlar",

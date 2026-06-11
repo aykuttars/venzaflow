@@ -193,3 +193,53 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.is_platform_admin:
             return True
         return codename in self.effective_permission_codenames()
+
+
+class UserSession(models.Model):
+    """A login session, tagged with the client that created it (web / eimza).
+
+    Lets tenant admins see which users are connected through the e-signature
+    desktop app vs the browser, and revoke a session remotely.
+    """
+
+    class Client(models.TextChoices):
+        WEB = "web", "Web"
+        EIMZA = "eimza", "e-İmza"
+        UNKNOWN = "unknown", "Unknown"
+
+    user = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="sessions",
+    )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="user_sessions",
+        null=True,
+        blank=True,
+    )
+    jti = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="Refresh token id (jti) that owns this session.",
+    )
+    client = models.CharField(max_length=16, choices=Client.choices, default=Client.WEB)
+    client_version = models.CharField(max_length=32, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(default=None, null=True, blank=True)
+    revoked = models.BooleanField(default=False)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "user_session"
+        ordering = ["-last_seen_at"]
+        indexes = [
+            models.Index(fields=["tenant", "revoked", "last_seen_at"]),
+            models.Index(fields=["jti"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.client} ({self.jti[:8]})"

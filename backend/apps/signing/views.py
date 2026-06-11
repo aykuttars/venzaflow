@@ -38,7 +38,7 @@ class SignTaskViewSet(TenantScopedViewSet):
     ordering_fields = ("created_at", "status")
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related("signer")
         document_type = self.request.query_params.get("document_type")
         if document_type:
             qs = qs.filter(document_type=document_type)

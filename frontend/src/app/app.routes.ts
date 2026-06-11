@@ -210,6 +210,15 @@ export const APP_ROUTES: Routes = [
         data: { module: 'accounting', permission: 'accounting.read' },
       },
       {
+        path: 'signing',
+        loadComponent: () =>
+          import('./features/signing/signing.component').then(
+            (m) => m.SigningComponent
+          ),
+        canActivate: [roleGuard],
+        data: { module: 'signing', permission: 'signing.read' },
+      },
+      {
         path: 'audit-logs',
         loadComponent: () =>
           import('./features/audit/audit.component').then(
@@ -217,6 +226,15 @@ export const APP_ROUTES: Routes = [
           ),
         canActivate: [roleGuard],
         data: { module: 'audit', permission: 'audit.read' },
+      },
+      {
+        path: 'sessions',
+        loadComponent: () =>
+          import('./features/sessions/sessions.component').then(
+            (m) => m.SessionsComponent
+          ),
+        canActivate: [roleGuard],
+        data: { module: 'settings', permission: 'settings.read' },
       },
       {
         path: 'settings',

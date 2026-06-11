@@ -313,6 +313,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Active login sessions for the current tenant (admins via settings.read).
+         *
+         *     Surfaces which users are connected through the e-signature desktop app
+         *     (client=eimza) vs the browser, with last-seen for online detection.
+         */
+        get: operations["v1_auth_sessions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/{id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Revoke a session so its tokens stop working (settings.write). */
+        post: operations["v1_auth_sessions_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/billing/invoices/": {
         parameters: {
             query?: never;
@@ -3953,6 +3992,15 @@ export interface components {
             readonly status: components["schemas"]["SignTaskStatusEnum"];
             /** Format: date-time */
             readonly created_at: string;
+            /** Format: email */
+            readonly signer_email: string;
+            readonly signer_name: string;
+            /** Format: date-time */
+            readonly signed_at: string | null;
+            /** Format: date-time */
+            readonly submitted_at: string | null;
+            readonly external_reference: string;
+            readonly error_message: string;
             metadata?: unknown;
         };
         SignTaskRequest: {
@@ -4992,6 +5040,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TenantTokenRefresh"];
                 };
+            };
+        };
+    };
+    v1_auth_sessions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    v1_auth_sessions_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

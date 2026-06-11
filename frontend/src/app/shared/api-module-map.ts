@@ -19,6 +19,7 @@ const API_MODULE_PREFIXES: readonly { prefix: string; module: string }[] = [
   { prefix: 'accounting/', module: 'accounting' },
   { prefix: 'dashboard/', module: 'dashboard' },
   { prefix: 'audit', module: 'audit' },
+  { prefix: 'sign/', module: 'signing' },
 ];
 
 /** Paths that skip module checks (auth, tenant profile, permission catalog). */
