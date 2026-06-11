@@ -11,7 +11,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
-import { BILLABLE_MODULE_SLUGS } from '../../shared/module-slugs';
+import { ModuleCatalogService } from '../../core/module-catalog.service';
 
 interface BillingSettings {
   default_monthly_discount_percent: string;
@@ -219,6 +219,7 @@ export class PlatformBillingComponent implements OnInit {
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
+  private moduleCatalog = inject(ModuleCatalogService);
 
   modulePrices = signal<ModulePrice[]>([]);
   exchangeRates = signal<ExchangeRate[]>([]);
@@ -241,23 +242,25 @@ export class PlatformBillingComponent implements OnInit {
     this.http.get<BillingSettings>(`${API_BASE}/platform/billing/settings/`).subscribe((s) => {
       this.settingsForm.patchValue(s);
     });
-    this.http
-      .get<Page<ModulePrice>>(`${API_BASE}/platform/billing/module-prices/?limit=100`)
-      .subscribe((p) => {
-        const existing = new Set(p.results.map((x) => x.module_slug));
-        this.modulePrices.set(p.results);
-        for (const slug of BILLABLE_MODULE_SLUGS) {
-          if (!existing.has(slug)) {
-            this.http
-              .post<ModulePrice>(`${API_BASE}/platform/billing/module-prices/`, {
-                module_slug: slug,
-                price_per_user_monthly: '0',
-                is_active: true,
-              })
-              .subscribe(() => this.reloadModulePrices());
+    this.moduleCatalog.load().subscribe(() => {
+      this.http
+        .get<Page<ModulePrice>>(`${API_BASE}/platform/billing/module-prices/?limit=100`)
+        .subscribe((p) => {
+          const existing = new Set(p.results.map((x) => x.module_slug));
+          this.modulePrices.set(p.results);
+          for (const slug of this.moduleCatalog.billableSlugs()) {
+            if (!existing.has(slug)) {
+              this.http
+                .post<ModulePrice>(`${API_BASE}/platform/billing/module-prices/`, {
+                  module_slug: slug,
+                  price_per_user_monthly: '0',
+                  is_active: true,
+                })
+                .subscribe(() => this.reloadModulePrices());
+            }
           }
-        }
-      });
+        });
+    });
     this.reloadExchangeRates();
     this.http
       .get<Page<TaxType>>(`${API_BASE}/platform/billing/tax-types/?limit=50`)

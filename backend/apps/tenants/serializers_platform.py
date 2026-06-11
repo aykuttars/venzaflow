@@ -28,6 +28,16 @@ from apps.tenants.subscription_service import (
 User = get_user_model()
 
 
+class PlatformModuleCatalogSerializer(serializers.Serializer):
+    """One assignable module as advertised to the platform admin UI."""
+
+    slug = serializers.CharField()
+    label = serializers.CharField()
+    is_billable = serializers.BooleanField()
+    is_default_non_billable = serializers.BooleanField()
+    default_price_per_user_monthly = serializers.CharField(allow_null=True)
+
+
 class PlatformTenantSerializer(TenantProfileSerializer):
     initial_admin_email = serializers.EmailField(write_only=True, required=False)
     initial_admin_password = serializers.CharField(write_only=True, required=False)

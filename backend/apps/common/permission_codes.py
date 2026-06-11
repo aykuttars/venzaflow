@@ -41,6 +41,25 @@ ALL_MODULES = [
     "signing",
 ]
 
+# Default (English) display labels per module slug. The UI may override these
+# with localized translations; these act as the fallback for unknown locales
+# and keep the backend the single source of truth for the module list.
+MODULE_LABELS = {
+    "settings": "Settings",
+    "employees": "Employees",
+    "products": "Products",
+    "inventory": "Inventory",
+    "customers": "Customers",
+    "patients": "Patients",
+    "oral": "Oral / Dental",
+    "appointments": "Appointments",
+    "billing": "Billing",
+    "accounting": "Accounting",
+    "dashboard": "Dashboard",
+    "audit": "Audit Logs",
+    "signing": "e-Signature",
+}
+
 # Always included for every tenant by default; default is_billable=False on subscription row.
 NON_BILLABLE_MODULES = [
     "dashboard",
@@ -61,6 +80,21 @@ def merge_tenant_modules(modules: list[str]) -> list[str]:
         if slug in ALL_MODULES and slug not in merged:
             merged.append(slug)
     return merged
+
+
+def module_catalog() -> list[dict]:
+    """Static module catalog (slug, label, billable flags) — the single source
+    of truth consumed by the platform admin UI. Pricing is layered on by the
+    catalog endpoint from ModulePrice rows."""
+    return [
+        {
+            "slug": slug,
+            "label": MODULE_LABELS.get(slug, slug),
+            "is_billable": slug in BILLABLE_MODULES,
+            "is_default_non_billable": slug in NON_BILLABLE_MODULES,
+        }
+        for slug in ALL_MODULES
+    ]
 
 
 def permission_module_slug(codename: str) -> str:

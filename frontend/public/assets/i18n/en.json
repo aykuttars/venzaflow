@@ -114,7 +114,8 @@
     "billing": "Billing",
     "accounting": "Accounting",
     "dashboard": "Dashboard",
-    "audit": "Audit"
+    "audit": "Audit",
+    "signing": "e-Signature"
   },
   "departments": {
     "title": "Departments",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -11,7 +12,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.serializers import LoginSerializer, UserSerializer
 from apps.accounts.tokens import build_tokens_for_user
-from apps.tenants.subscription_service import tenant_module_parents
+from apps.tenants.subscription_service import tenant_has_module, tenant_module_parents
 
 User = get_user_model()
 
@@ -23,6 +24,23 @@ class LoginView(APIView):
         ser = LoginSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         user = ser.validated_data["user"]
+
+        # Optional module gate: clients tied to a specific module (e.g. the
+        # e-signature desktop app) send `required_module` so tenants without
+        # that subscription are rejected at login rather than after the fact.
+        required_module = request.data.get("required_module")
+        if required_module and not tenant_has_module(user.tenant, required_module):
+            return Response(
+                {
+                    "detail": _(
+                        "Your account does not have access to the required module."
+                    ),
+                    "code": "module_not_enabled",
+                    "module": required_module,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         refresh, access = build_tokens_for_user(user)
         perm_codenames = sorted(user.effective_permission_codenames())
         return Response(

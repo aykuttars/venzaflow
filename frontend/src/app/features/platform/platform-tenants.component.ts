@@ -22,7 +22,7 @@ import { API_BASE } from '../../core/api';
 import { AppLanguage } from '../../core/language.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
-import { ALL_MODULE_SLUGS, BILLABLE_MODULE_SLUGS, NON_BILLABLE_MODULE_SLUGS, mergeTenantModules } from '../../shared/module-slugs';
+import { ModuleCatalogService } from '../../core/module-catalog.service';
 import { PasswordFieldsComponent } from '../../shared/password-fields.component';
 import {
   passwordMatchValidator,
@@ -35,11 +35,6 @@ interface ModuleSubscriptionRow {
   is_extra: boolean;
   is_billable?: boolean;
   price_per_user_monthly?: string | null;
-}
-
-interface GlobalModulePrice {
-  module_slug: string;
-  price_per_user_monthly: string;
 }
 
 interface TenantRow {
@@ -448,12 +443,16 @@ export class PlatformTenantsComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   private confirmDialog = inject(ConfirmDialogService);
+  private moduleCatalog = inject(ModuleCatalogService);
 
-  readonly nonBillableModuleSlugs = NON_BILLABLE_MODULE_SLUGS;
-  readonly moduleSlugs = BILLABLE_MODULE_SLUGS;
+  get nonBillableModuleSlugs(): string[] {
+    return this.moduleCatalog.nonBillableDefaultSlugs();
+  }
+  get moduleSlugs(): string[] {
+    return this.moduleCatalog.billableSlugs();
+  }
   items = signal<TenantRow[]>([]);
   currencies = signal<CurrencyOption[]>([]);
-  globalModulePrices = signal<Record<string, string>>({});
   editing = signal(false);
   editingTenant = signal<TenantRow | null>(null);
   private enabledModules = signal<string[]>([]);
@@ -484,18 +483,10 @@ export class PlatformTenantsComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.moduleCatalog.load().subscribe();
     this.http
       .get<Page<CurrencyOption>>(`${API_BASE}/platform/billing/currencies/?limit=20`)
       .subscribe((p) => this.currencies.set(p.results));
-    this.http
-      .get<Page<GlobalModulePrice>>(`${API_BASE}/platform/billing/module-prices/?limit=100`)
-      .subscribe((p) => {
-        const map: Record<string, string> = {};
-        for (const row of p.results) {
-          map[row.module_slug] = row.price_per_user_monthly;
-        }
-        this.globalModulePrices.set(map);
-      });
   }
 
   modulePriceControl(slug: string): FormControl<string> {
@@ -506,7 +497,7 @@ export class PlatformTenantsComponent implements OnInit {
   }
 
   globalPricePlaceholder(slug: string): string {
-    const g = this.globalModulePrices()[slug];
+    const g = this.moduleCatalog.defaultPrice(slug);
     return g ? `${g} TRY` : '';
   }
 
@@ -530,7 +521,7 @@ export class PlatformTenantsComponent implements OnInit {
   }
 
   toggleModule(slug: string, checked: boolean): void {
-    if ((NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(slug)) {
+    if (this.moduleCatalog.isNonBillableDefault(slug)) {
       return;
     }
     const current = [...this.enabledModules()];
@@ -570,7 +561,7 @@ export class PlatformTenantsComponent implements OnInit {
 
   parentModuleOptions(slug: string): string[] {
     return this.enabledModules().filter(
-      (m) => m !== slug && !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(m)
+      (m) => m !== slug && !this.moduleCatalog.isNonBillableDefault(m)
     );
   }
 
@@ -605,7 +596,7 @@ export class PlatformTenantsComponent implements OnInit {
   }
 
   labelModuleSlugs(): string[] {
-    return mergeTenantModules(this.enabledModules());
+    return this.moduleCatalog.mergeTenantModules(this.enabledModules());
   }
 
   reload(): void {
@@ -658,7 +649,7 @@ export class PlatformTenantsComponent implements OnInit {
       this.form.get('initial_admin_email')?.clearValidators();
       this.setInitialAdminPasswordValidators(false);
       const subs = (t.subscribed_modules ?? t.enabled_modules ?? []).filter(
-        (s) => !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(s)
+        (s) => !this.moduleCatalog.isNonBillableDefault(s)
       );
       this.enabledModules.set([...subs]);
       const nonBillableFromApi =
@@ -666,7 +657,7 @@ export class PlatformTenantsComponent implements OnInit {
         (t.module_subscriptions ?? [])
           .filter((s) => s.is_active && s.is_billable === false)
           .map((s) => s.module_slug)
-          .filter((s) => !(NON_BILLABLE_MODULE_SLUGS as readonly string[]).includes(s));
+          .filter((s) => !this.moduleCatalog.isNonBillableDefault(s));
       this.nonBillableModules.set([...nonBillableFromApi]);
       const extra = (t.module_subscriptions ?? [])
         .filter((s) => s.is_extra)
@@ -676,7 +667,7 @@ export class PlatformTenantsComponent implements OnInit {
       const priceBySlug = new Map(
         (t.module_subscriptions ?? []).map((s) => [s.module_slug, s.price_per_user_monthly])
       );
-      for (const slug of ALL_MODULE_SLUGS) {
+      for (const slug of this.moduleCatalog.allSlugs()) {
         this.labelControl(slug).setValue(t.module_labels?.[slug] || '');
         const override = priceBySlug.get(slug);
         this.modulePriceControl(slug).setValue(
@@ -699,11 +690,11 @@ export class PlatformTenantsComponent implements OnInit {
       });
       this.form.get('initial_admin_email')?.setValidators([Validators.required, Validators.email]);
       this.setInitialAdminPasswordValidators(true);
-      this.enabledModules.set([...BILLABLE_MODULE_SLUGS]);
+      this.enabledModules.set([...this.moduleCatalog.billableSlugs()]);
       this.extraModules.set([]);
       this.nonBillableModules.set([]);
       this.moduleParents.set({});
-      for (const slug of ALL_MODULE_SLUGS) {
+      for (const slug of this.moduleCatalog.allSlugs()) {
         this.labelControl(slug).setValue('');
         this.modulePriceControl(slug).setValue('');
       }

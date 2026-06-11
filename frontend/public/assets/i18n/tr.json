@@ -114,7 +114,8 @@
     "billing": "Faturalama",
     "accounting": "Muhasebe",
     "dashboard": "Panel",
-    "audit": "Denetim"
+    "audit": "Denetim",
+    "signing": "e-İmza"
   },
   "departments": {
     "title": "Departmanlar",
