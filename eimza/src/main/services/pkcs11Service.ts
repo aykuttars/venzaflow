@@ -58,14 +58,19 @@ class Pkcs11Service {
     this.ensureDriver()
     const mod = this.activeModule!
 
-    // Some drivers (SafeNet/AKİS) throw CKR_ARGUMENTS_BAD or similar when no
-    // token is inserted. Treat any slot enumeration failure as "no token".
+    // Enumerate ALL slots and derive token presence from the per-slot flag.
+    // Some PKCS#11 libraries (notably AKİS/libakisp11) return an empty list for
+    // C_GetSlotList(tokenPresent=TRUE) even when a card is inserted, so relying
+    // on that filter hides real tokens. getSlots(false) lists every slot; we
+    // keep only those whose TOKEN_PRESENT flag is set. This also keeps slot
+    // indices consistent with listCertificates/openAuthenticatedSession, which
+    // both enumerate via getSlots(false).
     let slotCollection: ReturnType<GrapheneModule['getSlots']>
     try {
-      slotCollection = mod.getSlots(true)
+      slotCollection = mod.getSlots(false)
     } catch {
       try {
-        slotCollection = mod.getSlots(false)
+        slotCollection = mod.getSlots(true)
       } catch {
         return []
       }

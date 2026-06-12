@@ -65,7 +65,14 @@ const DRIVER_DEFINITIONS: DriverDefinition[] = [
     name: 'OpenSC (fallback)',
     paths: {
       win32: ['C:\\Program Files\\OpenSC Project\\OpenSC\\pkcs11\\opensc-pkcs11.dll'],
-      darwin: ['/Library/OpenSC/lib/opensc-pkcs11.dylib', '/usr/local/lib/opensc-pkcs11.dylib'],
+      darwin: [
+        // OpenSC ships the module as .so on macOS (not .dylib).
+        '/Library/OpenSC/lib/opensc-pkcs11.so',
+        '/usr/local/lib/opensc-pkcs11.so',
+        '/opt/homebrew/lib/opensc-pkcs11.so',
+        '/Library/OpenSC/lib/opensc-pkcs11.dylib',
+        '/usr/local/lib/opensc-pkcs11.dylib'
+      ],
       linux: [
         '/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so',
         '/usr/lib/opensc-pkcs11.so',
