@@ -229,9 +229,34 @@ input:focus {
   margin-bottom: 16px;
 }
 
-.topbar-actions {
+.topbar-user-name {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.name-mismatch-badge {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 560px;
+}
+
+.name-mismatch-badge strong {
+  font-weight: 700;
+}
+
+.topbar-actions,
+.page-header-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .grid.two-col {

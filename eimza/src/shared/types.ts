@@ -11,6 +11,22 @@ export interface AuthSession {
   refreshToken?: string
   customerCode: string
   email: string
+  firstName?: string
+  lastName?: string
+}
+
+export interface SessionSummary {
+  email: string
+  customerCode: string
+  firstName?: string
+  lastName?: string
+}
+
+export function formatSessionDisplayName(
+  session: Pick<SessionSummary, 'firstName' | 'lastName'>
+): string | null {
+  const name = [session.firstName, session.lastName].filter(Boolean).join(' ').trim()
+  return name || null
 }
 
 export const SESSION_EXPIRED_MESSAGE =

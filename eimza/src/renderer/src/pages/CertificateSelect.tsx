@@ -6,10 +6,12 @@ import DriverSetupGuide from '../components/DriverSetupGuide'
 
 interface CertificateSelectPageProps {
   onSelected: () => void
+  onLogout: () => void
 }
 
 export default function CertificateSelectPage({
-  onSelected
+  onSelected,
+  onLogout
 }: CertificateSelectPageProps): React.JSX.Element {
   const navigate = useNavigate()
   const [drivers, setDrivers] = useState<Pkcs11Driver[]>([])
@@ -83,6 +85,13 @@ export default function CertificateSelectPage({
     }
   }
 
+  async function handleLogout(): Promise<void> {
+    await window.api.pkcs11.logout()
+    await window.api.auth.logout()
+    onLogout()
+    navigate('/login')
+  }
+
   async function handleSelectCertificate(cert: CertificateInfo): Promise<void> {
     if (isCertificateExpired(cert.notAfter)) {
       const proceed = window.confirm(
@@ -109,9 +118,14 @@ export default function CertificateSelectPage({
           <h1>E-İmza Sertifikası Seç</h1>
           <p>USB token takılı olmalı ve sürücüsü kurulu olmalıdır.</p>
         </div>
-        <button type="button" className="btn secondary" onClick={() => void handleBrowseDriver()}>
-          Sürücü Seç
-        </button>
+        <div className="page-header-actions">
+          <button type="button" className="btn secondary" onClick={() => void handleBrowseDriver()}>
+            Sürücü Seç
+          </button>
+          <button type="button" className="btn ghost" onClick={() => void handleLogout()}>
+            Çıkış
+          </button>
+        </div>
       </div>
 
       {loading && <div className="alert info">Token aranıyor...</div>}

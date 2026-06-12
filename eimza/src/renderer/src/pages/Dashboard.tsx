@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import DocumentList from '../components/DocumentList'
 import PinDialog from '../components/PinDialog'
 import { APP_DISPLAY_NAME } from '@shared/brand'
-import type { SelectedCertificate, SignTask } from '@shared/types'
+import type { SelectedCertificate, SignTask, SessionSummary } from '@shared/types'
+import { formatSessionDisplayName } from '@shared/types'
+import {
+  certificateHolderMatchesUser,
+  getCertificateHolderName
+} from '@shared/certificateUtils'
 import { SESSION_EXPIRED_MESSAGE } from '@shared/types'
 
 type TabKey = 'erecete' | 'earsiv' | 'efatura'
@@ -35,9 +40,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
   const [activeTab, setActiveTab] = useState<TabKey>('erecete')
   const [tasks, setTasks] = useState<SignTask[]>([])
   const [certificate, setCertificate] = useState<SelectedCertificate | null>(null)
-  const [sessionInfo, setSessionInfo] = useState<{ email: string; customerCode: string } | null>(
-    null
-  )
+  const [sessionInfo, setSessionInfo] = useState<SessionSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pinDialog, setPinDialog] = useState<{ taskId: string; title: string } | null>(null)
@@ -136,6 +139,12 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
     navigate('/login')
   }
 
+  const userDisplayName = sessionInfo ? formatSessionDisplayName(sessionInfo) : null
+  const certHolderName = certificate ? getCertificateHolderName(certificate) : null
+  const nameMismatch =
+    Boolean(certificate && sessionInfo && userDisplayName && certHolderName) &&
+    !certificateHolderMatchesUser(certificate!, userDisplayName)
+
   return (
     <div className="page dashboard">
       <header className="topbar">
@@ -144,6 +153,14 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
           <p>
             {sessionInfo?.customerCode} · {sessionInfo?.email}
           </p>
+          {userDisplayName && <p className="topbar-user-name">{userDisplayName}</p>}
+          {nameMismatch && (
+            <p className="name-mismatch-badge" role="status">
+              <strong>Dikkat:</strong> Seçili sertifika sahibi{' '}
+              <strong>{certHolderName}</strong>, oturum kullanıcısı{' '}
+              <strong>{userDisplayName}</strong> ile eşleşmiyor.
+            </p>
+          )}
         </div>
         <div className="topbar-actions">
           <button type="button" className="btn secondary" onClick={() => navigate('/certificate')}>

@@ -7,6 +7,7 @@ import type {
   LoginCredentials,
   Pkcs11Driver,
   SelectedCertificate,
+  SessionSummary,
   SignCompleteResponse,
   SignPrepareResponse,
   SignTask,
@@ -28,10 +29,10 @@ const api = {
   },
   auth: {
     login: (credentials: LoginCredentials) =>
-      invoke<{ email: string; customerCode: string }>(IPC.AUTH_LOGIN, credentials),
+      invoke<SessionSummary>(IPC.AUTH_LOGIN, credentials),
     logout: () => invoke<boolean>(IPC.AUTH_LOGOUT),
-    getSession: () => invoke<{ email: string; customerCode: string } | null>(IPC.AUTH_SESSION),
-    restoreSession: () => invoke<{ email: string; customerCode: string } | null>(IPC.AUTH_RESTORE)
+    getSession: () => invoke<SessionSummary | null>(IPC.AUTH_SESSION),
+    restoreSession: () => invoke<SessionSummary | null>(IPC.AUTH_RESTORE)
   },
   pkcs11: {
     discoverDrivers: () => invoke<Pkcs11Driver[]>(IPC.PKCS11_DISCOVER_DRIVERS),

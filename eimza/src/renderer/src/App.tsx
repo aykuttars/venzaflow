@@ -79,6 +79,10 @@ function App(): React.JSX.Element {
                 onSelected={() => {
                   setHasCertificate(true)
                 }}
+                onLogout={() => {
+                  setAuthenticated(false)
+                  setHasCertificate(false)
+                }}
               />
             )
           }

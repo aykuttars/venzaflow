@@ -216,6 +216,7 @@ class Pkcs11Service {
       }
     }
     this.activeSession = null
+    this.selectedCertificate = null
     this.clearPin()
   }
 

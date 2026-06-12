@@ -18,7 +18,7 @@ export function registerAuthIpc(): void {
     try {
       const session = await apiClient.login(credentials)
       saveSession(session)
-      return ok({ email: session.email, customerCode: session.customerCode })
+      return ok(apiClient.toSessionSummary()!)
     } catch (error) {
       return fail(error)
     }
@@ -37,7 +37,7 @@ export function registerAuthIpc(): void {
     try {
       const session = apiClient.getSession()
       if (!session) return ok(null)
-      return ok({ email: session.email, customerCode: session.customerCode })
+      return ok(apiClient.toSessionSummary())
     } catch (error) {
       return fail(error)
     }
@@ -47,7 +47,7 @@ export function registerAuthIpc(): void {
     try {
       const session = await apiClient.restoreAndValidateSession()
       if (!session) return ok(null)
-      return ok({ email: session.email, customerCode: session.customerCode })
+      return ok(apiClient.toSessionSummary())
     } catch (error) {
       return fail(error)
     }

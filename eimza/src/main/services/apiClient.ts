@@ -2,6 +2,7 @@ import type {
   AuthSession,
   DocumentType,
   LoginCredentials,
+  SessionSummary,
   SignCompleteResponse,
   SignPrepareResponse,
   SignTask
@@ -128,6 +129,16 @@ class ApiClient {
     return this.session
   }
 
+  toSessionSummary(): SessionSummary | null {
+    if (!this.session) return null
+    return {
+      email: this.session.email,
+      customerCode: this.session.customerCode,
+      firstName: this.session.firstName,
+      lastName: this.session.lastName
+    }
+  }
+
   private clearInvalidSession(): void {
     this.setSession(null)
     clearSession()
@@ -212,6 +223,19 @@ class ApiClient {
 
     if (!response.ok) {
       throw new Error(await parseError(response))
+    }
+
+    const body = (await response.json()) as {
+      user?: { first_name?: string; last_name?: string }
+    }
+    const user = body.user
+    if (this.session && user) {
+      this.session = {
+        ...this.session,
+        firstName: user.first_name?.trim() || undefined,
+        lastName: user.last_name?.trim() || undefined
+      }
+      saveSession(this.session)
     }
   }
 
@@ -362,6 +386,7 @@ class ApiClient {
       email: credentials.email
     }
 
+    await this.getMe()
     return this.session
   }
 
