@@ -84,7 +84,9 @@ else
   npm install
 fi
 
-log "Typecheck + bundle (electron-vite)"
+log "Verify pkcs11js patch + rebuild native module"
+bash "$ROOT/scripts/verify-pkcs11-patch.sh"
+npm run rebuild:native
 npm run build
 
 VERSION="$(node -p "require('./package.json').version")"

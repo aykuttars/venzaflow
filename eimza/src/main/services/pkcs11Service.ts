@@ -43,32 +43,33 @@ class Pkcs11Service {
     this.initializeModule(this.activeModule)
   }
 
-  // CK_C_INITIALIZE_ARGS flag: library may use OS native threading for locking.
+  // CK_C_INITIALIZE_ARGS flag kept for libraries that require explicit locking setup.
   private static readonly CKF_OS_LOCKING_OK = 2
 
-  // Initialize the loaded module, tolerating finicky middleware.
-  // - Spec-compliant libraries accept C_Initialize(NULL); graphene passes NULL
-  //   when called with no options.
-  // - Some libraries (notably AKİS/libakisp11) reject NULL with
-  //   CKR_ARGUMENTS_BAD and require a CK_C_INITIALIZE_ARGS struct with
-  //   CKF_OS_LOCKING_OK. We retry with that struct before giving up.
-  // - CKR_CRYPTOKI_ALREADY_INITIALIZED means the library was already initialized
-  //   in this process (common when switching drivers, or with libraries that
-  //   keep a process-wide context); treat it as success.
+  // Initialize the loaded module.
+  // pkcs11js (patched) must call C_Initialize(NULL) for AKİS/libakisp11 — the
+  // stock binding always passed a non-NULL struct and got CKR_ARGUMENTS_BAD.
+  // Call lib.C_Initialize() with zero JS args (NULL), then graphene getInfo().
   private initializeModule(mod: GrapheneModule): void {
     try {
-      mod.initialize()
-      return
+      mod.lib.C_Initialize()
     } catch (err) {
-      if (/ALREADY_INITIALIZED/i.test(String(err))) return
-      try {
-        mod.initialize({ flags: Pkcs11Service.CKF_OS_LOCKING_OK })
+      if (/ALREADY_INITIALIZED/i.test(String(err))) {
+        mod.initialize()
         return
+      }
+      // OpenSC and some middleware want CKF_OS_LOCKING_OK when NULL is rejected.
+      try {
+        mod.lib.C_Initialize({ flags: Pkcs11Service.CKF_OS_LOCKING_OK })
       } catch (retryErr) {
-        if (/ALREADY_INITIALIZED/i.test(String(retryErr))) return
+        if (/ALREADY_INITIALIZED/i.test(String(retryErr))) {
+          mod.initialize({ flags: Pkcs11Service.CKF_OS_LOCKING_OK })
+          return
+        }
         throw retryErr
       }
     }
+    mod.initialize()
   }
 
   ensureDriver(driver?: Pkcs11Driver): void {
