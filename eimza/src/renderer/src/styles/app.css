@@ -210,6 +210,11 @@ input:focus {
   color: #1d4ed8;
 }
 
+.alert.warning {
+  background: #fffbeb;
+  color: var(--warning);
+}
+
 .page-header,
 .topbar,
 .section-head {
@@ -277,6 +282,16 @@ input:focus {
 .cert-card:hover {
   border-color: var(--primary);
   background: #f8fbff;
+}
+
+.cert-card.expired {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.cert-card.expired small {
+  color: var(--warning);
+  font-weight: 600;
 }
 
 .cert-banner {

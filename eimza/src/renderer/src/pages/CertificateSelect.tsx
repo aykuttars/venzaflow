@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { CertificateInfo, Pkcs11Driver, TokenSlotInfo } from '@shared/types'
+import { isCertificateExpired } from '@shared/certificateUtils'
 import DriverSetupGuide from '../components/DriverSetupGuide'
 
 interface CertificateSelectPageProps {
@@ -83,6 +84,13 @@ export default function CertificateSelectPage({
   }
 
   async function handleSelectCertificate(cert: CertificateInfo): Promise<void> {
+    if (isCertificateExpired(cert.notAfter)) {
+      const proceed = window.confirm(
+        `Bu sertifikanın geçerlilik süresi dolmuş.\n\nBitiş: ${cert.notAfter}\n\nResmi belgelerde geçerli imza oluşturulamaz. Yine de seçmek istiyor musunuz?`
+      )
+      if (!proceed) return
+    }
+
     await window.api.pkcs11.selectCertificate({
       certificateId: cert.id,
       slotIndex: cert.slotIndex,
@@ -167,18 +175,26 @@ export default function CertificateSelectPage({
           <p className="muted">Bu slotta sertifika bulunamadı.</p>
         ) : (
           <div className="cert-grid">
-            {certificates.map((cert) => (
+            {certificates.map((cert) => {
+              const expired = isCertificateExpired(cert.notAfter)
+              return (
               <button
                 key={cert.id}
                 type="button"
-                className="cert-card"
+                className={`cert-card${expired ? ' expired' : ''}`}
                 onClick={() => void handleSelectCertificate(cert)}
               >
                 <strong>{cert.label}</strong>
                 <span>{cert.subject}</span>
-                {cert.notAfter && <small>Geçerlilik: {cert.notAfter}</small>}
+                {cert.notAfter && (
+                  <small>
+                    Geçerlilik: {cert.notAfter}
+                    {expired ? ' (süresi dolmuş)' : ''}
+                  </small>
+                )}
               </button>
-            ))}
+              )
+            })}
           </div>
         )}
           </section>
