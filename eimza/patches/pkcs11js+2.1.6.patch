@@ -1,0 +1,20 @@
+diff --git a/node_modules/pkcs11js/src/pkcs11.cpp b/node_modules/pkcs11js/src/pkcs11.cpp
+index 404987e..a79754d 100644
+--- a/node_modules/pkcs11js/src/pkcs11.cpp
++++ b/node_modules/pkcs11js/src/pkcs11.cpp
+@@ -1040,10 +1040,11 @@ public:
+       }
+     }
+ 
+-    if (pInitArgs == nullptr)
+-    {
+-      pInitArgs = &initArgs;
+-    }
++    // PATCH (eimza): do NOT force a non-NULL CK_C_INITIALIZE_ARGS. When the
++    // caller passes no options, leave pInitArgs as NULL so spec-correct
++    // C_Initialize(NULL) is used. Some middleware (notably AKİS/libakisp11)
++    // rejects ANY non-NULL pInitArgs with CKR_ARGUMENTS_BAD, and only works
++    // when NULL is passed (matching how OpenSC pkcs11-tool initializes).
+ 
+     // Call PKCS11 function
+     CK_RV rv = pkcs11->functionList->C_Initialize(pInitArgs);
