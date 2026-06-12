@@ -40,15 +40,33 @@ class Pkcs11Service {
     saveDriverPath(driver.path)
     this.activeDriver = driver
     this.activeModule = graphene.Module.load(driver.path, driver.name)
+    this.initializeModule(this.activeModule)
+  }
+
+  // CK_C_INITIALIZE_ARGS flag: library may use OS native threading for locking.
+  private static readonly CKF_OS_LOCKING_OK = 2
+
+  // Initialize the loaded module, tolerating finicky middleware.
+  // - Spec-compliant libraries accept C_Initialize(NULL); graphene passes NULL
+  //   when called with no options.
+  // - Some libraries (notably AKİS/libakisp11) reject NULL with
+  //   CKR_ARGUMENTS_BAD and require a CK_C_INITIALIZE_ARGS struct with
+  //   CKF_OS_LOCKING_OK. We retry with that struct before giving up.
+  // - CKR_CRYPTOKI_ALREADY_INITIALIZED means the library was already initialized
+  //   in this process (common when switching drivers, or with libraries that
+  //   keep a process-wide context); treat it as success.
+  private initializeModule(mod: GrapheneModule): void {
     try {
-      this.activeModule.initialize()
+      mod.initialize()
+      return
     } catch (err) {
-      // CKR_CRYPTOKI_ALREADY_INITIALIZED: the underlying PKCS#11 library was
-      // already initialized in this process (common when switching drivers, or
-      // with libraries like AKİS that keep a process-wide context). Treat it as
-      // success; any other error is fatal and must propagate.
-      if (!/ALREADY_INITIALIZED/i.test(String(err))) {
-        throw err
+      if (/ALREADY_INITIALIZED/i.test(String(err))) return
+      try {
+        mod.initialize({ flags: Pkcs11Service.CKF_OS_LOCKING_OK })
+        return
+      } catch (retryErr) {
+        if (/ALREADY_INITIALIZED/i.test(String(retryErr))) return
+        throw retryErr
       }
     }
   }
@@ -88,21 +106,22 @@ class Pkcs11Service {
 
     const slots: TokenSlotInfo[] = []
     for (let i = 0; i < slotCollection.length; i++) {
-      let slot: graphene.Slot
       try {
-        slot = slotCollection.items(i)
+        const slot = slotCollection.items(i)
+        const tokenPresent = Boolean(slot.flags & graphene.SlotFlag.TOKEN_PRESENT)
+        slots.push({
+          slotIndex: i,
+          label: slot.slotDescription?.trim() || `Slot ${i}`,
+          manufacturer: slot.manufacturerID?.trim() || '',
+          tokenPresent,
+          driverId: this.activeDriver!.id,
+          driverName: this.activeDriver!.name
+        })
       } catch {
+        // Reading per-slot info (C_GetSlotInfo) can throw on some middleware;
+        // skip the slot rather than failing the whole enumeration.
         continue
       }
-      const tokenPresent = Boolean(slot.flags & graphene.SlotFlag.TOKEN_PRESENT)
-      slots.push({
-        slotIndex: i,
-        label: slot.slotDescription?.trim() || `Slot ${i}`,
-        manufacturer: slot.manufacturerID?.trim() || '',
-        tokenPresent,
-        driverId: this.activeDriver!.id,
-        driverName: this.activeDriver!.name
-      })
     }
 
     return slots.filter((s) => s.tokenPresent)
