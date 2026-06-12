@@ -21,9 +21,13 @@ const DRIVER_DEFINITIONS: DriverDefinition[] = [
         join(homedir(), 'lib/libakisp11.dylib')
       ],
       linux: [
+        '/opt/Akia/libakisp11.so',
         '/usr/lib/libakisp11.so',
         '/usr/local/lib/libakisp11.so',
-        '/usr/lib/x86_64-linux-gnu/libakisp11.so'
+        '/usr/lib/x86_64-linux-gnu/libakisp11.so',
+        '/usr/lib64/libakisp11.so',
+        '/usr/lib/pkcs11/libakisp11.so',
+        '/opt/akisp11/lib/libakisp11.so'
       ]
     }
   },
@@ -75,6 +79,7 @@ const DRIVER_DEFINITIONS: DriverDefinition[] = [
       ],
       linux: [
         '/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so',
+        '/usr/lib/x86_64-linux-gnu/pkcs11/opensc-pkcs11.so',
         '/usr/lib/opensc-pkcs11.so',
         '/usr/local/lib/opensc-pkcs11.so'
       ]
@@ -98,6 +103,30 @@ function bundledDriverCandidates(platform: NodeJS.Platform): string[] {
   if (!base) return []
   const files = BUNDLED_DRIVER_FILES[platform] ?? []
   return files.map((file) => join(base, 'pkcs11', platform, file))
+}
+
+/** Lower = preferred when auto-selecting a driver. AKİS before OpenSC fallbacks. */
+const DRIVER_PRIORITY: Record<string, number> = {
+  akis: 0,
+  etoken: 10,
+  idprime: 20,
+  bit4id: 30,
+  custom: 40,
+  bundled: 90,
+  opensc: 100
+}
+
+export function pickPreferredDriver(drivers: Pkcs11Driver[]): Pkcs11Driver | null {
+  if (drivers.length === 0) return null
+  return [...drivers].sort(
+    (a, b) => (DRIVER_PRIORITY[a.id] ?? 50) - (DRIVER_PRIORITY[b.id] ?? 50)
+  )[0]
+}
+
+function sortDriversByPriority(drivers: Pkcs11Driver[]): Pkcs11Driver[] {
+  return [...drivers].sort(
+    (a, b) => (DRIVER_PRIORITY[a.id] ?? 50) - (DRIVER_PRIORITY[b.id] ?? 50)
+  )
 }
 
 export function discoverDrivers(platform: NodeJS.Platform = process.platform): Pkcs11Driver[] {
@@ -130,7 +159,7 @@ export function discoverDrivers(platform: NodeJS.Platform = process.platform): P
     }
   }
 
-  return found
+  return sortDriversByPriority(found)
 }
 
 export function createCustomDriver(path: string): Pkcs11Driver {

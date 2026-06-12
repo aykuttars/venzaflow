@@ -34,12 +34,15 @@ const GUIDES: Record<string, PlatformGuide> = {
     ]
   },
   linux: {
-    title: 'Linux için e-imza sürücüsü',
-    expectedPath: '/usr/local/lib/libakisp11.so',
+    title: 'Linux (Ubuntu) için e-imza sürücüsü',
+    expectedPath: '/usr/lib/libakisp11.so',
     steps: [
-      'AKİS Linux paketini indirip kurun (veya dağıtımınızda OpenSC kurun).',
-      'pcscd servisinin çalıştığından emin olun.',
-      'USB token cihazınızı takın ve "Tekrar Tara"ya basın.'
+      'Terminalde: sudo apt install pcscd pcsc-tools libccid opensc',
+      'AKİS paketini indirin (.deb veya .tar içindeki libakisp11.so) ve sudo cp libakisp11.so /usr/lib/ ile kurun.',
+      'pcscd servisini başlatın: sudo systemctl enable --now pcscd',
+      'Kullanıcınızı scard grubuna ekleyin: sudo usermod -aG scard $USER (çıkış yapıp tekrar girin).',
+      'OpenSC tek başına AKİS kartını okumaz — uygulamada AKİS sürücüsünü seçin.',
+      'USB okuyucuyu takın ve "Tekrar Tara"ya basın.'
     ]
   }
 }

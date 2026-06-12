@@ -1,6 +1,6 @@
 import { X509Certificate as NodeX509 } from 'crypto'
 import * as graphene from 'graphene-pk11'
-import { createCustomDriver, discoverDrivers } from './driverDiscovery'
+import { createCustomDriver, discoverDrivers, pickPreferredDriver } from './driverDiscovery'
 import { loadDriverPath, saveDriverPath } from './secureStore'
 import type {
   CertificateInfo,
@@ -80,7 +80,7 @@ class Pkcs11Service {
         'PKCS#11 sürücüsü bulunamadı. AKİS veya e-imza sürücüsünü kurun veya manuel yol seçin.'
       )
     }
-    this.setDriver(drivers[0])
+    this.setDriver(pickPreferredDriver(drivers)!)
   }
 
   listSlots(): TokenSlotInfo[] {
