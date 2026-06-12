@@ -29,6 +29,7 @@ export function registerPkcs11Ipc(): void {
       saveDriverPath(driver.path)
       return ok(true)
     } catch (error) {
+      console.error('[pkcs11] setDriver failed:', driver.path, error)
       return fail(error)
     }
   })

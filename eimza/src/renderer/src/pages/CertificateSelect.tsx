@@ -41,9 +41,11 @@ export default function CertificateSelectPage({
 
   async function selectDriver(driver: Pkcs11Driver): Promise<void> {
     setError(null)
+    // Reflect the clicked driver immediately so the UI shows which one is active
+    // even if slot enumeration later fails.
+    setSelectedDriver(driver)
     try {
       await window.api.pkcs11.setDriver(driver)
-      setSelectedDriver(driver)
       const slotList = await window.api.pkcs11.listSlots()
       setSlots(slotList)
       setSelectedSlot(slotList[0]?.slotIndex ?? null)
@@ -52,9 +54,10 @@ export default function CertificateSelectPage({
       } else {
         setCertificates([])
       }
-    } catch {
-      // No token / driver enumeration failure: show the empty-state hint,
-      // not a raw PKCS#11 error code.
+    } catch (err) {
+      // Surface the underlying PKCS#11 error so driver issues are diagnosable
+      // instead of silently showing "no token".
+      setError(err instanceof Error ? err.message : String(err))
       setSlots([])
       setCertificates([])
     }

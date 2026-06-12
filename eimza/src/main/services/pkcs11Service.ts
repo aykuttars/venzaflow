@@ -40,7 +40,17 @@ class Pkcs11Service {
     saveDriverPath(driver.path)
     this.activeDriver = driver
     this.activeModule = graphene.Module.load(driver.path, driver.name)
-    this.activeModule.initialize()
+    try {
+      this.activeModule.initialize()
+    } catch (err) {
+      // CKR_CRYPTOKI_ALREADY_INITIALIZED: the underlying PKCS#11 library was
+      // already initialized in this process (common when switching drivers, or
+      // with libraries like AKİS that keep a process-wide context). Treat it as
+      // success; any other error is fatal and must propagate.
+      if (!/ALREADY_INITIALIZED/i.test(String(err))) {
+        throw err
+      }
+    }
   }
 
   ensureDriver(driver?: Pkcs11Driver): void {
