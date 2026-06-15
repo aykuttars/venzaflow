@@ -172,18 +172,14 @@ export const APP_ROUTES: Routes = [
           {
             path: '',
             loadComponent: () =>
-              import('./features/oral/oral-chart.component').then(
-                (m) => m.OralChartComponent
-              ),
+              import('./features/oral/oral-page.component').then((m) => m.OralPageComponent),
             canActivate: [roleGuard],
             data: { module: 'oral', permission: 'oral.read' },
           },
           {
             path: ':patientId',
             loadComponent: () =>
-              import('./features/oral/oral-chart.component').then(
-                (m) => m.OralChartComponent
-              ),
+              import('./features/oral/oral-page.component').then((m) => m.OralPageComponent),
             canActivate: [roleGuard],
             data: { module: 'oral', permission: 'oral.read' },
           },

@@ -14,12 +14,27 @@ class Invoice(TenantOwnedModel):
         PAID = "paid", "Paid"
         OVERDUE = "overdue", "Overdue"
 
+    class EDocumentType(models.TextChoices):
+        AUTO = "auto", "Auto"
+        EFATURA = "efatura", "e-Fatura"
+        EARSIV = "earsiv", "e-Arşiv"
+        NONE = "none", "None"
+
     number = models.CharField(max_length=64)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="invoices")
     issued_at = models.DateField()
     due_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT)
+    subtotal_before_discount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+    e_document_type = models.CharField(
+        max_length=16,
+        choices=EDocumentType.choices,
+        default=EDocumentType.AUTO,
+    )
 
     class Meta:
         db_table = "invoice"
@@ -33,8 +48,18 @@ class Invoice(TenantOwnedModel):
 class InvoiceLine(TenantOwnedModel):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    description = models.CharField(max_length=512, blank=True)
+    oral_treatment = models.ForeignKey(
+        "oral.OralTreatment",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="invoice_lines",
+    )
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    line_discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     line_total = models.DecimalField(max_digits=14, decimal_places=2)
 
     class Meta:

@@ -20,6 +20,7 @@ from apps.signing.serializers import (
 )
 from apps.signing.services.document_builder import build_payload
 from apps.signing.services.integration_config import supplier_dict
+from apps.signing.services.invoice_sync import mark_linked_invoice_sent
 from apps.signing.services.task_factory import sync_tasks
 from apps.signing.services.ubl import build_invoice_ubl
 from apps.signing.services.verifier import SignatureVerificationError, verify_signature
@@ -246,6 +247,7 @@ class SignTaskViewSet(TenantScopedViewSet):
                 "updated_at",
             ]
         )
+        mark_linked_invoice_sent(task)
 
         out = SignCompleteResponseSerializer(task)
         return Response(out.data)

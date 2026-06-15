@@ -146,3 +146,51 @@ class OralApiTests(TestCase):
         c.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
         r = c.get(f"/api/v1/oral/charts/{self.patient.pk}/")
         self.assertIn(r.status_code, (403, 404))
+
+    def test_reseed_procedures(self):
+        before = ProcedureCatalog.all_tenants.filter(tenant=self.tenant).count()
+        r = self.client.post("/api/v1/oral/procedures/reseed/")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertGreater(r.json()["created"], 0)
+        after = ProcedureCatalog.all_tenants.filter(tenant=self.tenant).count()
+        self.assertGreater(after, before)
+        r2 = self.client.post("/api/v1/oral/procedures/reseed/")
+        self.assertEqual(r2.json()["created"], 0)
+
+    def test_create_procedure_links_product(self):
+        set_module_subscriptions(self.tenant, ["patients", "oral", "products"], module_parents={"oral": "patients"})
+        r = self.client.post(
+            "/api/v1/oral/procedures/",
+            {
+                "code": "TEST-X",
+                "name": "Test Procedure",
+                "category": "treatment",
+                "default_price": "999.00",
+                "is_active": True,
+                "sort_order": 99,
+                "is_frequent": False,
+                "default_tooth_condition": "",
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertIsNotNone(r.json().get("product"))
+        self.assertEqual(r.json()["product_name"], "Test Procedure")
+
+    def test_read_only_cannot_create_procedure(self):
+        read_dept = Department.objects.create(tenant=self.tenant, key="ro", name="ReadOnly")
+        read_dept.permissions.set(Permission.objects.filter(codename="oral.read"))
+        user = User.all_tenants.create(
+            tenant=self.tenant, email="read@clinic.test", department=read_dept, is_active=True
+        )
+        user.set_password("StaffPass1!X")
+        user.save()
+        c = APIClient()
+        login = c.post(
+            "/api/v1/auth/login/",
+            {"customer_code": "ORAL1", "email": "read@clinic.test", "password": "StaffPass1!X"},
+            format="json",
+        )
+        c.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
+        r = c.post("/api/v1/oral/procedures/", {"code": "X", "name": "X", "category": "treatment"}, format="json")
+        self.assertEqual(r.status_code, 403)

@@ -167,7 +167,6 @@ function slugify(value: string): string {
               #dynForm
               [formConfig]="formConfig()"
               [fieldDefinitions]="fieldDefinitions()"
-              [categories]="categories()"
               [initial]="editingProduct()"
             />
           } @else {

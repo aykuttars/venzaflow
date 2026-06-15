@@ -14,11 +14,14 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Department, Permission
-from apps.billing.models import Invoice
+from apps.billing.models import Invoice, InvoiceLine
 from apps.common.permission_codes import PERMISSION_CODENAMES
 from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
+from apps.oral.models import OralTreatment, ProcedureCatalog
+from apps.products.models import Category, Product
 from apps.signing.models import SignTask
+from apps.signing.services.task_factory import sync_erecete_tasks, sync_sign_task_for_invoice
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
@@ -93,6 +96,24 @@ class SigningApiTests(TestCase):
             status=Invoice.Status.DRAFT,
             total=Decimal("100.00"),
         )
+        category = Category.all_tenants.create(
+            tenant=cls.tenant, name="Genel", slug="genel-sign"
+        )
+        product = Product.all_tenants.create(
+            tenant=cls.tenant,
+            sku="SVC-SIGN",
+            name="Hizmet",
+            category=category,
+            unit_price=Decimal("100.00"),
+        )
+        InvoiceLine.all_tenants.create(
+            tenant=cls.tenant,
+            invoice=cls.invoice,
+            product=product,
+            quantity=1,
+            unit_price=Decimal("100.00"),
+            line_total=Decimal("100.00"),
+        )
 
     def setUp(self):
         self.client = APIClient()
@@ -154,6 +175,8 @@ class SigningApiTests(TestCase):
         task = SignTask.objects.get(pk=task_id)
         self.assertEqual(task.status, SignTask.Status.SUBMITTED)
         self.assertEqual(task.provider, "mock")
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.status, Invoice.Status.SENT)
         # The stored artifact is the final signed UBL-TR XML.
         self.assertIn("<ds:SignatureValue", task.signed_document)
         self.assertIn("Invoice", task.signed_document)
@@ -183,6 +206,111 @@ class SigningApiTests(TestCase):
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
         r = client.get("/api/v1/sign/tasks/?document_type=efatura")
         self.assertEqual(r.status_code, 403)
+
+
+class SignTaskFactoryTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.tenant = Tenant.objects.create(customer_code="SYNCF", name="Sync Clinic", max_users=5)
+        set_module_subscriptions(cls.tenant, ["billing", "signing", "oral", "patients"], module_parents={"oral": "patients"})
+        cls.patient = Customer.all_tenants.create(
+            tenant=cls.tenant,
+            kind=Customer.Kind.PATIENT,
+            first_name="Hasta",
+            last_name="Bir",
+            mobile_phone="5320000001",
+            tckn="11111111110",
+            home_address=SAMPLE_HOME_ADDRESS,
+        )
+        cls.procedure = ProcedureCatalog.all_tenants.create(
+            tenant=cls.tenant,
+            code="EXTR",
+            name="Çekim",
+            category=ProcedureCatalog.Category.TREATMENT,
+            default_price=Decimal("500.00"),
+        )
+        from apps.oral.services.procedure_product import ensure_procedure_product
+
+        ensure_procedure_product(cls.procedure)
+
+    def test_patient_invoice_syncs_to_earsiv(self):
+        from apps.billing.services.oral_invoice import create_invoice_from_treatments
+
+        treatment = OralTreatment.all_tenants.create(
+            tenant=self.tenant,
+            patient=self.patient,
+            procedure=self.procedure,
+            tooth_numbers=[11],
+            status=OralTreatment.Status.COMPLETED,
+            phase="treatment",
+            unit_price=Decimal("500.00"),
+            session_date=date.today(),
+        )
+        invoice = create_invoice_from_treatments(
+            self.tenant,
+            self.patient,
+            [treatment.id],
+            e_document_type=Invoice.EDocumentType.AUTO,
+        )
+        task = SignTask.objects.filter(
+            tenant=self.tenant,
+            content_type__model="invoice",
+            object_id=invoice.id,
+        ).first()
+        self.assertIsNotNone(task)
+        self.assertEqual(task.document_type, SignTask.DocumentType.EARSIV)
+
+    def test_empty_line_invoice_not_synced(self):
+        invoice = Invoice.all_tenants.create(
+            tenant=self.tenant,
+            number="EMPTY-1",
+            customer=self.patient,
+            issued_at=date.today(),
+            status=Invoice.Status.DRAFT,
+            total=Decimal("100.00"),
+        )
+        self.assertFalse(sync_sign_task_for_invoice(self.tenant, invoice))
+
+    def test_invoiced_treatment_excluded_from_erecete(self):
+        treatment = OralTreatment.all_tenants.create(
+            tenant=self.tenant,
+            patient=self.patient,
+            procedure=self.procedure,
+            tooth_numbers=[12],
+            status=OralTreatment.Status.COMPLETED,
+            phase="treatment",
+            unit_price=Decimal("500.00"),
+            session_date=date.today(),
+        )
+        invoice = Invoice.all_tenants.create(
+            tenant=self.tenant,
+            number="INV-E",
+            customer=self.patient,
+            issued_at=date.today(),
+            status=Invoice.Status.DRAFT,
+            total=Decimal("500.00"),
+        )
+        treatment.invoice = invoice
+        treatment.save(update_fields=["invoice"])
+        OralTreatment.all_tenants.create(
+            tenant=self.tenant,
+            patient=self.patient,
+            procedure=self.procedure,
+            tooth_numbers=[13],
+            status=OralTreatment.Status.COMPLETED,
+            phase="treatment",
+            unit_price=Decimal("500.00"),
+            session_date=date.today(),
+        )
+        created = sync_erecete_tasks(self.tenant)
+        self.assertEqual(created, 1)
+        self.assertFalse(
+            SignTask.objects.filter(
+                tenant=self.tenant,
+                document_type=SignTask.DocumentType.ERECETE,
+                object_id=treatment.id,
+            ).exists()
+        )
 
 
 class IntegrationConfigTests(TestCase):

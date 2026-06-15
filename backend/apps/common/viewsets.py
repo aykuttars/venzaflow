@@ -17,10 +17,10 @@ class TenantScopedViewSet(viewsets.ModelViewSet):
     action_permission_map: dict[str, str] | None = None
 
     def initial(self, request, *args, **kwargs):
-        super().initial(request, *args, **kwargs)
         act = getattr(self, "action", None)
         if act and self.action_permission_map:
             self.required_permission = self.action_permission_map.get(act)
+        super().initial(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = super().get_queryset()

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, Input, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -47,6 +48,8 @@ import { OdontogramComponent } from './odontogram.component';
     MatSnackBarModule,
     MatTabsModule,
     MatTooltipModule,
+    MatCheckboxModule,
+    RouterLink,
     TranslateModule,
     PageHeaderComponent,
     AuthImageComponent,
@@ -101,6 +104,7 @@ import { OdontogramComponent } from './odontogram.component';
 export class OralChartComponent implements OnInit {
   @Input() embedded = false;
   @Input() dialogMode = false;
+  @Input() shellMode = false;
   @Input() inputPatientId: number | null = null;
 
   private route = inject(ActivatedRoute);
@@ -120,7 +124,12 @@ export class OralChartComponent implements OnInit {
   highlightTooth = signal<number | null>(null);
   categoryTab = signal(0);
   searchControl = new FormControl('', { nonNullable: true });
+  invoiceDiscountControl = new FormControl('0', { nonNullable: true });
+  eDocumentControl = new FormControl<'auto' | 'efatura' | 'earsiv' | 'none'>('auto', { nonNullable: true });
   loading = signal(false);
+  unbilledTreatments = signal<OralTreatment[]>([]);
+  selectedForInvoice = signal<Set<number>>(new Set());
+  lastInvoiceId = signal<number | null>(null);
 
   patientPhotoUrl = patientPhotoUrl;
 
@@ -206,6 +215,7 @@ export class OralChartComponent implements OnInit {
   }
 
   canWrite = () => this.auth.hasPermission('oral.write');
+  canBill = () => this.auth.hasModule('billing') && this.auth.hasPermission('billing.write');
 
   onPatientPicked(id: number | null): void {
     if (!id) return;
@@ -242,6 +252,55 @@ export class OralChartComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+    this.loadUnbilled(id);
+  }
+
+  loadUnbilled(patientId: number): void {
+    if (!this.canBill()) {
+      this.unbilledTreatments.set([]);
+      return;
+    }
+    this.oral.listTreatments(patientId, { unbilled: true, status: 'completed' }).subscribe({
+      next: (t) => {
+        this.unbilledTreatments.set(t.results);
+        this.selectedForInvoice.set(new Set(t.results.map((x) => x.id)));
+      },
+    });
+  }
+
+  toggleInvoiceSelection(id: number, checked: boolean): void {
+    const set = new Set(this.selectedForInvoice());
+    if (checked) set.add(id);
+    else set.delete(id);
+    this.selectedForInvoice.set(set);
+  }
+
+  createInvoiceFromSelected(): void {
+    const patientId = this.patientId();
+    if (!patientId) return;
+    const ids = [...this.selectedForInvoice()];
+    if (!ids.length) {
+      this.snack.open(this.translate.instant('oral.unbilledTreatments'), 'OK', { duration: 2500 });
+      return;
+    }
+    this.oral
+      .createInvoiceFromTreatments({
+        patient: patientId,
+        treatment_ids: ids,
+        discount_percent: this.invoiceDiscountControl.value || '0',
+        e_document_type: this.eDocumentControl.value,
+      })
+      .subscribe({
+        next: (inv) => {
+          this.lastInvoiceId.set(inv.id);
+          this.reloadChartAndTreatments();
+          this.snack.open(this.translate.instant('oral.invoiceCreated'), 'OK', { duration: 2500 });
+        },
+        error: (e) =>
+          this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', {
+            duration: 3500,
+          }),
+      });
   }
 
   applyProcedure(proc: ProcedureCatalog, status: OralTreatment['status'] = 'planned'): void {

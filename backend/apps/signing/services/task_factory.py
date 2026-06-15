@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.contrib.contenttypes.models import ContentType
 
 from apps.billing.models import Invoice
+from apps.billing.services.oral_invoice import resolve_e_document_type
 from apps.oral.models import OralTreatment
 from apps.signing.models import SignTask
 from apps.tenants.models import Tenant
@@ -26,43 +29,89 @@ def _existing_source_ids(tenant: Tenant, document_type: str, content_type: Conte
     )
 
 
-def sync_efatura_tasks(tenant: Tenant) -> int:
+def invoice_eligible_for_signing(invoice: Invoice) -> bool:
+    if resolve_e_document_type(invoice) == "none":
+        return False
+    if invoice.status not in (Invoice.Status.DRAFT, Invoice.Status.SENT):
+        return False
+    if not invoice.lines.exists():
+        return False
+    if Decimal(str(invoice.total or 0)) <= 0:
+        return False
+    return True
+
+
+def sync_sign_task_for_invoice(tenant: Tenant, invoice: Invoice) -> bool:
+    """Create a sign task for one invoice when eligible. Returns True if created."""
+    if not invoice_eligible_for_signing(invoice):
+        return False
+    resolved = resolve_e_document_type(invoice)
+    if resolved == Invoice.EDocumentType.EFATURA:
+        document_type = SignTask.DocumentType.EFATURA
+    elif resolved == Invoice.EDocumentType.EARSIV:
+        document_type = SignTask.DocumentType.EARSIV
+    else:
+        return False
+    return _create_invoice_sign_task(tenant, invoice, document_type)
+
+
+def _create_invoice_sign_task(tenant: Tenant, invoice: Invoice, document_type: str) -> bool:
     ct = _invoice_ct()
-    existing = _existing_source_ids(tenant, SignTask.DocumentType.EFATURA, ct)
+    if SignTask.objects.filter(
+        tenant=tenant,
+        document_type=document_type,
+        content_type=ct,
+        object_id=invoice.id,
+    ).exists():
+        return False
+    label = "e-Fatura" if document_type == SignTask.DocumentType.EFATURA else "e-Arşiv"
+    SignTask.objects.create(
+        tenant=tenant,
+        document_type=document_type,
+        title=f"{label} — {invoice.number}",
+        description=f"Müşteri: {invoice.customer.first_name} {invoice.customer.last_name}".strip(),
+        status=SignTask.Status.PENDING,
+        content_type=ct,
+        object_id=invoice.id,
+        metadata={"invoice_number": invoice.number, "source": "billing.invoice"},
+    )
+    return True
+
+
+def sync_efatura_tasks(tenant: Tenant) -> int:
     created = 0
-    qs = Invoice.objects.filter(tenant=tenant, status=Invoice.Status.DRAFT).exclude(id__in=existing)
-    for invoice in qs.select_related("customer"):
-        SignTask.objects.create(
-            tenant=tenant,
-            document_type=SignTask.DocumentType.EFATURA,
-            title=f"e-Fatura — {invoice.number}",
-            description=f"Müşteri: {invoice.customer.first_name} {invoice.customer.last_name}".strip(),
-            status=SignTask.Status.PENDING,
-            content_type=ct,
-            object_id=invoice.id,
-            metadata={"invoice_number": invoice.number, "source": "billing.invoice"},
-        )
-        created += 1
+    qs = (
+        Invoice.objects.filter(tenant=tenant, status=Invoice.Status.DRAFT)
+        .select_related("customer")
+        .prefetch_related("lines")
+    )
+    for invoice in qs:
+        if not invoice_eligible_for_signing(invoice):
+            continue
+        if resolve_e_document_type(invoice) != Invoice.EDocumentType.EFATURA:
+            continue
+        if _create_invoice_sign_task(tenant, invoice, SignTask.DocumentType.EFATURA):
+            created += 1
     return created
 
 
 def sync_earsiv_tasks(tenant: Tenant) -> int:
-    ct = _invoice_ct()
-    existing = _existing_source_ids(tenant, SignTask.DocumentType.EARSIV, ct)
     created = 0
-    qs = Invoice.objects.filter(tenant=tenant, status=Invoice.Status.SENT).exclude(id__in=existing)
-    for invoice in qs.select_related("customer"):
-        SignTask.objects.create(
+    qs = (
+        Invoice.objects.filter(
             tenant=tenant,
-            document_type=SignTask.DocumentType.EARSIV,
-            title=f"e-Arşiv — {invoice.number}",
-            description=f"Müşteri: {invoice.customer.first_name} {invoice.customer.last_name}".strip(),
-            status=SignTask.Status.PENDING,
-            content_type=ct,
-            object_id=invoice.id,
-            metadata={"invoice_number": invoice.number, "source": "billing.invoice"},
+            status__in=[Invoice.Status.DRAFT, Invoice.Status.SENT],
         )
-        created += 1
+        .select_related("customer")
+        .prefetch_related("lines")
+    )
+    for invoice in qs:
+        if not invoice_eligible_for_signing(invoice):
+            continue
+        if resolve_e_document_type(invoice) != Invoice.EDocumentType.EARSIV:
+            continue
+        if _create_invoice_sign_task(tenant, invoice, SignTask.DocumentType.EARSIV):
+            created += 1
     return created
 
 
@@ -71,7 +120,11 @@ def sync_erecete_tasks(tenant: Tenant) -> int:
     existing = _existing_source_ids(tenant, SignTask.DocumentType.ERECETE, ct)
     created = 0
     qs = (
-        OralTreatment.objects.filter(tenant=tenant, status=OralTreatment.Status.COMPLETED)
+        OralTreatment.objects.filter(
+            tenant=tenant,
+            status=OralTreatment.Status.COMPLETED,
+            invoice__isnull=True,
+        )
         .exclude(id__in=existing)
         .select_related("patient", "procedure")
     )

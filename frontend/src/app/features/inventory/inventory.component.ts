@@ -18,6 +18,7 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService, Page } from '../../shared/crud.service';
 import { downloadBlob, postImportFile } from '../../shared/import-export.utils';
 import { PageHeaderComponent } from '../../shared/page-header.component';
+import { SearchSelectComponent } from '../../shared/search-select.component';
 
 interface InventoryDashboard {
   total_products: number;
@@ -49,6 +50,7 @@ interface InventoryDashboard {
     MatTabsModule,
     TranslateModule,
     PageHeaderComponent,
+    SearchSelectComponent,
   ],
   template: `
     <div class="page">
@@ -198,35 +200,54 @@ interface InventoryDashboard {
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.code' | translate }}</mat-label><input matInput formControlName="code" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
           } @else if (tab() === 2) {
-            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.warehouse' | translate }}</mat-label>
-              <mat-select formControlName="warehouse">@for (w of warehouses(); track w.id) {<mat-option [value]="w.id">{{ w.code }}</mat-option>}</mat-select>
-            </mat-form-field>
+            <app-search-select
+              formControlName="warehouse"
+              apiPath="inventory/warehouses"
+              moduleSlug="inventory"
+              [label]="'inventory.warehouse' | translate"
+              [labelKeys]="['code', 'name']"
+              [required]="true"
+            />
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.code' | translate }}</mat-label><input matInput formControlName="code" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
           } @else if (tab() === 3) {
-            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.product' | translate }}</mat-label>
-              <mat-select formControlName="product" [disabled]="!hasProductsModule()">
-                @for (p of products(); track p.id) {<mat-option [value]="p.id">{{ p.sku }}</mat-option>}
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.warehouse' | translate }}</mat-label>
-              <mat-select formControlName="warehouse">@for (w of warehouses(); track w.id) {<mat-option [value]="w.id">{{ w.code }}</mat-option>}</mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.location' | translate }}</mat-label>
-              <mat-select formControlName="location">
-                <mat-option [value]="null">—</mat-option>
-                @for (l of locationsForWarehouse(); track l.id) {<mat-option [value]="l.id">{{ l.code }}</mat-option>}
-              </mat-select>
-            </mat-form-field>
+            <app-search-select
+              formControlName="product"
+              apiPath="products"
+              moduleSlug="products"
+              [label]="'inventory.product' | translate"
+              [labelKeys]="['sku', 'name']"
+              [required]="true"
+            />
+            <app-search-select
+              formControlName="warehouse"
+              apiPath="inventory/warehouses"
+              moduleSlug="inventory"
+              [label]="'inventory.warehouse' | translate"
+              [labelKeys]="['code', 'name']"
+              [required]="true"
+            />
+            <app-search-select
+              formControlName="location"
+              apiPath="inventory/locations"
+              moduleSlug="inventory"
+              [label]="'inventory.location' | translate"
+              [labelKeys]="['code', 'name']"
+              [extraParams]="stockLocationFilter()"
+              [allowNull]="true"
+            />
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.quantity' | translate }}</mat-label><input matInput type="number" formControlName="quantity" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.reorderLevel' | translate }}</mat-label><input matInput type="number" formControlName="reorder_level" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.reserved' | translate }}</mat-label><input matInput type="number" formControlName="reserved_quantity" /></mat-form-field>
           } @else if (tab() === 4) {
-            <mat-form-field appearance="outline"><mat-label>{{ 'inventory.stock' | translate }}</mat-label>
-              <mat-select formControlName="stock">
-                @for (s of stock(); track s.id) {<mat-option [value]="s.id">{{ s.product_sku }} · {{ s.warehouse_code }}</mat-option>}
-              </mat-select>
-            </mat-form-field>
+            <app-search-select
+              formControlName="stock"
+              apiPath="inventory/stock"
+              moduleSlug="inventory"
+              [label]="'inventory.stock' | translate"
+              [labelKeys]="['product_sku', 'warehouse_code', 'location_code']"
+              [required]="true"
+            />
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.type' | translate }}</mat-label>
               <mat-select formControlName="movement_type">
                 @for (t of movementTypes; track t) {<mat-option [value]="t">{{ t }}</mat-option>}
@@ -287,7 +308,7 @@ export class InventoryComponent implements OnInit {
   locations = signal<any[]>([]);
   stock = signal<any[]>([]);
   movements = signal<any[]>([]);
-  products = signal<any[]>([]);
+  stockLocationFilter = signal<Record<string, number>>({});
   movementTypes = [
     'PURCHASE',
     'SALE',
@@ -303,7 +324,6 @@ export class InventoryComponent implements OnInit {
   private locCrud = new CrudService<any>(this.http, 'inventory/locations', this.auth, 'inventory');
   private stockCrud = new CrudService<any>(this.http, 'inventory/stock', this.auth, 'inventory');
   private movCrud = new CrudService<any>(this.http, 'inventory/movements', this.auth, 'inventory');
-  private prodCrud = new CrudService<any>(this.http, 'products', this.auth, 'products');
 
   warehouseForm = this.fb.group({ id: this.fb.control<number | null>(null), code: ['', Validators.required], name: ['', Validators.required] });
   locationForm = this.fb.group({
@@ -379,13 +399,10 @@ export class InventoryComponent implements OnInit {
     input.value = '';
   }
 
-  locationsForWarehouse(): any[] {
-    const wh = this.stockForm.get('warehouse')?.value;
-    if (!wh) return this.locations();
-    return this.locations().filter((l) => l.warehouse === wh);
-  }
-
   ngOnInit(): void {
+    this.stockForm.get('warehouse')?.valueChanges.subscribe((wh) => {
+      this.stockLocationFilter.set(wh != null ? { warehouse: wh } : {});
+    });
     this.reloadAll();
     this.loadDashboard();
   }
@@ -404,14 +421,7 @@ export class InventoryComponent implements OnInit {
     this.locCrud.list({ limit: 500 }).subscribe((p) => this.locations.set(p.results));
     this.stockCrud.list({ limit: 200 }).subscribe((p) => this.stock.set(p.results));
     this.movCrud.list({ limit: 200 }).subscribe((p) => this.movements.set(p.results));
-    if (this.auth.hasModule('products')) {
-      this.prodCrud.list({ limit: 200 }).subscribe((p) => this.products.set(p.results));
-    } else {
-      this.products.set([]);
-    }
   }
-
-  hasProductsModule = () => this.auth.hasModule('products');
 
   openForm(w?: any): void {
     this.tab.set(1);
@@ -436,6 +446,10 @@ export class InventoryComponent implements OnInit {
           }
         : { id: null, product: null, warehouse: null, location: null, quantity: 0, reserved_quantity: 0, reorder_level: 0 }
     );
+    this.stockLocationFilter.set(s?.warehouse != null ? { warehouse: s.warehouse } : {});
+    const productCtrl = this.stockForm.get('product');
+    if (this.auth.hasModule('products')) productCtrl?.enable();
+    else productCtrl?.disable();
     this.editing.set(true);
   }
 

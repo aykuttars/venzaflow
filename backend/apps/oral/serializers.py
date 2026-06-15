@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.customers.models import Customer
 from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
+from apps.oral.services.procedure_product import ensure_procedure_product
 from apps.oral.validators import validate_fdi_tooth_numbers
 
 
 class ProcedureCatalogSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True, default="")
+
     class Meta:
         model = ProcedureCatalog
         fields = (
@@ -18,12 +23,28 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
             "category",
             "default_price",
             "product",
+            "product_name",
             "is_active",
             "sort_order",
             "is_frequent",
             "default_tooth_condition",
         )
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "product_name")
+
+    def validate_default_price(self, value):
+        if value < Decimal("0"):
+            raise serializers.ValidationError("Price must be zero or greater.")
+        return value
+
+    def create(self, validated_data):
+        obj = super().create(validated_data)
+        ensure_procedure_product(obj)
+        return obj
+
+    def update(self, instance, validated_data):
+        obj = super().update(instance, validated_data)
+        ensure_procedure_product(obj)
+        return obj
 
 
 class PatientOralChartSerializer(serializers.ModelSerializer):
@@ -61,10 +82,20 @@ class OralTreatmentSerializer(serializers.ModelSerializer):
             "doctor",
             "doctor_name",
             "notes",
+            "invoice",
+            "invoiced_at",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at", "procedure_name", "doctor_name")
+        read_only_fields = (
+            "id",
+            "created_at",
+            "updated_at",
+            "procedure_name",
+            "doctor_name",
+            "invoice",
+            "invoiced_at",
+        )
 
     def get_doctor_name(self, obj):
         if not obj.doctor_id:

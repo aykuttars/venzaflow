@@ -27,6 +27,7 @@ from apps.products.models import Category, Product
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 from apps.oral.seed_data import ensure_clinic_demo_patients, ensure_oral_procedures
+from apps.billing.seed_clinic_demo import ensure_clinic_billing_signing_demo
 from apps.products.seed_hardware_retail import seed_hardware_retail_tenant
 
 User = get_user_model()
@@ -183,6 +184,8 @@ class Command(BaseCommand):
             "billing.read",
             "billing.write",
             "patients.read",
+            "oral.read",
+            "signing.read",
             "dashboard.read",
         ]
         accounting_codes = [
@@ -226,6 +229,16 @@ class Command(BaseCommand):
 
         oral_procedures = ensure_oral_procedures(t1000)
         ensure_clinic_demo_patients(t1000, oral_procedures)
+        demo_stats = ensure_clinic_billing_signing_demo(t1000)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"tenant 1000 billing/signing demo: "
+                f"{demo_stats['invoices']} invoice(s), "
+                f"{demo_stats['payments']} payment(s), "
+                f"{demo_stats['sign_tasks']} sign task(s), "
+                f"+{demo_stats['erecete_tasks']} e-Reçete task(s)"
+            )
+        )
 
         demo_pw = "X7@qL9#vT2!mZ4$k"
         users = [

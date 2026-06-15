@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
 
+import { SearchSelectComponent } from '../search-select.component';
 import { FormFieldConfig, ProductFieldDefinition, ProductRow } from './models';
 
 @Component({
@@ -20,6 +21,7 @@ import { FormFieldConfig, ProductFieldDefinition, ProductRow } from './models';
     MatSelectModule,
     MatCheckboxModule,
     TranslateModule,
+    SearchSelectComponent,
   ],
   template: `
     <form [formGroup]="form">
@@ -30,14 +32,14 @@ import { FormFieldConfig, ProductFieldDefinition, ProductRow } from './models';
         @if (field.field_source === 'CORE') {
         @switch (field.field_key) {
           @case ('category') {
-          <mat-form-field appearance="outline">
-            <mat-label>{{ field.label }}</mat-label>
-            <mat-select formControlName="category" [required]="field.is_required">
-              @for (c of categories; track c.id) {
-              <mat-option [value]="c.id">{{ c.name }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+          <app-search-select
+            formControlName="category"
+            apiPath="products/categories"
+            moduleSlug="products"
+            [label]="field.label"
+            [labelKeys]="['name']"
+            [required]="field.is_required"
+          />
           }
           @case ('is_active') {
           <div class="checkbox-field">
@@ -117,7 +119,6 @@ import { FormFieldConfig, ProductFieldDefinition, ProductRow } from './models';
 export class DynamicProductFormComponent implements OnChanges {
   @Input() formConfig: FormFieldConfig[] = [];
   @Input() fieldDefinitions: ProductFieldDefinition[] = [];
-  @Input() categories: { id: number; name: string }[] = [];
   @Input() initial: ProductRow | null = null;
 
   form!: FormGroup;

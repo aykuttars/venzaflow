@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -179,6 +180,7 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
 export class SigningComponent implements OnInit {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
+  private route = inject(ActivatedRoute);
 
   readonly tabs = TABS;
   activeTab = signal<DocumentType>('erecete');
@@ -186,6 +188,10 @@ export class SigningComponent implements OnInit {
   loading = signal(false);
 
   ngOnInit(): void {
+    const doc = this.route.snapshot.queryParamMap.get('document_type');
+    if (doc === 'erecete' || doc === 'earsiv' || doc === 'efatura') {
+      this.activeTab.set(doc);
+    }
     this.loadTasks();
   }
 

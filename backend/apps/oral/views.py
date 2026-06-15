@@ -11,6 +11,7 @@ from apps.common.viewsets import TenantScopedViewSet
 from apps.customers.models import Customer
 from apps.oral.chart_sync import sync_chart_from_treatment
 from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
+from apps.oral.seed_data import reseed_oral_procedures
 from apps.oral.serializers import (
     OralTreatmentBulkCreateSerializer,
     OralTreatmentSerializer,
@@ -30,6 +31,7 @@ class ProcedureCatalogViewSet(TenantScopedViewSet):
         "update": "oral.write",
         "partial_update": "oral.write",
         "destroy": "oral.write",
+        "reseed": "oral.write",
     }
     search_fields = ("name", "code")
     ordering_fields = ("sort_order", "name", "default_price")
@@ -43,6 +45,12 @@ class ProcedureCatalogViewSet(TenantScopedViewSet):
         if show_inactive and self.action == "list":
             return ProcedureCatalog.all_tenants.filter(tenant_id=self.request.user.tenant_id)
         return qs
+
+    @action(detail=False, methods=["post"], url_path="reseed")
+    def reseed(self, request):
+        sync_names = request.query_params.get("sync_names") == "1"
+        stats = reseed_oral_procedures(request.user.tenant, sync_names=sync_names)
+        return Response(stats)
 
 
 class PatientOralChartView(APIView):
@@ -98,6 +106,12 @@ class OralTreatmentViewSet(TenantScopedViewSet):
     }
     filterset_fields = ("patient", "status", "session_date", "procedure")
     ordering_fields = ("session_date", "created_at", "unit_price")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.query_params.get("unbilled") == "1":
+            qs = qs.filter(invoice__isnull=True)
+        return qs
 
     @action(detail=False, methods=["post"], url_path="bulk")
     def bulk(self, request):

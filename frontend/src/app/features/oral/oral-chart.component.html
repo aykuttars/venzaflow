@@ -1,5 +1,5 @@
 <div class="page" [class.page--embedded]="embedded || dialogMode">
-  @if (!embedded && !dialogMode) {
+  @if (!embedded && !dialogMode && !shellMode) {
   <app-page-header moduleSlug="oral" icon="medical_services">
     @if (patientId()) {
     <button mat-stroked-button routerLink="/oral">
@@ -176,6 +176,46 @@
         <p>{{ 'common.noRecords' | translate }}</p>
         }
       </div>
+    </mat-card>
+    }
+
+    @if (!dialogMode && canBill() && patientId()) {
+    <mat-card style="padding:16px">
+      <h3 style="margin:0 0 12px">{{ 'oral.unbilledTreatments' | translate }}</h3>
+      @for (t of unbilledTreatments(); track t.id) {
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <mat-checkbox
+          [checked]="selectedForInvoice().has(t.id)"
+          (change)="toggleInvoiceSelection(t.id, $event.checked)"
+        />
+        <span>{{ t.procedure_name }} · {{ 'oral.colTooth' | translate }} {{ t.tooth_numbers.join(', ') }} · {{ formatPrice(t.unit_price) }} ₺</span>
+      </div>
+      } @empty {
+      <p style="opacity:0.7;font-size:13px">{{ 'common.noRecords' | translate }}</p>
+      }
+      @if (unbilledTreatments().length) {
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;align-items:center">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'oral.discountPercent' | translate }}</mat-label>
+          <input matInput type="number" min="0" max="100" [formControl]="invoiceDiscountControl" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'oral.eDocumentType' | translate }}</mat-label>
+          <mat-select [formControl]="eDocumentControl">
+            <mat-option value="auto">{{ 'oral.eDocAuto' | translate }}</mat-option>
+            <mat-option value="earsiv">{{ 'signing.docType.earsiv' | translate }}</mat-option>
+            <mat-option value="efatura">{{ 'signing.docType.efatura' | translate }}</mat-option>
+            <mat-option value="none">{{ 'oral.eDocNone' | translate }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-flat-button color="primary" type="button" (click)="createInvoiceFromSelected()">
+          {{ 'oral.createInvoice' | translate }}
+        </button>
+        @if (lastInvoiceId()) {
+        <a mat-stroked-button routerLink="/billing">{{ 'oral.viewBilling' | translate }}</a>
+        }
+      </div>
+      }
     </mat-card>
     }
 

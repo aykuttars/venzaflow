@@ -155,12 +155,24 @@ def build_invoice_ubl(
     tax_total_amount = Decimal("0.00")
     for idx, line in enumerate(lines, start=1):
         line_total = Decimal(str(line.line_total))
+        line_extension_total += line_total
         line_tax = (line_total * vat_rate / Decimal("100")).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
-        line_extension_total += line_total
         tax_total_amount += line_tax
         _invoice_line(root, idx, line, line_total, line_tax, vat_rate)
+
+    discount_amount = Decimal(str(getattr(invoice, "discount_amount", 0) or 0))
+    if discount_amount > 0:
+        allowance = _el(root, "AllowanceCharge", CAC)
+        _el(allowance, "ChargeIndicator", CBC, "false")
+        _amount(allowance, "Amount", CBC, discount_amount)
+        line_extension_total -= discount_amount
+        if line_extension_total < 0:
+            line_extension_total = Decimal("0.00")
+        tax_total_amount = (line_extension_total * vat_rate / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
     # Document-level tax total.
     tax_total = _el(root, "TaxTotal", CAC)
@@ -214,7 +226,8 @@ def _invoice_line(root, idx: int, line, line_total: Decimal, line_tax: Decimal,
     _el(scheme, "TaxTypeCode", CBC, "0015")
 
     item = _el(node, "Item", CAC)
-    _el(item, "Name", CBC, getattr(line.product, "name", None) or f"Ürün {idx}")
+    item_name = line.description or getattr(line.product, "name", None) or f"Ürün {idx}"
+    _el(item, "Name", CBC, item_name)
 
     price = _el(node, "Price", CAC)
     _amount(price, "PriceAmount", CBC, line.unit_price)

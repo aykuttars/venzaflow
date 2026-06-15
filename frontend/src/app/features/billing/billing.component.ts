@@ -19,6 +19,9 @@ import { PartyListService } from '../../shared/party-list.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { DateFieldComponent } from '../../shared/date-field.component';
 import { DateTimeFieldComponent } from '../../shared/date-time-field.component';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { RouterLink } from '@angular/router';
+import { TenantInvoice } from '../../core/oral.service';
 import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-utils';
 
 @Component({
@@ -34,6 +37,8 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
     MatSelectModule,
     MatSnackBarModule,
     MatTabsModule,
+    MatCheckboxModule,
+    RouterLink,
     TranslateModule,
     PageHeaderComponent,
     DateFieldComponent,
@@ -54,6 +59,7 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
                 <td>{{ i.number }}</td><td>{{ i.customer_name }}</td><td>{{ i.issued_at }}</td><td>{{ ('billing.' + i.status) | translate }}</td><td>{{ i.total }}</td>
                 @if (canWrite()) {
                 <td style="text-align:right">
+                  <button mat-icon-button (click)="viewInvoice(i)" [attr.aria-label]="'billing.viewDetail' | translate"><mat-icon>visibility</mat-icon></button>
                   <button mat-icon-button (click)="openInvoice(i)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
                   <button mat-icon-button (click)="removeInvoice(i)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
@@ -105,6 +111,20 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
                 <mat-option value="paid">{{ 'billing.paid' | translate }}</mat-option><mat-option value="overdue">{{ 'billing.overdue' | translate }}</mat-option>
               </mat-select>
             </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.discountPercent' | translate }}</mat-label>
+              <input matInput type="number" min="0" max="100" step="0.01" formControlName="discount_percent" />
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'billing.eDocumentType' | translate }}</mat-label>
+              <mat-select formControlName="e_document_type">
+                <mat-option value="auto">{{ 'oral.eDocAuto' | translate }}</mat-option>
+                <mat-option value="earsiv">{{ 'signing.docType.earsiv' | translate }}</mat-option>
+                <mat-option value="efatura">{{ 'signing.docType.efatura' | translate }}</mat-option>
+                <mat-option value="none">{{ 'oral.eDocNone' | translate }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'customers.summary' | translate }}</mat-label>
+              <textarea matInput rows="2" formControlName="notes"></textarea>
+            </mat-form-field>
           } @else {
             <mat-form-field appearance="outline"><mat-label>{{ 'billing.invoice' | translate }}</mat-label>
               <mat-select formControlName="invoice">@for (i of invoices(); track i.id) {<mat-option [value]="i.id">{{ i.number }}</mat-option>}</mat-select>
@@ -118,6 +138,38 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
             <button mat-flat-button color="primary" type="submit">{{ 'common.save' | translate }}</button>
           </div>
         </form>
+      </div>
+      }
+
+      @if (viewingInvoice()) {
+      <div class="overlay" (click)="viewingInvoice.set(null)"></div>
+      <div class="dialog" style="max-width:640px">
+        <h2>{{ viewingInvoice()!.number }}</h2>
+        <p>{{ viewingInvoice()!.customer_name }} · {{ viewingInvoice()!.issued_at }}</p>
+        <table class="bms-table">
+          <thead><tr><th>{{ 'billing.invoiceLines' | translate }}</th><th>{{ 'billing.amount' | translate }}</th></tr></thead>
+          <tbody>
+            @for (ln of viewingInvoice()!.lines || []; track ln.id) {
+            <tr>
+              <td>{{ ln.description || ln.product_name }}</td>
+              <td>{{ ln.line_total }} ₺</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
+          <span>{{ 'billing.subtotalBeforeDiscount' | translate }}: {{ viewingInvoice()!.subtotal_before_discount }} ₺</span>
+          <span>{{ 'billing.discountApplied' | translate }} ({{ viewingInvoice()!.discount_percent }}%): -{{ viewingInvoice()!.discount_amount }} ₺</span>
+          <strong>{{ 'billing.total' | translate }}: {{ viewingInvoice()!.total }} ₺</strong>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button mat-button type="button" (click)="viewingInvoice.set(null)">{{ 'common.close' | translate }}</button>
+          @if (canWrite() && showSigningLink(viewingInvoice()!)) {
+          <a mat-stroked-button routerLink="/signing" [queryParams]="signingQuery(viewingInvoice()!)">
+            {{ 'billing.queueSigning' | translate }}
+          </a>
+          }
+        </div>
       </div>
       }
     </div>
@@ -134,6 +186,7 @@ export class BillingComponent implements OnInit {
   private partiesApi = inject(PartyListService);
   tab = signal(0);
   editing = signal(false);
+  viewingInvoice = signal<TenantInvoice | null>(null);
   invoices = signal<any[]>([]);
   payments = signal<any[]>([]);
   parties = signal<any[]>([]);
@@ -147,6 +200,9 @@ export class BillingComponent implements OnInit {
     issued_at: ['', Validators.required],
     due_date: [''],
     status: ['draft'],
+    discount_percent: ['0'],
+    e_document_type: ['auto'],
+    notes: [''],
   });
   paymentForm = this.fb.group({
     id: this.fb.control<number | null>(null),
@@ -180,6 +236,18 @@ export class BillingComponent implements OnInit {
 
   openInvoice(i?: any): void {
     this.tab.set(0);
+    if (i?.id) {
+      this.invCrud.get(i.id).subscribe({
+        next: (full) => this.patchInvoiceForm(full),
+        error: () => this.patchInvoiceForm(i),
+      });
+    } else {
+      this.patchInvoiceForm(null);
+    }
+    this.editing.set(true);
+  }
+
+  private patchInvoiceForm(i: any | null): void {
     this.invoiceForm.reset(
       i
         ? {
@@ -189,10 +257,38 @@ export class BillingComponent implements OnInit {
             issued_at: normalizeDateInput(i.issued_at),
             due_date: normalizeDateInput(i.due_date),
             status: i.status,
+            discount_percent: i.discount_percent ?? '0',
+            e_document_type: i.e_document_type ?? 'auto',
+            notes: i.notes ?? '',
           }
-        : { id: null, number: '', customer: null, issued_at: '', due_date: '', status: 'draft' }
+        : {
+            id: null,
+            number: '',
+            customer: null,
+            issued_at: '',
+            due_date: '',
+            status: 'draft',
+            discount_percent: '0',
+            e_document_type: 'auto',
+            notes: '',
+          }
     );
-    this.editing.set(true);
+  }
+
+  viewInvoice(i: any): void {
+    this.invCrud.get(i.id).subscribe({
+      next: (full) => this.viewingInvoice.set(full as TenantInvoice),
+      error: () => this.snack.open(this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    });
+  }
+
+  signingQuery(inv: TenantInvoice): Record<string, string> {
+    const doc = inv.resolved_e_document_type === 'efatura' ? 'efatura' : 'earsiv';
+    return { document_type: doc };
+  }
+
+  showSigningLink(inv: TenantInvoice): boolean {
+    return inv.resolved_e_document_type !== 'none';
   }
 
   openPayment(p?: any): void {
@@ -215,7 +311,15 @@ export class BillingComponent implements OnInit {
     if (this.tab() === 0) {
       if (this.invoiceForm.invalid) return;
       const v = this.invoiceForm.getRawValue();
-      const payload: any = { number: v.number, customer: v.customer, issued_at: v.issued_at, status: v.status };
+      const payload: any = {
+        number: v.number,
+        customer: v.customer,
+        issued_at: v.issued_at,
+        status: v.status,
+        discount_percent: v.discount_percent || '0',
+        e_document_type: v.e_document_type || 'auto',
+        notes: v.notes || '',
+      };
       if (v.due_date) payload.due_date = v.due_date;
       const op = v.id ? this.invCrud.update(v.id!, payload) : this.invCrud.create(payload);
       op.subscribe({
