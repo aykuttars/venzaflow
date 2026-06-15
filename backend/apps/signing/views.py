@@ -18,9 +18,11 @@ from apps.signing.serializers import (
     SignTaskCreateSerializer,
     SignTaskSerializer,
 )
+from apps.integrations.authority.medula_xml import build_erecete_xml, medula_context_from_task
 from apps.signing.services.document_builder import build_payload
 from apps.signing.services.integration_config import supplier_dict
-from apps.signing.services.invoice_sync import mark_linked_invoice_sent
+from apps.signing.services.invoice_sync import mark_linked_invoice_sent, mark_linked_prescription_submitted
+from apps.signing.services.medula_xades import inject_enveloping_signature, prepare_enveloping_xades
 from apps.signing.services.task_factory import sync_tasks
 from apps.signing.services.ubl import build_invoice_ubl
 from apps.signing.services.verifier import SignatureVerificationError, verify_signature
@@ -80,6 +82,14 @@ class SignTaskViewSet(TenantScopedViewSet):
             and task.content_type.model == "invoice"
         )
 
+    def _is_medula_erecete(self, task: SignTask) -> bool:
+        """Prescription-backed e-Reçete tasks are signed as Medula XAdES enveloping."""
+        return (
+            task.document_type == SignTask.DocumentType.ERECETE
+            and task.content_type is not None
+            and task.content_type.model == "prescription"
+        )
+
     @action(detail=True, methods=["post"], url_path="prepare")
     def prepare(self, request, pk=None):
         task: SignTask = self.get_object()
@@ -94,13 +104,16 @@ class SignTaskViewSet(TenantScopedViewSet):
 
         metadata = dict(task.metadata or {})
 
-        if self._is_xades(task):
+        needs_cert = self._is_xades(task) or self._is_medula_erecete(task)
+        if needs_cert:
             cert_b64 = ser.validated_data.get("certificate_der_base64") or ""
             if not cert_b64:
-                return Response(
-                    {"detail": "e-Fatura/e-Arşiv imzası için sertifika (certificate_der_base64) zorunludur."},
-                    status=status.HTTP_400_BAD_REQUEST,
+                detail = (
+                    "e-Reçete imzası için sertifika (certificate_der_base64) zorunludur."
+                    if self._is_medula_erecete(task)
+                    else "e-Fatura/e-Arşiv imzası için sertifika (certificate_der_base64) zorunludur."
                 )
+                return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 cert_der = base64.b64decode(cert_b64)
             except Exception:
@@ -109,6 +122,7 @@ class SignTaskViewSet(TenantScopedViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        if self._is_xades(task):
             xml_bytes, doc_meta = build_invoice_ubl(
                 task.source, task.document_type, supplier=supplier_dict(task.tenant)
             )
@@ -119,6 +133,20 @@ class SignTaskViewSet(TenantScopedViewSet):
             task.signed_document = prepared.signed_document_template.decode("utf-8")
             metadata.update(doc_meta)
             metadata["xades"] = True
+        elif self._is_medula_erecete(task):
+            ctx = medula_context_from_task(task)
+            xml_bytes = build_erecete_xml(task.source, tesis_kodu=ctx["tesis_kodu"])
+            prepared = prepare_enveloping_xades(
+                xml_bytes, cert_der, signing_time=timezone.now().isoformat()
+            )
+            task.data_to_sign = base64.b64encode(prepared.signed_info_c14n).decode("ascii")
+            task.signed_document = prepared.signed_document_template.decode("utf-8")
+            metadata["xades"] = True
+            metadata["xades_enveloping"] = True
+            metadata["medula"] = {
+                "tesis_kodu": ctx["tesis_kodu"],
+                "doktor_tc": ctx["doktor_tc"],
+            }
         else:
             payload = build_payload(task)
             task.data_to_sign = base64.b64encode(payload).decode("ascii")
@@ -189,9 +217,11 @@ class SignTaskViewSet(TenantScopedViewSet):
         if (task.metadata or {}).get("xades") and task.signed_document:
             try:
                 signature_bytes = base64.b64decode(data["signature_base64"])
-                final_xml = inject_signature(
-                    task.signed_document.encode("utf-8"), signature_bytes
-                )
+                template = task.signed_document.encode("utf-8")
+                if (task.metadata or {}).get("xades_enveloping"):
+                    final_xml = inject_enveloping_signature(template, signature_bytes)
+                else:
+                    final_xml = inject_signature(template, signature_bytes)
                 task.signed_document = final_xml.decode("utf-8")
                 signed_document_bytes = final_xml
             except Exception as exc:
@@ -248,6 +278,7 @@ class SignTaskViewSet(TenantScopedViewSet):
             ]
         )
         mark_linked_invoice_sent(task)
+        mark_linked_prescription_submitted(task)
 
         out = SignCompleteResponseSerializer(task)
         return Response(out.data)

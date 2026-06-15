@@ -19,9 +19,9 @@ from apps.common.permission_codes import PERMISSION_CODENAMES
 from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
 from apps.oral.models import OralTreatment, ProcedureCatalog
-from apps.products.models import Category, Product
+from apps.prescriptions.models import DrugCatalog, Prescription, PrescriptionLine
 from apps.signing.models import SignTask
-from apps.signing.services.task_factory import sync_erecete_tasks, sync_sign_task_for_invoice
+from apps.signing.services.task_factory import sync_erecete_tasks, sync_sign_task_for_invoice, sync_sign_task_for_prescription
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
@@ -271,46 +271,70 @@ class SignTaskFactoryTests(TestCase):
         )
         self.assertFalse(sync_sign_task_for_invoice(self.tenant, invoice))
 
-    def test_invoiced_treatment_excluded_from_erecete(self):
-        treatment = OralTreatment.all_tenants.create(
+    def test_prescription_syncs_to_erecete(self):
+        drug = DrugCatalog.all_tenants.create(
+            tenant=self.tenant,
+            barkod="8699000000001",
+            name="Test İlaç",
+            form="Tablet",
+            strength="500 mg",
+        )
+        dept = Department.objects.create(tenant=self.tenant, key="d2", name="D2")
+        user = User.all_tenants.create(
+            tenant=self.tenant, email="rx@sync.test", department=dept, is_active=True
+        )
+        rx = Prescription.all_tenants.create(
             tenant=self.tenant,
             patient=self.patient,
-            procedure=self.procedure,
-            tooth_numbers=[12],
-            status=OralTreatment.Status.COMPLETED,
-            phase="treatment",
-            unit_price=Decimal("500.00"),
-            session_date=date.today(),
+            doctor=user,
+            diagnosis_code="K02.1",
+            diagnosis_text="Test",
+            status=Prescription.Status.READY,
+            prescription_no="RX-SYNC-1",
         )
-        invoice = Invoice.all_tenants.create(
+        PrescriptionLine.all_tenants.create(
             tenant=self.tenant,
-            number="INV-E",
-            customer=self.patient,
-            issued_at=date.today(),
-            status=Invoice.Status.DRAFT,
-            total=Decimal("500.00"),
+            prescription=rx,
+            drug=drug,
+            drug_barkod=drug.barkod,
+            drug_name=drug.name,
+            dose="1x1",
+            frequency="Günde 1",
+            usage_instruction="Test",
         )
-        treatment.invoice = invoice
-        treatment.save(update_fields=["invoice"])
-        OralTreatment.all_tenants.create(
+        self.assertTrue(sync_sign_task_for_prescription(self.tenant, rx))
+        task = SignTask.objects.filter(
+            tenant=self.tenant,
+            document_type=SignTask.DocumentType.ERECETE,
+            object_id=rx.id,
+        ).first()
+        self.assertIsNotNone(task)
+        self.assertIn("ilaç", task.description)
+
+    def test_sync_erecete_from_ready_prescriptions(self):
+        drug = DrugCatalog.all_tenants.create(
+            tenant=self.tenant,
+            barkod="8699000000002",
+            name="Test İlaç 2",
+        )
+        rx = Prescription.all_tenants.create(
             tenant=self.tenant,
             patient=self.patient,
-            procedure=self.procedure,
-            tooth_numbers=[13],
-            status=OralTreatment.Status.COMPLETED,
-            phase="treatment",
-            unit_price=Decimal("500.00"),
-            session_date=date.today(),
+            diagnosis_code="K02.1",
+            status=Prescription.Status.READY,
+            prescription_no="RX-SYNC-2",
+        )
+        PrescriptionLine.all_tenants.create(
+            tenant=self.tenant,
+            prescription=rx,
+            drug=drug,
+            drug_name=drug.name,
+            dose="1x1",
+            frequency="Günde 1",
+            usage_instruction="Test",
         )
         created = sync_erecete_tasks(self.tenant)
         self.assertEqual(created, 1)
-        self.assertFalse(
-            SignTask.objects.filter(
-                tenant=self.tenant,
-                document_type=SignTask.DocumentType.ERECETE,
-                object_id=treatment.id,
-            ).exists()
-        )
 
 
 class IntegrationConfigTests(TestCase):

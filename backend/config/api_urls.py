@@ -99,6 +99,7 @@ urlpatterns = [
     path("v1/", include("apps.accounts.urls_api")),
     path("v1/nvi/", include("apps.customers.nvi_urls")),
     path("v1/oral/", include("apps.oral.urls")),
+    path("v1/prescriptions/", include("apps.prescriptions.urls")),
     path("v1/sign/", include("apps.signing.urls")),
     path("v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("v1/inventory/dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),

@@ -11,6 +11,8 @@ PERMISSION_CODENAMES = [
     ("customers.write", "Manage customers"),
     ("patients.read", "View patient records"),
     ("patients.write", "Manage patient records"),
+    ("prescriptions.read", "View prescriptions"),
+    ("prescriptions.write", "Manage prescriptions"),
     ("oral.read", "View oral / dental records"),
     ("oral.write", "Manage oral / dental records"),
     ("appointments.read", "View appointments"),
@@ -98,7 +100,10 @@ def module_catalog() -> list[dict]:
 
 
 def permission_module_slug(codename: str) -> str:
-    return codename.split(".", 1)[0]
+    slug = codename.split(".", 1)[0]
+    if slug == "prescriptions":
+        return "patients"
+    return slug
 
 
 def tenant_allowed_permission_modules(enabled_modules: list[str] | None) -> set[str]:

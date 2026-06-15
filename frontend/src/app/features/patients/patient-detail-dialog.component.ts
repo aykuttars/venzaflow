@@ -13,6 +13,7 @@ import { PHONE_COUNTRIES, formatGenericPhoneDisplay } from '../../shared/phone-f
 import { PatientPhotoAvatarComponent } from '../../shared/patient-photo-avatar.component';
 import { PatientOverviewTabComponent } from './patient-overview-tab.component';
 import { PatientOralTabComponent } from './patient-oral-tab.component';
+import { PatientPrescriptionsTabComponent } from './patient-prescriptions-tab.component';
 import { PatientRecordsTabComponent } from './patient-records-tab.component';
 
 @Component({
@@ -27,6 +28,7 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
     PatientPhotoAvatarComponent,
     PatientOverviewTabComponent,
     PatientOralTabComponent,
+    PatientPrescriptionsTabComponent,
     PatientRecordsTabComponent,
   ],
   template: `
@@ -91,6 +93,21 @@ import { PatientRecordsTabComponent } from './patient-records-tab.component';
         </mat-tab>
         }
 
+        @if (canAccessPrescriptions()) {
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="patient-detail-tabs__icon">medication</mat-icon>
+            {{ 'patients.tabPrescriptions' | translate }}
+          </ng-template>
+          @if (prescriptionsTabVisited()) {
+          <app-patient-prescriptions-tab
+            [patientId]="patientId"
+            [patientName]="displayFullName"
+          />
+          }
+        </mat-tab>
+        }
+
         @if (hasRecordsTab()) {
         <mat-tab>
           <ng-template mat-tab-label>
@@ -121,6 +138,7 @@ export class PatientDetailDialogComponent implements OnInit {
   fullPatient = signal<Record<string, any> | null>(null);
   selectedTab = signal(0);
   oralTabVisited = signal(false);
+  prescriptionsTabVisited = signal(false);
   recordsTabVisited = signal(false);
 
   ngOnInit(): void {
@@ -166,6 +184,9 @@ export class PatientDetailDialogComponent implements OnInit {
 
   canAccessOral = () => this.auth.hasModule('oral') && this.auth.hasPermission('oral.read');
 
+  canAccessPrescriptions = () =>
+    this.auth.hasModule('patients') && this.auth.hasPermission('prescriptions.read');
+
   hasRecordsTab = () => {
     const billing =
       this.auth.hasModule('billing') && this.auth.hasPermission('billing.read');
@@ -177,9 +198,16 @@ export class PatientDetailDialogComponent implements OnInit {
   };
 
   oralTabIndex = () => (this.canAccessOral() ? 1 : -1);
+  prescriptionsTabIndex = () => {
+    if (!this.canAccessPrescriptions()) return -1;
+    return (this.canAccessOral() ? 1 : 0) + 1;
+  };
   recordsTabIndex = () => {
     if (!this.hasRecordsTab()) return -1;
-    return this.canAccessOral() ? 2 : 1;
+    let idx = 1;
+    if (this.canAccessOral()) idx += 1;
+    if (this.canAccessPrescriptions()) idx += 1;
+    return idx;
   };
 
   onTabChange(index: number): void {
@@ -189,6 +217,7 @@ export class PatientDetailDialogComponent implements OnInit {
 
   private markTabVisited(index: number): void {
     if (index === this.oralTabIndex()) this.oralTabVisited.set(true);
+    if (index === this.prescriptionsTabIndex()) this.prescriptionsTabVisited.set(true);
     if (index === this.recordsTabIndex()) this.recordsTabVisited.set(true);
   }
 }

@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from apps.billing.models import Invoice
 from apps.billing.services.oral_invoice import resolve_e_document_type
-from apps.oral.models import OralTreatment
+from apps.prescriptions.models import Prescription
 from apps.signing.models import SignTask
 from apps.tenants.models import Tenant
 
@@ -15,8 +15,8 @@ def _invoice_ct() -> ContentType:
     return ContentType.objects.get_for_model(Invoice)
 
 
-def _oral_treatment_ct() -> ContentType:
-    return ContentType.objects.get_for_model(OralTreatment)
+def _prescription_ct() -> ContentType:
+    return ContentType.objects.get_for_model(Prescription)
 
 
 def _existing_source_ids(tenant: Tenant, document_type: str, content_type: ContentType) -> set[int]:
@@ -115,36 +115,51 @@ def sync_earsiv_tasks(tenant: Tenant) -> int:
     return created
 
 
+def sync_sign_task_for_prescription(tenant: Tenant, prescription: Prescription) -> bool:
+    if prescription.status != Prescription.Status.READY:
+        return False
+    ct = _prescription_ct()
+    if SignTask.objects.filter(
+        tenant=tenant,
+        document_type=SignTask.DocumentType.ERECETE,
+        content_type=ct,
+        object_id=prescription.id,
+    ).exists():
+        return False
+    patient = prescription.patient
+    line_count = prescription.lines.count()
+    SignTask.objects.create(
+        tenant=tenant,
+        document_type=SignTask.DocumentType.ERECETE,
+        title=f"e-Reçete — {patient.first_name} {patient.last_name}".strip(),
+        description=f"{line_count} ilaç — {prescription.diagnosis_code}",
+        status=SignTask.Status.PENDING,
+        content_type=ct,
+        object_id=prescription.id,
+        metadata={
+            "prescription_id": prescription.id,
+            "prescription_no": prescription.prescription_no,
+            "patient_id": patient.id,
+            "patient_tckn": patient.tckn or "",
+            "source": "prescriptions.prescription",
+        },
+    )
+    return True
+
+
 def sync_erecete_tasks(tenant: Tenant) -> int:
-    ct = _oral_treatment_ct()
+    ct = _prescription_ct()
     existing = _existing_source_ids(tenant, SignTask.DocumentType.ERECETE, ct)
     created = 0
     qs = (
-        OralTreatment.objects.filter(
-            tenant=tenant,
-            status=OralTreatment.Status.COMPLETED,
-            invoice__isnull=True,
-        )
+        Prescription.all_tenants.filter(tenant=tenant, status=Prescription.Status.READY)
         .exclude(id__in=existing)
-        .select_related("patient", "procedure")
+        .select_related("patient")
+        .prefetch_related("lines")
     )
-    for treatment in qs:
-        patient = treatment.patient
-        SignTask.objects.create(
-            tenant=tenant,
-            document_type=SignTask.DocumentType.ERECETE,
-            title=f"e-Reçete — {treatment.procedure.name}",
-            description=f"Hasta: {patient.first_name} {patient.last_name}".strip(),
-            status=SignTask.Status.PENDING,
-            content_type=ct,
-            object_id=treatment.id,
-            metadata={
-                "treatment_id": treatment.id,
-                "patient_id": patient.id,
-                "source": "oral.treatment",
-            },
-        )
-        created += 1
+    for prescription in qs:
+        if sync_sign_task_for_prescription(tenant, prescription):
+            created += 1
     return created
 
 

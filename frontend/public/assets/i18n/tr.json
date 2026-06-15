@@ -373,6 +373,7 @@
     "noAddress": "Kayıtlı adres yok",
     "tabOverview": "Özet",
     "tabOral": "Oral",
+    "tabPrescriptions": "Reçeteler",
     "tabRecords": "Kayıtlar",
     "sectionInvoices": "Faturalar",
     "sectionPayments": "Ödemeler",
@@ -449,6 +450,65 @@
     "eDocNone": "Gönderme",
     "invoiceCreated": "Fatura oluşturuldu",
     "viewBilling": "Faturalamaya git"
+  },
+  "prescriptions": {
+    "title": "Reçeteler",
+    "new": "Yeni reçete",
+    "edit": "Reçete düzenle",
+    "diagnosisCode": "Tanı kodu (ICD-10)",
+    "diagnosisText": "Tanı açıklaması",
+    "type": "Reçete türü",
+    "provision": "Provizyon",
+    "notes": "Notlar",
+    "drugs": "İlaçlar",
+    "drug": "İlaç",
+    "drugName": "İlaç adı",
+    "dose": "Doz",
+    "frequency": "Sıklık",
+    "periodDays": "Süre (gün)",
+    "route": "Uygulama yolu",
+    "boxCount": "Kutu adedi",
+    "usage": "Kullanım talimatı",
+    "addLine": "İlaç satırı ekle",
+    "removeLine": "Satırı kaldır",
+    "previewTitle": "Reçete önizleme",
+    "previewPatient": "Hasta",
+    "preview": "Önizle",
+    "previewBlocked": "Önizleme penceresi açılamadı. Tarayıcı pop-up engelleyicisini kontrol edin.",
+    "days": "gün",
+    "saveDraft": "Taslak kaydet",
+    "finalize": "Kesinleştir ve imza kuyruğuna al",
+    "finalized": "Reçete imza kuyruğuna alındı",
+    "queueSigning": "e-İmza kuyruğu",
+    "drugCount": "ilaç",
+    "medulaRef": "Medula ref",
+    "types": {
+      "normal": "Normal",
+      "kirmizi": "Kırmızı",
+      "yesil": "Yeşil",
+      "mor": "Mor",
+      "turuncu": "Turuncu"
+    },
+    "provisions": {
+      "sgk": "SGK",
+      "ucretli": "Ücretli",
+      "yesil_kart": "Yeşil Kart",
+      "emekli": "Emekli Sandığı"
+    },
+    "routes": {
+      "oral": "Oral",
+      "topical": "Topikal",
+      "iv": "IV",
+      "im": "IM",
+      "sc": "SC",
+      "other": "Diğer"
+    },
+    "status": {
+      "draft": "Taslak",
+      "ready": "İmza bekliyor",
+      "submitted": "Gönderildi",
+      "cancelled": "İptal"
+    }
   },
   "appointments": {
     "title": "Randevular",

@@ -11,7 +11,12 @@ from apps.billing.models import Invoice, Payment
 from apps.billing.services.oral_invoice import create_invoice_from_treatments
 from apps.common.secretbox import encrypt_json
 from apps.customers.models import Customer
-from apps.oral.models import OralTreatment, ProcedureCatalog
+from apps.integrations.authority.medula_constants import (
+    MEDULA_TEST_PASSWORD,
+    MEDULA_TEST_TESIS_KODU,
+    MEDULA_TEST_USERNAME,
+)
+from apps.oral.models import OralTreatment
 from apps.signing.models import (
     DocumentFamily,
     DocumentRouting,
@@ -21,14 +26,13 @@ from apps.signing.models import (
     SigningMode,
     TenantSigningProfile,
 )
-from apps.signing.services.task_factory import sync_erecete_tasks
 from apps.tenants.models import Tenant
 
 DEMO_INVOICE_EARSIV = "DEMO-EARSIV-1"
 DEMO_INVOICE_EARSIV_2 = "DEMO-EARSIV-2"
 
 
-def ensure_clinic_signing_integration(tenant: Tenant) -> IntegrationConnection:
+def ensure_clinic_signing_integration(tenant: Tenant) -> tuple[IntegrationConnection, IntegrationConnection]:
     profile, _ = TenantSigningProfile.objects.update_or_create(
         tenant=tenant,
         defaults={
@@ -43,7 +47,7 @@ def ensure_clinic_signing_integration(tenant: Tenant) -> IntegrationConnection:
     )
     _ = profile  # noqa: F841 — side effect is profile upsert
 
-    conn, _ = IntegrationConnection.all_tenants.update_or_create(
+    mock_conn, _ = IntegrationConnection.all_tenants.update_or_create(
         tenant=tenant,
         provider_key="mock",
         environment=Environment.TEST,
@@ -56,17 +60,38 @@ def ensure_clinic_signing_integration(tenant: Tenant) -> IntegrationConnection:
             "status_message": "Demo bağlantı — seed",
         },
     )
-    for family in (
-        DocumentFamily.EFATURA,
-        DocumentFamily.EARSIV,
-        DocumentFamily.ERECETE,
+
+    medula_conn, _ = IntegrationConnection.all_tenants.update_or_create(
+        tenant=tenant,
+        provider_key="medula",
+        environment=Environment.TEST,
+        defaults={
+            "display_name": "Medula SGK Test (Özel Diş Kliniği)",
+            "signing_mode": SigningMode.CLIENT_XADES,
+            "credentials_encrypted": encrypt_json(
+                {
+                    "username": MEDULA_TEST_USERNAME,
+                    "password": MEDULA_TEST_PASSWORD,
+                    "tesis_kodu": str(MEDULA_TEST_TESIS_KODU),
+                }
+            ),
+            "is_active": True,
+            "status": IntegrationConnection.Status.OK,
+            "status_message": "SGK test ortamı — sağlık tesisi 11068891",
+        },
+    )
+
+    for family, conn in (
+        (DocumentFamily.EFATURA, mock_conn),
+        (DocumentFamily.EARSIV, mock_conn),
+        (DocumentFamily.ERECETE, medula_conn),
     ):
         DocumentRouting.all_tenants.update_or_create(
             tenant=tenant,
             document_family=family,
             defaults={"connection": conn},
         )
-    return conn
+    return mock_conn, medula_conn
 
 
 def _completed_unbilled(tenant: Tenant, patient: Customer) -> list[int]:
@@ -83,28 +108,7 @@ def _completed_unbilled(tenant: Tenant, patient: Customer) -> list[int]:
 def ensure_clinic_billing_signing_demo(tenant: Tenant) -> dict[str, int]:
     """Create one sample per oral→billing→signing path (idempotent demo numbers)."""
     ensure_clinic_signing_integration(tenant)
-    today = date.today()
-    stats = {"invoices": 0, "payments": 0, "sign_tasks": 0, "erecete_tasks": 0}
-
-    elif_patient = Customer.all_tenants.filter(tenant=tenant, tckn="22222222220").first()
-    if elif_patient:
-        exam = ProcedureCatalog.all_tenants.filter(tenant=tenant, code="EXAM").first()
-        if exam:
-            OralTreatment.all_tenants.update_or_create(
-                tenant=tenant,
-                patient=elif_patient,
-                procedure=exam,
-                tooth_numbers=[21],
-                session_date=today,
-                defaults={
-                    "status": OralTreatment.Status.COMPLETED,
-                    "phase": exam.category,
-                    "unit_price": exam.default_price,
-                    "performed_at": today,
-                    "notes": "Demo e-Reçete örneği",
-                },
-            )
-
+    stats = {"invoices": 0, "payments": 0, "sign_tasks": 0}
     ragip = Customer.all_tenants.filter(tenant=tenant, tckn="11111111110").first()
     if ragip and not Invoice.all_tenants.filter(tenant=tenant, number=DEMO_INVOICE_EARSIV).exists():
         treatment_ids = _completed_unbilled(tenant, ragip)
@@ -145,10 +149,5 @@ def ensure_clinic_billing_signing_demo(tenant: Tenant) -> dict[str, int]:
                 inv.save(update_fields=["status"])
                 stats["payments"] += 1
 
-    stats["sign_tasks"] = SignTask.objects.filter(
-        tenant=tenant,
-        content_type__model="invoice",
-    ).count()
-    stats["erecete_tasks"] = sync_erecete_tasks(tenant)
     stats["sign_tasks"] = SignTask.objects.filter(tenant=tenant).count()
     return stats

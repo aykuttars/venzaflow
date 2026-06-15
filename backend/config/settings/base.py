@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.audit.apps.AuditConfig",
     "apps.dashboard",
     "apps.signing",
+    "apps.prescriptions",
 ]
 
 MIDDLEWARE = [

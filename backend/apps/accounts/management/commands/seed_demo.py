@@ -28,6 +28,7 @@ from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 from apps.oral.seed_data import ensure_clinic_demo_patients, ensure_oral_procedures
 from apps.billing.seed_clinic_demo import ensure_clinic_billing_signing_demo
+from apps.prescriptions.seed_data import ensure_prescription_demo
 from apps.products.seed_hardware_retail import seed_hardware_retail_tenant
 
 User = get_user_model()
@@ -136,11 +137,11 @@ class Command(BaseCommand):
         t1000, _ = Tenant.objects.update_or_create(
             customer_code="1000",
             defaults={
-                "name": "Demo Clinic 1000",
+                "name": "Demo Özel Diş Kliniği 1000",
                 "default_language": Tenant.Language.TR,
                 "is_active": True,
                 "enabled_modules": CLINIC_1000_MODULES,
-                "max_users": 10,
+                "max_users": 15,
                 "billing_period": Tenant.BillingPeriod.MONTHLY,
                 "payment_currency": currencies["TRY"],
             },
@@ -185,6 +186,7 @@ class Command(BaseCommand):
             "billing.write",
             "patients.read",
             "oral.read",
+            "prescriptions.read",
             "signing.read",
             "dashboard.read",
         ]
@@ -198,6 +200,8 @@ class Command(BaseCommand):
         doctor_codes = [
             "patients.read",
             "patients.write",
+            "prescriptions.read",
+            "prescriptions.write",
             "oral.read",
             "oral.write",
             "appointments.read",
@@ -207,6 +211,8 @@ class Command(BaseCommand):
         dentist_codes = [
             "patients.read",
             "patients.write",
+            "prescriptions.read",
+            "prescriptions.write",
             "oral.read",
             "oral.write",
             "appointments.read",
@@ -235,34 +241,45 @@ class Command(BaseCommand):
                 f"tenant 1000 billing/signing demo: "
                 f"{demo_stats['invoices']} invoice(s), "
                 f"{demo_stats['payments']} payment(s), "
-                f"{demo_stats['sign_tasks']} sign task(s), "
-                f"+{demo_stats['erecete_tasks']} e-Reçete task(s)"
+                f"{demo_stats['sign_tasks']} sign task(s)"
             )
         )
 
         demo_pw = "X7@qL9#vT2!mZ4$k"
-        users = [
-            (t1000, d1000_dentist, "doctor@admin.com", demo_pw),
-            (t1000, d1000_admin, "admin@admin.com", demo_pw),
-            (t1000, d1000_tech, "tech@admin.com", demo_pw),
-            (t1000, d1000_cash, "cash@admin.com", demo_pw),
-            (t3000, d3000_admin, "admin@admin.com", demo_pw),
-            (t3000, d3000_acc, "accounting@admin.com", demo_pw),
-            (t3000, d3000_sec, "security@admin.com", demo_pw),
-            (t3000, d3000_doc, "doctor@admin.com", demo_pw),
+        users: list[tuple] = [
+            (t1000, d1000_admin, "admin@admin.com", demo_pw, "", "", ""),
+            (t1000, d1000_tech, "tech@admin.com", demo_pw, "", "", ""),
+            (t1000, d1000_cash, "cash@admin.com", demo_pw, "", "", ""),
+            (t3000, d3000_admin, "admin@admin.com", demo_pw, "", "", ""),
+            (t3000, d3000_acc, "accounting@admin.com", demo_pw, "", "", ""),
+            (t3000, d3000_sec, "security@admin.com", demo_pw, "", "", ""),
+            (t3000, d3000_doc, "doctor@admin.com", demo_pw, "", "", ""),
         ]
+        for email, first, last, tckn in (
+            ("doctor@admin.com", "Demo", "Hekim", "99999999990"),
+            ("dr.ali@admin.com", "Ali", "Yılmaz", "88888888880"),
+            ("dr.ayse@admin.com", "Ayşe", "Demir", "77777777770"),
+            ("dr.mehmet@admin.com", "Mehmet", "Kaya", "66666666660"),
+        ):
+            users.append((t1000, d1000_dentist, email, demo_pw, first, last, tckn))
 
-        for tenant, dept, email, password in users:
+        for tenant, dept, email, password, first_name, last_name, tckn in users:
             u, created = User.all_tenants.get_or_create(
                 tenant=tenant,
                 email=email.lower(),
                 defaults={
                     "department": dept,
                     "is_active": True,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "tckn": tckn,
                 },
             )
             u.department = dept
             u.is_active = True
+            u.first_name = first_name or u.first_name
+            u.last_name = last_name or u.last_name
+            u.tckn = tckn or u.tckn
             u.set_password(password)
             u.save()
             status = "created" if created else "updated"
@@ -281,6 +298,18 @@ class Command(BaseCommand):
         hr.extra_permissions.set(hr_extra)
         hr_status = "created" if hr_created else "updated"
         self.stdout.write(self.style.SUCCESS(f"{hr_status} user hr@admin.com @ 1000 (HR extra perms)"))
+
+        demo_doctor = User.all_tenants.filter(tenant=t1000, email="doctor@admin.com").first()
+        if demo_doctor:
+            rx_stats = ensure_prescription_demo(t1000, doctor=demo_doctor)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"tenant 1000 prescription demo: "
+                    f"{rx_stats['drugs']} drug(s), "
+                    f"{rx_stats['prescriptions']} prescription(s), "
+                    f"{rx_stats['sign_tasks']} e-Reçete task(s)"
+                )
+            )
 
         platform_email = "aykutt.ars@gmail.com"
         platform_pw = demo_pw
