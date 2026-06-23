@@ -45,6 +45,33 @@ npm run release:clean    # release/ temizleyip yeniden build
 **Windows ARM64** (`setup-arm64.exe`) native modül (`pkcs11js`) nedeniyle **macOS'tan build edilemez**.
 Windows makinede `npm run build:win:arm64` veya CI (`windows-latest`) kullanın.
 
+## CI ve dağıtım
+
+GitHub Actions (`Build eimza`) tüm platformlarda build alır. Release installer'lar **GitHub artifact yerine** private registry'ye gider:
+
+- Registry: `registry.aykut.io/venzaflow/eimza`
+- Tag formatı: `{version}-{platform}-{arch}-{dosya-adı}` (ör. `1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage`)
+
+**Release (tag):**
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+CI installer'ları registry'ye push eder; aynı tag için [GitHub Release](https://github.com/tenancysoft/tenancysoft/releases) de oluşturulur.
+
+**Manuel registry push:** Actions → Build eimza → Run workflow → `version` alanına örn. `1.0.0` yaz.
+
+**İndirme (ORAS):**
+
+```bash
+oras login registry.aykut.io
+oras pull registry.aykut.io/venzaflow/eimza:1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage -o .
+```
+
+Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (registry.aykut.io hesabı).
+
 ## API Uçları
 
 | Uç                                       | Açıklama                 |

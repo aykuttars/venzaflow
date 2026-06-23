@@ -13,10 +13,19 @@ on:
       - 'eimza/**'
       - '.github/workflows/eimza-build.yml'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version for registry push (e.g. 1.0.0). Leave empty on non-tag runs.'
+        required: false
+        type: string
 
 concurrency:
   group: eimza-build-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  REGISTRY: registry.aykut.io
+  REGISTRY_REPO: venzaflow/eimza
 
 defaults:
   run:
@@ -34,29 +43,29 @@ jobs:
             platform: mac
             arch: arm64
             runner: macos-latest
-            artifact: eimza/release/*.dmg
+            artifact: release/*.dmg
 
           - label: macOS x64
             platform: mac
             arch: x64
             runner: macos-latest
-            artifact: eimza/release/*.dmg
+            artifact: release/*.dmg
 
           - label: Windows x64
             platform: win
             arch: x64
             runner: windows-latest
             artifact: |
-              eimza/release/*setup*.exe
-              eimza/release/*.exe
+              release/*setup*.exe
+              release/*.exe
 
           - label: Windows arm64
             platform: win
             arch: arm64
             runner: windows-11-arm
             artifact: |
-              eimza/release/*setup*.exe
-              eimza/release/*.exe
+              release/*setup*.exe
+              release/*.exe
 
           # ubuntu-22.04: glibc 2.35 — AppImage runs on Ubuntu 22.04+ (ubuntu-latest uses glibc 2.38+)
           - label: Linux x64
@@ -64,16 +73,16 @@ jobs:
             arch: x64
             runner: ubuntu-22.04
             artifact: |
-              eimza/release/*.AppImage
-              eimza/release/*.deb
+              release/*.AppImage
+              release/*.deb
 
           - label: Linux arm64
             platform: linux
             arch: arm64
             runner: ubuntu-22.04-arm
             artifact: |
-              eimza/release/*.AppImage
-              eimza/release/*.deb
+              release/*.AppImage
+              release/*.deb
 
     steps:
       - uses: actions/checkout@v4
@@ -105,9 +114,6 @@ jobs:
         run: npm run build
 
       - name: Package ${{ matrix.label }}
-        # No CSC_IDENTITY_AUTO_DISCOVERY=false: that would skip signing entirely.
-        # mac.identity '-' makes electron-builder apply an ad-hoc signature instead,
-        # which avoids the "app is damaged" error on Apple Silicon.
         run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }}
 
       - name: Verify pkcs11 native binary
@@ -118,13 +124,44 @@ jobs:
         shell: bash
         run: ls -lh release/ || dir release
 
-      - uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-        with:
-          name: eimza-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ matrix.artifact }}
-          if-no-files-found: error
-          retention-days: 7
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: oras-project/setup-oras@v1
+        if: steps.version.outputs.value != ''
+
+      - name: Push installers to registry.aykut.io
+        if: steps.version.outputs.value != ''
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$REGISTRY_PASS" | oras login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          shopt -s nullglob
+          for file in release/*; do
+            [ -f "$file" ] || continue
+            name="$(basename "$file")"
+            tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
+            echo ">> Pushing ${REGISTRY}/${REGISTRY_REPO}:${tag}"
+            oras push "${REGISTRY}/${REGISTRY_REPO}:${tag}" \
+              "$file:application/octet-stream" \
+              --annotation "org.opencontainers.image.version=${VERSION}" \
+              --annotation "org.opencontainers.image.title=Venzaflow e-imza"
+          done
 
   publish:
     name: GitHub Release
@@ -134,15 +171,30 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
+      - uses: oras-project/setup-oras@v1
 
-      - name: List artifacts
-        run: find artifacts -type f | sort
+      - name: Pull installers from registry
+        env:
+          VERSION: ${{ github.ref_name }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION#v}"
+          mkdir -p dist
+          echo "$REGISTRY_PASS" | oras login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          mapfile -t tags < <(oras repo tags "${REGISTRY}/${REGISTRY_REPO}" | grep "^${VERSION}-" || true)
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "No registry tags found for version ${VERSION}" >&2
+            exit 1
+          fi
+          for tag in "${tags[@]}"; do
+            echo ">> Pulling ${REGISTRY}/${REGISTRY_REPO}:${tag}"
+            oras pull "${REGISTRY}/${REGISTRY_REPO}:${tag}" -o dist/
+          done
+          find dist -type f | sort
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: dist/**/*
           generate_release_notes: true
