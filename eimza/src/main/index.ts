@@ -47,8 +47,8 @@ function createWindow(): void {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           is.dev
-            ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://tenancysoft-api.aykut.in ws://localhost:* http://localhost:*"
-            : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://tenancysoft-api.aykut.in"
+            ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://venzaflow-api.aykut.in ws://localhost:* http://localhost:*"
+            : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://venzaflow-api.aykut.in"
         ]
       }
     })
@@ -77,7 +77,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.tenancysoft.eimza')
+  electronApp.setAppUserModelId('com.venzaflow.eimza')
   registerAllIpc()
 
   app.on('browser-window-created', (_, window) => {

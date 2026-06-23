@@ -1,4 +1,4 @@
-# Turkish translations for Tenancysoft API
+# Turkish translations for Venzaflow API
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"

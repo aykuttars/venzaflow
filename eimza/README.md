@@ -1,4 +1,4 @@
-# TenancySoft e-imza — Masaüstü İmza Köprüsü
+# Venzaflow e-imza — Masaüstü İmza Köprüsü
 
 macOS ve Windows üzerinde USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama işlemlerini backend API üzerinden yöneten Electron uygulaması.
 
@@ -6,7 +6,7 @@ macOS ve Windows üzerinde USB e-imza tokenları ile e-reçete, e-arşiv ve e-fa
 
 - PKCS#11 ile USB e-imza algılama (AKİS, eToken, IDPrime, Bit4id, OpenSC)
 - Sertifika listeleme ve seçme
-- TenancySoft API ile giriş (`customer_code`, `email`, `password`)
+- Venzaflow API ile giriş (`customer_code`, `email`, `password`)
 - İnce imza köprüsü: backend ham byte üretir, uygulama token ile imzalar
 - e-Reçete, e-Arşiv, e-Fatura sekmeleri
 

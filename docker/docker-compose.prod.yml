@@ -1,14 +1,14 @@
-# Production stack — project name: tenancysoft (pull from private registry)
+# Production stack — project name: venzaflow (pull from private registry)
 #
 #   docker compose -f docker/docker-compose.prod.yml --env-file .env pull
 #   docker compose -f docker/docker-compose.prod.yml --env-file .env up -d
 
-name: tenancysoft
+name: venzaflow
 
 services:
   api:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
-    container_name: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}
+    image: ${REGISTRY:-10.0.0.3:5000}/venzaflow-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: venzaflow-api${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -27,8 +27,8 @@ services:
     restart: unless-stopped
 
   celery:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
-    container_name: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}
+    image: ${REGISTRY:-10.0.0.3:5000}/venzaflow-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: venzaflow-celery${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -46,8 +46,8 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
-    container_name: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
+    image: ${REGISTRY:-10.0.0.3:5000}/venzaflow-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: venzaflow-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -70,8 +70,8 @@ services:
     restart: unless-stopped
 
   web:
-    image: ${REGISTRY:-10.0.0.3:5000}/tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
-    container_name: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}
+    image: ${REGISTRY:-10.0.0.3:5000}/venzaflow-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    container_name: venzaflow-web${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     ports:

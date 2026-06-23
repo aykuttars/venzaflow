@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
                 ('yearly_discount_percent', models.DecimalField(decimal_places=2, default=Decimal('15.00'), help_text='Default yearly discount % for tenants without override.', max_digits=5)),
                 ('invoice_prefix', models.CharField(default='TEN', max_length=16)),
                 ('default_payment_terms_days', models.PositiveSmallIntegerField(default=7)),
-                ('company_name', models.CharField(default='Tenancysoft', max_length=255)),
+                ('company_name', models.CharField(default='Venzaflow', max_length=255)),
                 ('company_tax_id', models.CharField(blank=True, max_length=32)),
                 ('company_address', models.TextField(blank=True)),
             ],

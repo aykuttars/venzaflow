@@ -6,13 +6,13 @@
 # Env:
 #   REGISTRY     target registry host:port      (default 10.0.0.3:5000)
 #   TAG          image tag                       (default latest)
-#   PROJECT      image name prefix              (default tenancysoft)
+#   PROJECT      image name prefix              (default venzaflow)
 #   ENVIRONMENT  dev|prod — suffix on image names (default prod)
 set -euo pipefail
 
 REGISTRY="${REGISTRY:-10.0.0.3:5000}"
 TAG="${TAG:-latest}"
-PROJECT="${PROJECT:-tenancysoft}"
+PROJECT="${PROJECT:-venzaflow}"
 ENVIRONMENT="${ENVIRONMENT:-prod}"
 ENV_SUFFIX="_${ENVIRONMENT}"
 

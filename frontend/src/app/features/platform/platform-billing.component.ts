@@ -230,7 +230,7 @@ export class PlatformBillingComponent implements OnInit {
     default_monthly_discount_percent: ['0', Validators.required],
     yearly_discount_percent: ['15', Validators.required],
     invoice_prefix: ['TEN', Validators.required],
-    company_name: ['Tenancysoft', Validators.required],
+    company_name: ['Venzaflow', Validators.required],
   });
 
   manualRateForm = this.fb.group({

@@ -177,4 +177,4 @@ Domain boş; marka adı olarak önerilmez (referans).
 ## Notlar
 
 - RDAP 404 = büyük olasılıkla boş; kesin teyit için Cloudflare Registrar, Porkbun veya Namecheap kullanılmalı.
-- Mevcut geliştirme markası: **TenancySoft** (`tenancysoft.com` de boş — istenirse koruyucu kayıt yapılabilir).
+- Mevcut geliştirme markası: **Venzaflow** (`venzaflow.com` de boş — istenirse koruyucu kayıt yapılabilir).

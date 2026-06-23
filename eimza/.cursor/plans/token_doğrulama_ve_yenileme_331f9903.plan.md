@@ -45,7 +45,7 @@ sequenceDiagram
     participant App as App_bootstrap
     participant IPC as auth_IPC
     participant API as apiClient
-    participant Server as TenancySoft_API
+    participant Server as Venzaflow_API
 
     App->>IPC: restoreSession
     IPC->>API: restoreAndValidateSession

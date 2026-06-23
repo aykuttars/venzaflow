@@ -1,4 +1,4 @@
-# Software Requirements Specification — Tenancysoft
+# Software Requirements Specification — Venzaflow
 
 ## 1. Purpose
 

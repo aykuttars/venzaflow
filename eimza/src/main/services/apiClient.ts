@@ -10,7 +10,7 @@ import type {
 import { SESSION_EXPIRED_MESSAGE } from '../../shared/types'
 import { clearSession, loadSession, saveSession } from './secureStore'
 
-const DEFAULT_BASE_URL = 'https://tenancysoft-api.aykut.in'
+const DEFAULT_BASE_URL = 'https://venzaflow-api.aykut.in'
 
 export class SessionExpiredError extends Error {
   constructor(message = SESSION_EXPIRED_MESSAGE) {

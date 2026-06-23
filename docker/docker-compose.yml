@@ -1,17 +1,17 @@
-# Application stack — project name: tenancysoft
+# Application stack — project name: venzaflow
 # NPM: test.aykut.in -> :8081 (web), test-api.aykut.in -> :8001 (api)
 #
 #   docker compose -f docker/docker-compose.yml --env-file .env up --build -d
 
-name: tenancysoft
+name: venzaflow
 
 services:
   api:
-    image: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    image: venzaflow-api${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: tenancysoft-api${ENVIRONMENT:+_${ENVIRONMENT}}
+    container_name: venzaflow-api${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -30,11 +30,11 @@ services:
     restart: unless-stopped
 
   celery:
-    image: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    image: venzaflow-celery${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: tenancysoft-celery${ENVIRONMENT:+_${ENVIRONMENT}}
+    container_name: venzaflow-celery${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -52,11 +52,11 @@ services:
     restart: unless-stopped
 
   celery-beat:
-    image: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    image: venzaflow-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: tenancysoft-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
+    container_name: venzaflow-celery-beat${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     environment:
@@ -79,11 +79,11 @@ services:
     restart: unless-stopped
 
   web:
-    image: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
+    image: venzaflow-web${ENVIRONMENT:+_${ENVIRONMENT}}:${TAG:-latest}
     build:
       context: ../frontend
       dockerfile: Dockerfile
-    container_name: tenancysoft-web${ENVIRONMENT:+_${ENVIRONMENT}}
+    container_name: venzaflow-web${ENVIRONMENT:+_${ENVIRONMENT}}
     env_file:
       - ../.env
     ports:
@@ -95,7 +95,7 @@ services:
   # --- Optional local infra (`--profile local-infra`) ---
   db:
     image: postgres:16-alpine
-    container_name: tenancysoft-db
+    container_name: venzaflow-db
     profiles: ["local-infra"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
@@ -113,7 +113,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: tenancysoft-redis
+    container_name: venzaflow-redis
     profiles: ["local-infra"]
     ports:
       - "6379:6379"
@@ -125,7 +125,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: tenancysoft-rabbitmq
+    container_name: venzaflow-rabbitmq
     profiles: ["local-infra"]
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}

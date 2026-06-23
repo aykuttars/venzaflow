@@ -1,6 +1,6 @@
-appId: com.tenancysoft.eimza
-# Spaceless productName → /opt/TenancySoft-e-imza (GNOME breaks on spaced install paths).
-productName: TenancySoft-e-imza
+appId: com.venzaflow.eimza
+# Spaceless productName → /opt/Venzaflow-e-imza (GNOME breaks on spaced install paths).
+productName: Venzaflow-e-imza
 copyright: Copyright © 2026 Aykut Arslantas
 directories:
   buildResources: build
@@ -24,16 +24,16 @@ extraResources:
     filter:
       - '**/*'
 win:
-  executableName: TenancySoft-e-imza
+  executableName: Venzaflow-e-imza
   target:
     - nsis
-  artifactName: tenancysoft-eimza-${version}-win-${arch}.${ext}
+  artifactName: venzaflow-eimza-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: tenancysoft-eimza-${version}-setup-${arch}.${ext}
-  shortcutName: TenancySoft e-imza
-  uninstallDisplayName: TenancySoft e-imza
+  artifactName: venzaflow-eimza-${version}-setup-${arch}.${ext}
+  shortcutName: Venzaflow e-imza
+  uninstallDisplayName: Venzaflow e-imza
   createDesktopShortcut: always
 mac:
   category: public.app-category.business
@@ -46,20 +46,20 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg
-  artifactName: tenancysoft-eimza-${version}-mac-${arch}.${ext}
+  artifactName: venzaflow-eimza-${version}-mac-${arch}.${ext}
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
   notarize: false
 dmg:
-  artifactName: tenancysoft-eimza-${version}-mac-${arch}.${ext}
+  artifactName: venzaflow-eimza-${version}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
     - deb
   maintainer: Aykut Arslantas
   vendor: Aykut Arslantas
-  synopsis: TenancySoft e-imza masaüstü imza köprüsü
+  synopsis: Venzaflow e-imza masaüstü imza köprüsü
   description: USB e-imza tokenları ile e-reçete, e-arşiv ve e-fatura imzalama uygulaması.
   category: Office
   # executableName drives the binary name, the /usr/bin symlink and the
@@ -67,12 +67,12 @@ linux:
   executableName: eimza
   desktop:
     entry:
-      Name: TenancySoft e-imza
-      StartupWMClass: TenancySoft-e-imza
+      Name: Venzaflow e-imza
+      StartupWMClass: Venzaflow-e-imza
 appImage:
-  artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
+  artifactName: venzaflow-eimza-${version}-linux-${arch}.${ext}
 deb:
-  artifactName: tenancysoft-eimza-${version}-linux-${arch}.${ext}
+  artifactName: venzaflow-eimza-${version}-linux-${arch}.${ext}
   afterInstall: scripts/linux-postinst.sh
   depends:
     - libnotify4

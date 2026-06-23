@@ -29,10 +29,10 @@ flowchart LR
 
 | Service | Role | Image / container suffix |
 |---------|------|---------------------------|
-| **api** | Uvicorn, migrate, optional seed | `tenancysoft-api_${ENVIRONMENT}` |
-| **celery** | Worker (`${ENV}_default`, `${ENV}_billing` queues) | `tenancysoft-celery_${ENVIRONMENT}` |
-| **celery-beat** | Periodic tasks (django-celery-beat DB) | `tenancysoft-celery-beat_${ENVIRONMENT}` |
-| **web** | Angular static (nginx) | `tenancysoft-web_${ENVIRONMENT}` |
+| **api** | Uvicorn, migrate, optional seed | `venzaflow-api_${ENVIRONMENT}` |
+| **celery** | Worker (`${ENV}_default`, `${ENV}_billing` queues) | `venzaflow-celery_${ENVIRONMENT}` |
+| **celery-beat** | Periodic tasks (django-celery-beat DB) | `venzaflow-celery-beat_${ENVIRONMENT}` |
+| **web** | Angular static (nginx) | `venzaflow-web_${ENVIRONMENT}` |
 
 Set `ENVIRONMENT=dev` or `ENVIRONMENT=prod` in `.env`. Compose adds `_dev` / `_prod` to image and container names. Celery queues are isolated per environment (`dev_default`, `prod_billing`, etc.) on the shared RabbitMQ broker.
 
@@ -59,9 +59,9 @@ App: `http://localhost`, API: `http://localhost/api/v1/`, Swagger: `http://local
 
 ```
 POSTGRES_HOST=10.0.0.3
-POSTGRES_USER=tenancyuser
+POSTGRES_USER=venzaflowuser
 POSTGRES_PASSWORD=!->ts961ts11ts.*
-POSTGRES_DB=tenancysoft
+POSTGRES_DB=venzaflow
 
 REDIS_HOST=10.0.0.3
 REDIS_PORT=6379
@@ -88,8 +88,8 @@ After changing `backend/requirements.txt` or `Dockerfile`, rebuild images: `dock
 
 ## Backups
 
-- Daily `pg_dump -Fc tenancysoft > tenancysoft-$(date +%F).dump` via cron / systemd timer.
-- Restore: `pg_restore --clean --if-exists --no-owner -d tenancysoft tenancysoft-YYYY-MM-DD.dump`.
+- Daily `pg_dump -Fc venzaflow > venzaflow-$(date +%F).dump` via cron / systemd timer.
+- Restore: `pg_restore --clean --if-exists --no-owner -d venzaflow venzaflow-YYYY-MM-DD.dump`.
 
 ## TLS
 

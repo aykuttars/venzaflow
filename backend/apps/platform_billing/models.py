@@ -123,7 +123,7 @@ class PlatformBillingSettings(models.Model):
     )
     invoice_prefix = models.CharField(max_length=16, default="TEN")
     default_payment_terms_days = models.PositiveSmallIntegerField(default=7)
-    company_name = models.CharField(max_length=255, default="Tenancysoft")
+    company_name = models.CharField(max_length=255, default="Venzaflow")
     company_tax_id = models.CharField(max_length=32, blank=True)
     company_address = models.TextField(blank=True)
 
