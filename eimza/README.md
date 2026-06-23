@@ -50,6 +50,8 @@ Windows makinede `npm run build:win:arm64` veya CI (`windows-latest`) kullanın.
 GitHub Actions (`Build eimza`) tüm platformlarda build alır ve installer'ları private registry'ye push eder (PR hariç):
 
 - Registry: `artifacts.aykut.io/venzaflow/eimza`
+- Web UI: https://artifacts.aykut.io (tarayıcıdan browse/indir)
+- Sunucu stack: `docker/artifacts-registry/` (Zot + Portainer)
 - Tag formatı: `{version}-{platform}-{arch}-{dosya-adı}`
 - Branch push: `{branch}-{run}` (ör. `develop-28`)
 - Release tag: `1.0.0-...`

@@ -1,0 +1,44 @@
+# OCI artifact registry + Web UI (Zot, ORAS uyumlu)
+#
+# Sunucu:
+#   /home/management/DockerFiles/artifacts-registry/
+#     .env
+#     config/config.json
+#     docker-compose.yml
+#     data/
+#     auth/htpasswd
+#
+# Web UI: https://artifacts.aykut.io
+# NPM: 127.0.0.1:5099 — Websockets Support: AÇIK
+
+version: "3.8"
+
+services:
+  auth-init:
+    image: httpd:2-alpine
+    restart: "no"
+    volumes:
+      - /home/management/DockerFiles/artifacts-registry/.env:/etc/registry.env:ro
+      - /home/management/DockerFiles/artifacts-registry/auth:/auth
+    command:
+      - /bin/sh
+      - -c
+      - |
+        REGISTRY_USER=$$(grep '^REGISTRY_USER=' /etc/registry.env | cut -d= -f2- | sed "s/^['\"]//;s/['\"]$$//")
+        REGISTRY_PASSWORD=$$(grep '^REGISTRY_PASSWORD=' /etc/registry.env | cut -d= -f2- | sed "s/^['\"]//;s/['\"]$$//")
+        htpasswd -Bbn "$$REGISTRY_USER" "$$REGISTRY_PASSWORD" > /auth/htpasswd
+
+  zot:
+    image: ghcr.io/project-zot/zot:v2.1.2
+    container_name: artifacts-registry
+    restart: unless-stopped
+    depends_on:
+      auth-init:
+        condition: service_completed_successfully
+    command: ["serve", "/config/config.json"]
+    ports:
+      - "5099:5000"
+    volumes:
+      - /home/management/DockerFiles/artifacts-registry/data:/var/lib/registry
+      - /home/management/DockerFiles/artifacts-registry/auth:/etc/zot/auth:ro
+      - /home/management/DockerFiles/artifacts-registry/config:/config:ro
