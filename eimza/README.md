@@ -49,7 +49,7 @@ Windows makinede `npm run build:win:arm64` veya CI (`windows-latest`) kullanın.
 
 GitHub Actions (`Build eimza`) tüm platformlarda build alır. Release installer'lar **GitHub artifact yerine** private registry'ye gider:
 
-- Registry: `registry.aykut.io/venzaflow/eimza`
+- Registry: `artifacts.aykut.io/venzaflow/eimza`
 - Tag formatı: `{version}-{platform}-{arch}-{dosya-adı}` (ör. `1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage`)
 
 **Release (tag):**
@@ -66,11 +66,11 @@ CI installer'ları registry'ye push eder; aynı tag için [GitHub Release](https
 **İndirme (ORAS):**
 
 ```bash
-oras login registry.aykut.io
-oras pull registry.aykut.io/venzaflow/eimza:1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage -o .
+oras login artifacts.aykut.io
+oras pull artifacts.aykut.io/venzaflow/eimza:1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage -o .
 ```
 
-Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (registry.aykut.io hesabı).
+Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (artifacts.aykut.io hesabı).
 
 ## API Uçları
 

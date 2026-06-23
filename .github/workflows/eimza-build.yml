@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY: registry.aykut.io
+  REGISTRY: artifacts.aykut.io
   REGISTRY_REPO: venzaflow/eimza
 
 defaults:
@@ -139,7 +139,7 @@ jobs:
       - uses: oras-project/setup-oras@v1
         if: steps.version.outputs.value != ''
 
-      - name: Push installers to registry.aykut.io
+      - name: Push installers to artifacts.aykut.io
         if: steps.version.outputs.value != ''
         shell: bash
         env:
