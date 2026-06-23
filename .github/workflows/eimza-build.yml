@@ -137,32 +137,74 @@ jobs:
             echo "value=${branch}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: oras-project/setup-oras@v1
-        if: github.event_name != 'pull_request'
+      - uses: actions/setup-go@v5
+        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        with:
+          go-version: '1.22'
 
-      - name: Push installers to artifacts.aykut.io
+      - name: Install ORAS from source (Windows ARM64)
+        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        shell: bash
+        run: go install oras.land/oras/cmd/oras@v1.2.2
+
+      - uses: oras-project/setup-oras@v1
+        if: github.event_name != 'pull_request' && matrix.runner != 'windows-11-arm'
+
+      - name: Install Cosign from source (Windows ARM64)
+        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        shell: bash
+        run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
+
+      - uses: sigstore/cosign-installer@v3.7.0
+        if: github.event_name != 'pull_request' && matrix.runner != 'windows-11-arm'
+
+      - name: Push and sign installers on artifacts.aykut.io
         if: github.event_name != 'pull_request'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.value }}
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
+          ARTIFACT_GLOBS: ${{ matrix.artifact }}
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
         run: |
           set -euo pipefail
           echo "$REGISTRY_PASS" | oras login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          echo "$REGISTRY_PASS" | cosign login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           shopt -s nullglob
-          for file in release/*; do
-            [ -f "$file" ] || continue
-            name="$(basename "$file")"
-            tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
-            echo ">> Pushing ${REGISTRY}/${REGISTRY_REPO}:${tag}"
-            oras push "${REGISTRY}/${REGISTRY_REPO}:${tag}" \
-              "$file:application/octet-stream" \
-              --annotation "org.opencontainers.image.version=${VERSION}" \
-              --annotation "org.opencontainers.image.title=Venzaflow e-imza"
-          done
+          declare -A pushed=()
+          while IFS= read -r pattern; do
+            pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+            pattern="${pattern%"${pattern##*[![:space:]]}"}"
+            [ -z "$pattern" ] && continue
+            for file in $pattern; do
+              [ -f "$file" ] || continue
+              name="$(basename "$file")"
+              case "$name" in
+                *.blockmap|*.yml|*.yaml) continue ;;
+              esac
+              tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
+              [ -n "${pushed[$tag]:-}" ] && continue
+              pushed[$tag]=1
+              ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
+              echo ">> Pushing ${ref}"
+              oras push "$ref" \
+                "$file:application/octet-stream" \
+                --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
+                --annotation "org.opencontainers.image.version=${VERSION}" \
+                --annotation "org.opencontainers.image.vendor=Venzaflow" \
+                --annotation "org.opencontainers.image.authors=aykutt" \
+                --annotation "org.opencontainers.image.source=https://github.com/venzaflow/venzaflow" \
+                --annotation "org.opencontainers.image.description=Venzaflow e-imza desktop client"
+              echo ">> Signing ${ref}"
+              echo "$COSIGN_PASSWORD" | cosign sign --yes --tlog-upload=false \
+                --key "env://COSIGN_PRIVATE_KEY" \
+                "$ref"
+            done
+          done <<< "$ARTIFACT_GLOBS"
 
   publish:
     name: GitHub Release

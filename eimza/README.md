@@ -74,7 +74,9 @@ oras login artifacts.aykut.io
 oras pull artifacts.aykut.io/venzaflow/eimza:1.0.0-linux-x64-venzaflow-eimza-1.0.0-linux-x64.AppImage -o .
 ```
 
-Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` (artifacts.aykut.io hesabı).
+Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `COSIGN_PRIVATE_KEY`, `COSIGN_PASSWORD` (artifacts.aykut.io).
+
+Installer'lar push sonrası **Cosign** ile imzalanır. Public key kurulumu: `docker/artifacts-registry/scripts/setup-cosign.sh`
 
 ## API Uçları
 

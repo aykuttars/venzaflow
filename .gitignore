@@ -64,3 +64,4 @@ Thumbs.db
 # Docker / env
 .env
 !.env.example
+docker/artifacts-registry/cosign/

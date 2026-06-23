@@ -8,7 +8,7 @@
 #     data/
 #     auth/htpasswd
 #
-# Web UI: https://artifacts.aykut.io
+# Web UI: https://artifacts.aykut.io  (aykutt + .env şifresi)
 # NPM: 127.0.0.1:5099 — Websockets Support: AÇIK
 
 version: "3.8"
@@ -16,7 +16,7 @@ version: "3.8"
 services:
   auth-init:
     image: httpd:2-alpine
-    restart: "no"
+    restart: unless-stopped
     volumes:
       - /home/management/DockerFiles/artifacts-registry/.env:/etc/registry.env:ro
       - /home/management/DockerFiles/artifacts-registry/auth:/auth
