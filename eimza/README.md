@@ -59,7 +59,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-CI installer'ları registry'ye push eder; aynı tag için [GitHub Release](https://github.com/tenancysoft/tenancysoft/releases) de oluşturulur.
+CI installer'ları registry'ye push eder; aynı tag için [GitHub Release](https://github.com/tenancysoft/venzaflow/releases) de oluşturulur.
 
 **Manuel registry push:** Actions → Build eimza → Run workflow → `version` alanına örn. `1.0.0` yaz.
 
