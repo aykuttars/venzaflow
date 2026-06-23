@@ -43,18 +43,24 @@ jobs:
             platform: mac
             arch: arm64
             runner: macos-latest
+            min_os_version: "11.0.0"
+            min_os_label: "macOS 11 (Big Sur)+"
             artifact: release/*.dmg
 
           - label: macOS x64
             platform: mac
             arch: x64
             runner: macos-latest
+            min_os_version: "11.0.0"
+            min_os_label: "macOS 11 (Big Sur)+"
             artifact: release/*.dmg
 
           - label: Windows x64
             platform: win
             arch: x64
             runner: windows-latest
+            min_os_version: "10.0"
+            min_os_label: "Windows 10+"
             artifact: |
               release/*setup*.exe
               release/*.exe
@@ -63,6 +69,8 @@ jobs:
             platform: win
             arch: arm64
             runner: windows-11-arm
+            min_os_version: "10.0"
+            min_os_label: "Windows 10+"
             artifact: |
               release/*setup*.exe
               release/*.exe
@@ -72,6 +80,8 @@ jobs:
             platform: linux
             arch: x64
             runner: ubuntu-22.04
+            min_os_version: "22.04"
+            min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
             artifact: |
               release/*.AppImage
               release/*.deb
@@ -80,6 +90,8 @@ jobs:
             platform: linux
             arch: arm64
             runner: ubuntu-22.04-arm
+            min_os_version: "22.04"
+            min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
             artifact: |
               release/*.AppImage
               release/*.deb
@@ -165,6 +177,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.value }}
           PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
+          MIN_OS_VERSION: ${{ matrix.min_os_version }}
+          MIN_OS_LABEL: ${{ matrix.min_os_label }}
           ARTIFACT_GLOBS: ${{ matrix.artifact }}
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
@@ -174,9 +188,23 @@ jobs:
           set -euo pipefail
           echo "$REGISTRY_PASS" | oras login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           echo "$REGISTRY_PASS" | cosign login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+          case "$PLATFORM" in
+            mac) OCI_OS=darwin ;;
+            win) OCI_OS=windows ;;
+            linux) OCI_OS=linux ;;
+            *) OCI_OS="$PLATFORM" ;;
+          esac
+          case "$ARCH" in
+            x64) OCI_ARCH=amd64 ;;
+            arm64) OCI_ARCH=arm64 ;;
+            *) OCI_ARCH="$ARCH" ;;
+          esac
+          oci_config="$(mktemp)"
+          printf '{"architecture":"%s","os":"%s","os.version":"%s"}\n' \
+            "$OCI_ARCH" "$OCI_OS" "$MIN_OS_VERSION" > "$oci_config"
           shopt -s nullglob
           pushed_file="$(mktemp)"
-          trap 'rm -f "$pushed_file"' EXIT
+          trap 'rm -f "$pushed_file" "$oci_config"' EXIT
           while IFS= read -r pattern; do
             pattern="${pattern#"${pattern%%[![:space:]]*}"}"
             pattern="${pattern%"${pattern##*[![:space:]]}"}"
@@ -196,12 +224,17 @@ jobs:
               echo ">> Pushing ${ref}"
               oras push "$ref" \
                 "$file:application/octet-stream" \
+                --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
                 --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
                 --annotation "org.opencontainers.image.version=${VERSION}" \
                 --annotation "org.opencontainers.image.vendor=Venzaflow" \
                 --annotation "org.opencontainers.image.authors=aykutt" \
                 --annotation "org.opencontainers.image.source=https://github.com/venzaflow/venzaflow" \
-                --annotation "org.opencontainers.image.description=Venzaflow e-imza desktop client"
+                --annotation "org.opencontainers.image.description=Venzaflow e-imza — minimum: ${MIN_OS_LABEL} (Electron 39)" \
+                --annotation "org.opencontainers.image.os=${OCI_OS}" \
+                --annotation "org.opencontainers.image.arch=${OCI_ARCH}" \
+                --annotation "com.venzaflow.eimza.min-os=${MIN_OS_LABEL}" \
+                --annotation "land.oras.artifact.platform.osversion=${MIN_OS_VERSION}"
               echo ">> Signing ${ref}"
               echo "$COSIGN_PASSWORD" | cosign sign --yes --tlog-upload=false \
                 --key "env://COSIGN_PRIVATE_KEY" \
