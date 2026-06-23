@@ -175,7 +175,8 @@ jobs:
           echo "$REGISTRY_PASS" | oras login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           echo "$REGISTRY_PASS" | cosign login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
           shopt -s nullglob
-          declare -A pushed=()
+          pushed_file="$(mktemp)"
+          trap 'rm -f "$pushed_file"' EXIT
           while IFS= read -r pattern; do
             pattern="${pattern#"${pattern%%[![:space:]]*}"}"
             pattern="${pattern%"${pattern##*[![:space:]]}"}"
@@ -187,8 +188,10 @@ jobs:
                 *.blockmap|*.yml|*.yaml) continue ;;
               esac
               tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
-              [ -n "${pushed[$tag]:-}" ] && continue
-              pushed[$tag]=1
+              if grep -Fxq "$tag" "$pushed_file" 2>/dev/null; then
+                continue
+              fi
+              echo "$tag" >> "$pushed_file"
               ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
               echo ">> Pushing ${ref}"
               oras push "$ref" \
