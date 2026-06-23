@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version for registry push (e.g. 1.0.0). Leave empty on non-tag runs.'
+        description: 'Registry tag prefix (e.g. 1.0.0). Empty → branch-run (develop-28).'
         required: false
         type: string
 
@@ -133,14 +133,15 @@ jobs:
           elif [[ -n "${{ github.event.inputs.version }}" ]]; then
             echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=" >> "$GITHUB_OUTPUT"
+            branch="${GITHUB_REF_NAME//\//-}"
+            echo "value=${branch}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: oras-project/setup-oras@v1
-        if: steps.version.outputs.value != ''
+        if: github.event_name != 'pull_request'
 
       - name: Push installers to artifacts.aykut.io
-        if: steps.version.outputs.value != ''
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.value }}
