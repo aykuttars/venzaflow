@@ -25,7 +25,8 @@ fi
 
 echo "Found ${#TAGS[@]} tags in ${REPO}"
 
-declare -A SEEN=()
+seen_file="$(mktemp)"
+trap 'rm -f "$seen_file"' EXIT
 deleted=0
 
 for tag in "${TAGS[@]}"; do
@@ -40,14 +41,14 @@ for tag in "${TAGS[@]}"; do
     echo "ERROR: no digest for tag ${tag}" >&2
     exit 1
   fi
-  if [ -n "${SEEN[$digest]:-}" ]; then
+  if grep -Fxq "$digest" "$seen_file" 2>/dev/null; then
     echo "skip (digest already deleted): ${tag}"
     continue
   fi
   curl -fsS -o /dev/null -X DELETE "${AUTH[@]}" \
     -H "Accept: ${ACCEPT}" \
     "${BASE}/v2/${REPO}/manifests/${digest}"
-  SEEN[$digest]=1
+  echo "$digest" >> "$seen_file"
   deleted=$((deleted + 1))
   echo "deleted: ${tag} (${digest})"
 done
