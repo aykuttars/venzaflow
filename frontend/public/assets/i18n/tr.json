@@ -142,6 +142,16 @@
       "failed": "Başarısız"
     }
   },
+  "eimzaDownload": {
+    "title": "Venzaflow e-imza uygulamasını indir",
+    "subtitle": "İşletim sisteminize uygun kurulum dosyasını seçin.",
+    "version": "Sürüm {{version}}",
+    "download": "İndir",
+    "button": "İndir",
+    "unavailable": "Kurulum dosyası şu an hazır değil. Lütfen daha sonra tekrar deneyin veya destek ekibinizle iletişime geçin.",
+    "notConfigured": "İndirme servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+    "loadError": "İndirme listesi yüklenemedi. Lütfen sayfayı yenileyin."
+  },
   "signingIntegration": {
     "title": "Entegrasyon Ayarları",
     "subtitle": "Bu tenant için e-belge entegratörlerini ve imza kimliğini yapılandırın.",

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -28,6 +28,7 @@ import { AppLanguage, LanguageService } from '../../core/language.service';
     MatProgressBarModule,
     MatButtonToggleModule,
     TranslateModule,
+    RouterLink,
   ],
   template: `
     <div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#3949ab 0%,#5c6bc0 60%,#9fa8da 100%)">
@@ -72,11 +73,21 @@ import { AppLanguage, LanguageService } from '../../core/language.service';
             <button mat-flat-button color="primary" class="full-width" [disabled]="form.invalid || loading()" type="submit">
               {{ 'auth.signInButton' | translate }}
             </button>
+            <a mat-button routerLink="/eimza" class="full-width eimza-link">
+              <mat-icon>download_for_offline</mat-icon>
+              {{ 'eimzaDownload.title' | translate }}
+            </a>
           </form>
         </mat-card-content>
       </mat-card>
     </div>
   `,
+  styles: [
+    `
+      .full-width { width: 100%; }
+      .eimza-link { margin-top: 8px; justify-content: center; }
+    `,
+  ],
 })
 export class LoginComponent implements OnInit {
   private fb = inject(FormBuilder);

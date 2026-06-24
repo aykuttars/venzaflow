@@ -4,12 +4,14 @@ import { ActivatedRoute } from '@angular/router';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
 import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
+import { EimzaDownloadDialogComponent } from './eimza-download-dialog.component';
 
 type DocumentType = 'erecete' | 'earsiv' | 'efatura';
 
@@ -48,6 +50,10 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
   template: `
     <div class="page">
       <app-page-header moduleSlug="signing" icon="draw">
+        <button mat-stroked-button type="button" (click)="openDownloadDialog()">
+          <mat-icon>download</mat-icon>
+          {{ 'eimzaDownload.button' | translate }}
+        </button>
         @if (canConfigure()) {
         <a mat-stroked-button routerLink="/signing/integration">
           <mat-icon>hub</mat-icon>
@@ -59,6 +65,7 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
           {{ 'common.refresh' | translate }}
         </button>
       </app-page-header>
+
       <p class="subtitle">{{ 'signing.subtitle' | translate }}</p>
 
       <nav class="tabs">
@@ -181,6 +188,7 @@ export class SigningComponent implements OnInit {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   private route = inject(ActivatedRoute);
+  private dialog = inject(MatDialog);
 
   readonly tabs = TABS;
   activeTab = signal<DocumentType>('erecete');
@@ -197,6 +205,15 @@ export class SigningComponent implements OnInit {
 
   canConfigure(): boolean {
     return this.auth.hasPermission('signing.write');
+  }
+
+  openDownloadDialog(): void {
+    this.dialog.open(EimzaDownloadDialogComponent, {
+      width: '760px',
+      maxWidth: '95vw',
+      autoFocus: false,
+      disableClose: true,
+    });
   }
 
   setTab(tab: DocumentType): void {

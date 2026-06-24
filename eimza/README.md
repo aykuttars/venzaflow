@@ -49,8 +49,9 @@ Windows makinede `npm run build:win:arm64` veya CI (`windows-latest`) kullanın.
 
 GitHub Actions (`Build eimza`) tüm platformlarda build alır ve installer'ları private registry'ye push eder (PR hariç):
 
-- Registry: `artifacts.aykut.io/venzaflow/eimza`
-- Web UI: https://artifacts.aykut.io (tarayıcıdan browse/indir)
+- Registry: `artifacts.aykut.io/venzaflow/eimza` (CI push, private)
+- **Son kullanıcı indirme:** Venzaflow web/API üzerinden — login sayfası `/eimza` veya panel **e-İmza** modülü
+- API: `GET /api/v1/sign/eimza/releases/` · `GET /api/v1/sign/eimza/download/{platform}/`
 - Sunucu stack: `docker/artifacts-registry/` (Zot + Portainer)
 - Tag formatı: `{version}-{platform}-{arch}-{dosya-adı}`
 - Branch push: `{branch}-{run}` (ör. `develop-28`)
@@ -67,7 +68,14 @@ CI installer'ları registry'ye push eder; aynı tag için [GitHub Release](https
 
 **Manuel registry push:** Actions → Build eimza → Run workflow → `version` alanına örn. `1.0.0` yaz.
 
-**İndirme (ORAS):**
+**İndirme (son kullanıcı):**
+
+- Web: `https://<venzaflow-host>/eimza` — giriş gerekmez, tek tık indir
+- Panel: **e-İmza** → **İndir** (modal)
+
+Release tag yoksa son CI build'leri gösterilir; resmi sürüm için `v*` tag kullanın.
+
+**İndirme (geliştirici / ORAS):**
 
 ```bash
 oras login artifacts.aykut.io
@@ -75,6 +83,8 @@ oras pull artifacts.aykut.io/venzaflow/eimza:1.0.0-linux-x64-venzaflow-eimza-1.0
 ```
 
 Repo secrets: `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `COSIGN_PRIVATE_KEY`, `COSIGN_PASSWORD` (artifacts.aykut.io).
+
+API `.env`: `ARTIFACT_REGISTRY_URL`, `ARTIFACT_REGISTRY_USER`, `ARTIFACT_REGISTRY_PASSWORD`
 
 Installer'lar push sonrası **Cosign** ile imzalanır. Public key kurulumu: `docker/artifacts-registry/scripts/setup-cosign.sh`
 

@@ -58,6 +58,13 @@ export const APP_ROUTES: Routes = [
       import('./features/auth/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'eimza',
+    loadComponent: () =>
+      import('./features/signing/eimza-download-page.component').then(
+        (m) => m.EimzaDownloadPageComponent
+      ),
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./core/layout/main-layout.component').then(

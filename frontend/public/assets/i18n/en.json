@@ -142,6 +142,16 @@
       "failed": "Failed"
     }
   },
+  "eimzaDownload": {
+    "title": "Download Venzaflow e-signature app",
+    "subtitle": "Choose the installer for your operating system.",
+    "version": "Version {{version}}",
+    "download": "Download",
+    "button": "Download",
+    "unavailable": "The installer is not available right now. Please try again later or contact your support team.",
+    "notConfigured": "Downloads are temporarily unavailable. Please try again later.",
+    "loadError": "Could not load the download list. Please refresh the page."
+  },
   "signingIntegration": {
     "title": "Integration Settings",
     "subtitle": "Configure the e-document integrators and signing identity for this tenant.",

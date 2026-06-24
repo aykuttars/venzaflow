@@ -8,8 +8,8 @@
 #     data/
 #     auth/htpasswd
 #
-# Web UI: https://artifacts.aykut.io  (aykutt + .env şifresi)
-# NPM: 127.0.0.1:5099 — Websockets Support: AÇIK
+# Registry UI (dev): https://artifacts.aykut.io  (aykutt + .env şifresi)
+# NPM: artifacts → 127.0.0.1:5099 (Websockets)
 
 version: "3.8"
 
