@@ -7,6 +7,10 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
+        input: {
+          index: resolve('src/main/index.ts'),
+          'services/pkcs11.worker': resolve('src/main/services/pkcs11.worker.ts')
+        },
         external: ['graphene-pk11', 'pkcs11js']
       }
     }

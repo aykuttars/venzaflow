@@ -69,6 +69,15 @@ export interface SelectedCertificate {
   subject: string
 }
 
+export interface TokenProbeResult {
+  drivers: Pkcs11Driver[]
+  driver: Pkcs11Driver | null
+  slots: TokenSlotInfo[]
+  certificates: CertificateInfo[]
+  timedOut: boolean
+  error?: string
+}
+
 export interface SignTask {
   id: string
   documentType: DocumentType

@@ -3,6 +3,7 @@ import { IPC } from '../../shared/ipc-channels'
 import type { IpcResponse, Pkcs11Driver, SelectedCertificate } from '../../shared/types'
 import { createCustomDriver } from '../services/driverDiscovery'
 import { pkcs11Service } from '../services/pkcs11Service'
+import { probeToken } from '../services/pkcs11Probe'
 import { saveDriverPath } from '../services/secureStore'
 
 function ok<T>(data: T): IpcResponse<T> {
@@ -18,6 +19,14 @@ export function registerPkcs11Ipc(): void {
   ipcMain.handle(IPC.PKCS11_DISCOVER_DRIVERS, async () => {
     try {
       return ok(pkcs11Service.discover())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(IPC.PKCS11_PROBE_TOKEN, async (_event, driver?: Pkcs11Driver | null) => {
+    try {
+      return ok(await probeToken({ driver: driver ?? null }))
     } catch (error) {
       return fail(error)
     }

@@ -1,5 +1,8 @@
 name: Build eimza
 
+# PR (opened/sync): build + test only — no registry publish.
+# Merge to develop/main (or direct push): GitHub fires `push` → build + publish to artifacts.aykut.io.
+# pull_request `closed` is omitted so merge does not run a second, publish-skipped workflow.
 on:
   push:
     branches: [main, master, develop]
@@ -8,6 +11,7 @@ on:
       - 'eimza/**'
       - '.github/workflows/eimza-build.yml'
   pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main, master, develop]
     paths:
       - 'eimza/**'
@@ -26,6 +30,8 @@ concurrency:
 env:
   REGISTRY: artifacts.aykut.io
   REGISTRY_REPO: venzaflow/eimza
+  # Registry push runs on branch/tag push and manual dispatch — not on open PR CI runs.
+  SHOULD_PUBLISH: ${{ github.event_name != 'pull_request' }}
 
 defaults:
   run:
@@ -150,28 +156,28 @@ jobs:
           fi
 
       - uses: actions/setup-go@v5
-        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        if: env.SHOULD_PUBLISH == 'true' && matrix.runner == 'windows-11-arm'
         with:
           go-version: '1.22'
 
       - name: Install ORAS from source (Windows ARM64)
-        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        if: env.SHOULD_PUBLISH == 'true' && matrix.runner == 'windows-11-arm'
         shell: bash
         run: go install oras.land/oras/cmd/oras@v1.2.2
 
       - uses: oras-project/setup-oras@v1
-        if: github.event_name != 'pull_request' && matrix.runner != 'windows-11-arm'
+        if: env.SHOULD_PUBLISH == 'true' && matrix.runner != 'windows-11-arm'
 
       - name: Install Cosign from source (Windows ARM64)
-        if: github.event_name != 'pull_request' && matrix.runner == 'windows-11-arm'
+        if: env.SHOULD_PUBLISH == 'true' && matrix.runner == 'windows-11-arm'
         shell: bash
         run: go install github.com/sigstore/cosign/v2/cmd/cosign@v2.4.1
 
       - uses: sigstore/cosign-installer@v3.7.0
-        if: github.event_name != 'pull_request' && matrix.runner != 'windows-11-arm'
+        if: env.SHOULD_PUBLISH == 'true' && matrix.runner != 'windows-11-arm'
 
       - name: Push and sign installers on artifacts.aykut.io
-        if: github.event_name != 'pull_request'
+        if: env.SHOULD_PUBLISH == 'true'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.value }}

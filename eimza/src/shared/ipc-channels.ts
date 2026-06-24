@@ -8,6 +8,7 @@ export const IPC = {
   AUTH_RESTORE: 'auth:restore',
 
   PKCS11_DISCOVER_DRIVERS: 'pkcs11:discover-drivers',
+  PKCS11_PROBE_TOKEN: 'pkcs11:probe-token',
   PKCS11_SET_DRIVER: 'pkcs11:set-driver',
   PKCS11_LIST_SLOTS: 'pkcs11:list-slots',
   PKCS11_LIST_CERTIFICATES: 'pkcs11:list-certificates',

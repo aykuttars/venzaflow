@@ -11,6 +11,7 @@ import type {
   SignCompleteResponse,
   SignPrepareResponse,
   SignTask,
+  TokenProbeResult,
   TokenSlotInfo
 } from '../shared/types'
 
@@ -36,6 +37,8 @@ const api = {
   },
   pkcs11: {
     discoverDrivers: () => invoke<Pkcs11Driver[]>(IPC.PKCS11_DISCOVER_DRIVERS),
+    probeToken: (driver?: Pkcs11Driver | null) =>
+      invoke<TokenProbeResult>(IPC.PKCS11_PROBE_TOKEN, driver ?? null),
     setDriver: (driver: Pkcs11Driver) => invoke<boolean>(IPC.PKCS11_SET_DRIVER, driver),
     browseDriver: () => invoke<Pkcs11Driver | null>('pkcs11:browse-driver'),
     listSlots: () => invoke<TokenSlotInfo[]>(IPC.PKCS11_LIST_SLOTS),
