@@ -148,6 +148,7 @@
     "version": "Version {{version}}",
     "download": "Download",
     "button": "Download",
+    "publishedAt": "Released: {{date}}",
     "unavailable": "The installer is not available right now. Please try again later or contact your support team.",
     "notConfigured": "Downloads are temporarily unavailable. Please try again later.",
     "loadError": "Could not load the download list. Please refresh the page."

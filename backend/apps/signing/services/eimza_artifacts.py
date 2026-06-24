@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import requests
@@ -18,6 +20,7 @@ MANIFEST_ACCEPT = (
 SEMVER_PREFIX = re.compile(r"^(\d+)\.(\d+)\.(\d+)-")
 FILENAME_SUFFIX = re.compile(r"-(?:mac|win|linux)-(?:x64|arm64)-(.+)$", re.I)
 APP_VERSION_IN_TAG = re.compile(r"venzaflow-eimza-(\d+\.\d+\.\d+)", re.I)
+CREATED_ANNOTATION = "org.opencontainers.image.created"
 
 
 @dataclass(frozen=True)
@@ -180,7 +183,37 @@ def resolve_catalog(tags: list[str]) -> tuple[str | None, str]:
     return None, "preview"
 
 
-def resolve_manifest(client: requests.Session, tag: str) -> dict[str, Any]:
+def _to_utc_iso(value: str) -> str:
+    normalized = value.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(normalized)
+    if dt.tzinfo is None:
+        dt = dt.replace(tinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def published_at_from_manifest(manifest: dict[str, Any], response: requests.Response) -> str | None:
+    """Return registry publish time as UTC ISO-8601 (annotation or Last-Modified)."""
+    annotations = manifest.get("annotations") or {}
+    created = annotations.get(CREATED_ANNOTATION)
+    if isinstance(created, str) and created.strip():
+        try:
+            return _to_utc_iso(created.strip())
+        except ValueError:
+            pass
+
+    last_modified = response.headers.get("Last-Modified")
+    if last_modified:
+        try:
+            dt = parsedate_to_datetime(last_modified)
+            if dt.tzinfo is None:
+                dt = dt.replace(tinfo=timezone.utc)
+            return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (TypeError, ValueError, OverflowError):
+            pass
+    return None
+
+
+def resolve_manifest(client: requests.Session, tag: str) -> tuple[dict[str, Any], requests.Response]:
     response = client.get(
         f"{_registry_url()}/v2/{settings.ARTIFACT_REGISTRY_REPO}/manifests/{tag}",
         headers={"Accept": MANIFEST_ACCEPT},
@@ -202,8 +235,8 @@ def resolve_manifest(client: requests.Session, tag: str) -> dict[str, Any]:
                 timeout=60,
             )
             ref_response.raise_for_status()
-            return ref_response.json()
-    return manifest
+            return ref_response.json(), ref_response
+    return manifest, response
 
 
 def layer_digest(manifest: dict[str, Any]) -> str:
@@ -227,7 +260,7 @@ def resolve_download(platform_slug: str) -> tuple[str, str, str]:
         tag = pick_latest_tag_for_platform(tags, platform)
         if not tag:
             raise ArtifactRegistryError("No installer for this platform.")
-        manifest = resolve_manifest(client, tag)
+        manifest, _response = resolve_manifest(client, tag)
         digest = layer_digest(manifest)
         return tag, digest, filename_from_tag(tag)
 
@@ -252,7 +285,7 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
             "platforms": [],
         }
 
-    cache_key = "signing:eimza:releases:v2"
+    cache_key = "signing:eimza:releases:v3"
     cached = cache.get(cache_key)
     if cached is not None:
         payload = dict(cached)
@@ -278,6 +311,7 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
             tag = pick_latest_tag_for_platform(tags, platform)
             if not tag:
                 continue
+            manifest, response = resolve_manifest(client, tag)
             platforms.append(
                 {
                     "slug": platform.slug,
@@ -285,6 +319,7 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
                     "hint": platform.hint,
                     "filename": filename_from_tag(tag),
                     "tag": tag,
+                    "published_at": published_at_from_manifest(manifest, response),
                 }
             )
 

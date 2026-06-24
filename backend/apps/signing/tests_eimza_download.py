@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -22,8 +22,17 @@ MANIFEST_RESPONSE = {
             "digest": "sha256:abc123",
             "size": 123,
         }
-    ]
+    ],
+    "annotations": {
+        "org.opencontainers.image.created": "2026-06-23T10:15:00Z",
+    },
 }
+
+
+def _manifest_response():
+    response = Mock()
+    response.headers = {"Last-Modified": "Mon, 23 Jun 2026 12:00:00 GMT"}
+    return MANIFEST_RESPONSE, response
 
 
 @override_settings(
@@ -37,9 +46,11 @@ class EimzaDownloadApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
+    @patch("apps.signing.services.eimza_artifacts.resolve_manifest")
     @patch("apps.signing.services.eimza_artifacts.fetch_tags")
-    def test_releases_lists_latest_semver_only(self, fetch_tags):
+    def test_releases_lists_latest_semver_only(self, fetch_tags, resolve_manifest):
         fetch_tags.return_value = TAGS_RESPONSE["tags"]
+        resolve_manifest.return_value = _manifest_response()
         response = self.client.get("/api/v1/sign/eimza/releases/")
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -50,6 +61,7 @@ class EimzaDownloadApiTests(TestCase):
         self.assertIn("windows", slugs)
         self.assertIn("mac-silicon", slugs)
         self.assertTrue(all(item["download_url"].endswith(f"/download/{item['slug']}/") for item in body["platforms"]))
+        self.assertTrue(all(item["published_at"] == "2026-06-23T10:15:00Z" for item in body["platforms"]))
 
     @patch("apps.signing.services.eimza_artifacts.stream_blob")
     @patch("apps.signing.services.eimza_artifacts.resolve_download")
@@ -79,12 +91,14 @@ class EimzaDownloadApiTests(TestCase):
         self.assertEqual(body["status"], "not_configured")
         self.assertEqual(body["platforms"], [])
 
+    @patch("apps.signing.services.eimza_artifacts.resolve_manifest")
     @patch("apps.signing.services.eimza_artifacts.fetch_tags")
-    def test_releases_fallback_to_ci_builds(self, fetch_tags):
+    def test_releases_fallback_to_ci_builds(self, fetch_tags, resolve_manifest):
         fetch_tags.return_value = [
             "develop-34-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe",
             "develop-34-mac-arm64-venzaflow-eimza-1.0.0-mac-arm64.dmg",
         ]
+        resolve_manifest.return_value = _manifest_response()
         response = self.client.get("/api/v1/sign/eimza/releases/")
         self.assertEqual(response.status_code, 200)
         body = response.json()

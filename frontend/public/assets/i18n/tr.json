@@ -148,6 +148,7 @@
     "version": "Sürüm {{version}}",
     "download": "İndir",
     "button": "İndir",
+    "publishedAt": "Yayınlandı: {{date}}",
     "unavailable": "Kurulum dosyası şu an hazır değil. Lütfen daha sonra tekrar deneyin veya destek ekibinizle iletişime geçin.",
     "notConfigured": "İndirme servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
     "loadError": "İndirme listesi yüklenemedi. Lütfen sayfayı yenileyin."

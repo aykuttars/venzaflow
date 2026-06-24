@@ -215,12 +215,13 @@ jobs:
             fi
             echo "$tag" >> "$pushed_file"
             ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
-            echo ">> Pushing ${ref} (${file})"
-            oras push "$ref" \
-              "$file:application/octet-stream" \
-              --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
-              --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
-              --annotation "org.opencontainers.image.version=${VERSION}" \
+              echo ">> Pushing ${ref} (${file})"
+              oras push "$ref" \
+                "$file:application/octet-stream" \
+                --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
+                --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
+                --annotation "org.opencontainers.image.version=${VERSION}" \
+                --annotation "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
               --annotation "org.opencontainers.image.vendor=Venzaflow" \
               --annotation "org.opencontainers.image.authors=aykutt" \
               --annotation "org.opencontainers.image.source=https://github.com/venzaflow/venzaflow" \

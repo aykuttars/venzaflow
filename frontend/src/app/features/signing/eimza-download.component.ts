@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
 
@@ -15,6 +15,7 @@ interface EimzaPlatform {
   hint: string;
   filename: string;
   download_url: string;
+  published_at?: string | null;
 }
 
 type EimzaReleaseStatus = 'ok' | 'preview' | 'unavailable' | 'not_configured';
@@ -89,6 +90,11 @@ interface EimzaReleases {
               <strong>{{ p.label }}</strong>
               <div class="muted">{{ p.hint }}</div>
               <div class="filename">{{ p.filename }}</div>
+              @if (p.published_at) {
+                <div class="published-at">
+                  {{ 'eimzaDownload.publishedAt' | translate: { date: formatPublishedAt(p.published_at) } }}
+                </div>
+              }
             </div>
             <a mat-flat-button color="primary" [href]="p.download_url">
               <mat-icon>download</mat-icon>
@@ -138,6 +144,11 @@ interface EimzaReleases {
         margin-top: 2px;
         word-break: break-all;
       }
+      .published-at {
+        font-size: 12px;
+        color: rgba(0, 0, 0, 0.45);
+        margin-top: 4px;
+      }
       .notice {
         margin: 0;
         color: rgba(0, 0, 0, 0.65);
@@ -154,6 +165,7 @@ export class EimzaDownloadComponent implements OnInit {
   @Input() embedded = false;
 
   private http = inject(HttpClient);
+  private translate = inject(TranslateService);
 
   loading = signal(true);
   errorKey = signal('');
@@ -169,6 +181,11 @@ export class EimzaDownloadComponent implements OnInit {
     }
     return 'eimzaDownload.unavailable';
   });
+
+  formatPublishedAt(iso: string): string {
+    const locale = this.translate.currentLang === 'en' ? 'en-GB' : 'tr-TR';
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(iso));
+  }
 
   ngOnInit(): void {
     this.http.get<EimzaReleases>(`${API_BASE}/sign/eimza/releases/`).subscribe({
