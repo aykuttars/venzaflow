@@ -51,7 +51,6 @@ jobs:
             runner: macos-latest
             min_os_version: "11.0.0"
             min_os_label: "macOS 11 (Big Sur)+"
-            artifact: release/*.dmg
 
           - label: macOS x64
             platform: mac
@@ -59,7 +58,6 @@ jobs:
             runner: macos-latest
             min_os_version: "11.0.0"
             min_os_label: "macOS 11 (Big Sur)+"
-            artifact: release/*.dmg
 
           - label: Windows x64
             platform: win
@@ -67,9 +65,6 @@ jobs:
             runner: windows-latest
             min_os_version: "10.0"
             min_os_label: "Windows 10+"
-            artifact: |
-              release/*setup*.exe
-              release/*.exe
 
           - label: Windows arm64
             platform: win
@@ -77,9 +72,6 @@ jobs:
             runner: windows-11-arm
             min_os_version: "10.0"
             min_os_label: "Windows 10+"
-            artifact: |
-              release/*setup*.exe
-              release/*.exe
 
           # ubuntu-22.04: glibc 2.35 — AppImage runs on Ubuntu 22.04+ (ubuntu-latest uses glibc 2.38+)
           - label: Linux x64
@@ -88,9 +80,6 @@ jobs:
             runner: ubuntu-22.04
             min_os_version: "22.04"
             min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
-            artifact: |
-              release/*.AppImage
-              release/*.deb
 
           - label: Linux arm64
             platform: linux
@@ -98,9 +87,6 @@ jobs:
             runner: ubuntu-22.04-arm
             min_os_version: "22.04"
             min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
-            artifact: |
-              release/*.AppImage
-              release/*.deb
 
     steps:
       - uses: actions/checkout@v4
@@ -185,7 +171,6 @@ jobs:
           ARCH: ${{ matrix.arch }}
           MIN_OS_VERSION: ${{ matrix.min_os_version }}
           MIN_OS_LABEL: ${{ matrix.min_os_label }}
-          ARTIFACT_GLOBS: ${{ matrix.artifact }}
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
@@ -208,45 +193,47 @@ jobs:
           oci_config="$(mktemp)"
           printf '{"architecture":"%s","os":"%s","os.version":"%s"}\n' \
             "$OCI_ARCH" "$OCI_OS" "$MIN_OS_VERSION" > "$oci_config"
-          shopt -s nullglob
           pushed_file="$(mktemp)"
           trap 'rm -f "$pushed_file" "$oci_config"' EXIT
-          while IFS= read -r pattern; do
-            pattern="${pattern#"${pattern%%[![:space:]]*}"}"
-            pattern="${pattern%"${pattern##*[![:space:]]}"}"
-            [ -z "$pattern" ] && continue
-            for file in $pattern; do
-              [ -f "$file" ] || continue
-              name="$(basename "$file")"
-              case "$name" in
-                *.blockmap|*.yml|*.yaml) continue ;;
-              esac
-              tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
-              if grep -Fxq "$tag" "$pushed_file" 2>/dev/null; then
-                continue
-              fi
-              echo "$tag" >> "$pushed_file"
-              ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
-              echo ">> Pushing ${ref}"
-              oras push "$ref" \
-                "$file:application/octet-stream" \
-                --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
-                --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
-                --annotation "org.opencontainers.image.version=${VERSION}" \
-                --annotation "org.opencontainers.image.vendor=Venzaflow" \
-                --annotation "org.opencontainers.image.authors=aykutt" \
-                --annotation "org.opencontainers.image.source=https://github.com/venzaflow/venzaflow" \
-                --annotation "org.opencontainers.image.description=Venzaflow e-imza — minimum: ${MIN_OS_LABEL} (Electron 39)" \
-                --annotation "org.opencontainers.image.os=${OCI_OS}" \
-                --annotation "org.opencontainers.image.arch=${OCI_ARCH}" \
-                --annotation "com.venzaflow.eimza.min-os=${MIN_OS_LABEL}" \
-                --annotation "land.oras.artifact.platform.osversion=${MIN_OS_VERSION}"
-              echo ">> Signing ${ref}"
-              echo "$COSIGN_PASSWORD" | cosign sign --yes --tlog-upload=false \
-                --key "env://COSIGN_PRIVATE_KEY" \
-                "$ref"
-            done
-          done <<< "$ARTIFACT_GLOBS"
+          # Do not pass shell globs via env vars — Windows runners strip '*' and oras
+          # then tries to open paths like release/setup.exe that do not exist.
+          mapfile -t installer_files < <(
+            find release -maxdepth 1 -type f \( \
+              -iname '*.exe' -o -iname '*.dmg' -o -iname '*.AppImage' -o -iname '*.deb' \
+            \) ! -iname '*.blockmap' ! -iname '*.yml' ! -iname '*.yaml' | sort
+          )
+          if [ "${#installer_files[@]}" -eq 0 ]; then
+            echo "No installer files found under release/" >&2
+            ls -la release/ || true
+            exit 1
+          fi
+          for file in "${installer_files[@]}"; do
+            name="$(basename "$file")"
+            tag="${VERSION}-${PLATFORM}-${ARCH}-${name}"
+            if grep -Fxq "$tag" "$pushed_file" 2>/dev/null; then
+              continue
+            fi
+            echo "$tag" >> "$pushed_file"
+            ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
+            echo ">> Pushing ${ref} (${file})"
+            oras push "$ref" \
+              "$file:application/octet-stream" \
+              --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
+              --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
+              --annotation "org.opencontainers.image.version=${VERSION}" \
+              --annotation "org.opencontainers.image.vendor=Venzaflow" \
+              --annotation "org.opencontainers.image.authors=aykutt" \
+              --annotation "org.opencontainers.image.source=https://github.com/venzaflow/venzaflow" \
+              --annotation "org.opencontainers.image.description=Venzaflow e-imza — minimum: ${MIN_OS_LABEL} (Electron 39)" \
+              --annotation "org.opencontainers.image.os=${OCI_OS}" \
+              --annotation "org.opencontainers.image.arch=${OCI_ARCH}" \
+              --annotation "com.venzaflow.eimza.min-os=${MIN_OS_LABEL}" \
+              --annotation "land.oras.artifact.platform.osversion=${MIN_OS_VERSION}"
+            echo ">> Signing ${ref}"
+            echo "$COSIGN_PASSWORD" | cosign sign --yes --tlog-upload=false \
+              --key "env://COSIGN_PRIVATE_KEY" \
+              "$ref"
+          done
 
   publish:
     name: GitHub Release
