@@ -32,11 +32,25 @@ case "$ARCH" in
   *) OCI_ARCH="$ARCH" ;;
 esac
 
-oci_config="$(mktemp)"
+# mktemp paths break ORAS on Windows (GetFileAttributesEx on missing tmp/...).
+push_dir="release/.registry-push"
+mkdir -p "$push_dir"
+oci_config="$push_dir/oci-config.json"
+pushed_file="$push_dir/pushed-tags.txt"
 printf '{"architecture":"%s","os":"%s","os.version":"%s"}\n' \
   "$OCI_ARCH" "$OCI_OS" "$MIN_OS_VERSION" > "$oci_config"
-pushed_file="$(mktemp)"
-trap 'rm -f "$pushed_file" "$oci_config"' EXIT
+: > "$pushed_file"
+trap 'rm -rf "$push_dir"' EXIT
+
+oras_local_path() {
+  local path="$1"
+  path="${path//\\//}"
+  if [ "$PLATFORM" = "win" ] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$path"
+  else
+    printf '%s' "$path"
+  fi
+}
 
 push_installer() {
   local file="$1"
@@ -55,11 +69,13 @@ push_installer() {
   echo "$tag" >> "$pushed_file"
 
   ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
-  file="${file//\\//}"
-  echo ">> Pushing ${ref} (${file})"
+  local installer_path config_path
+  installer_path="$(oras_local_path "$file")"
+  config_path="$(oras_local_path "$oci_config")"
+  echo ">> Pushing ${ref} (${installer_path})"
   oras push "$ref" \
-    "$file:application/octet-stream" \
-    --config "${oci_config}:application/vnd.oci.image.config.v1+json" \
+    "${installer_path}:application/octet-stream" \
+    --config "${config_path}:application/vnd.oci.image.config.v1+json" \
     --annotation "org.opencontainers.image.title=Venzaflow e-imza" \
     --annotation "org.opencontainers.image.version=${VERSION}" \
     --annotation "org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
