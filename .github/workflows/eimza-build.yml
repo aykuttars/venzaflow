@@ -157,7 +157,9 @@ jobs:
       - name: Install ORAS from source (Windows ARM64)
         if: env.SHOULD_PUBLISH == 'true' && matrix.runner == 'windows-11-arm'
         shell: bash
-        run: go install oras.land/oras/cmd/oras@v1.2.2
+        run: |
+          go install oras.land/oras/cmd/oras@v1.2.2
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
       - uses: oras-project/setup-oras@v1
         if: env.SHOULD_PUBLISH == 'true' && matrix.runner != 'windows-11-arm'

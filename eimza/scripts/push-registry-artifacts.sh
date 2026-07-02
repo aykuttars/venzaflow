@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Push and cosign e-imza installers to the OCI artifact registry.
 # macOS/Linux: glob patterns from ARTIFACT_GLOBS (Bash 3.2 safe, proven on macOS runners).
-# Windows: find release/*.exe — env vars strip '*' on Windows runners.
+# Windows: bash globs in-script (env vars strip '*'; find is Windows find.exe, not GNU find).
 set -euo pipefail
 
 : "${REGISTRY:?}"
@@ -55,6 +55,7 @@ push_installer() {
   echo "$tag" >> "$pushed_file"
 
   ref="${REGISTRY}/${REGISTRY_REPO}:${tag}"
+  file="${file//\\//}"
   echo ">> Pushing ${ref} (${file})"
   oras push "$ref" \
     "$file:application/octet-stream" \
@@ -79,13 +80,12 @@ push_installer() {
 found=0
 
 if [ "$PLATFORM" = "win" ]; then
-  while IFS= read -r file; do
-    [ -n "$file" ] || continue
+  shopt -s nullglob
+  for file in release/*.exe; do
     found=1
     push_installer "$file"
-  done <<EOF
-$(find release -maxdepth 1 -type f -iname '*.exe' ! -iname '*.blockmap' | sort)
-EOF
+  done
+  shopt -u nullglob
 else
   : "${ARTIFACT_GLOBS:?ARTIFACT_GLOBS is required for macOS/Linux publish}"
   shopt -s nullglob
