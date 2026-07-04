@@ -1,0 +1,214 @@
+[
+  {
+    "default_key": "depo_koli",
+    "name": "Depo — koli",
+    "description": "Büyük kasa kolileri için örnek etiket",
+    "width_mm": 70,
+    "height_mm": 50,
+    "gap_mm": 3,
+    "layout_json": [
+      {
+        "id": "brand",
+        "type": "text",
+        "x": 2,
+        "y": 2,
+        "width": 40,
+        "height": 6,
+        "rotation": 0,
+        "font_size": 12,
+        "font_bold": true,
+        "align": "left",
+        "data_binding": "product.marka"
+      },
+      {
+        "id": "name",
+        "type": "text",
+        "x": 2,
+        "y": 9,
+        "width": 45,
+        "height": 8,
+        "rotation": 0,
+        "font_size": 9,
+        "font_bold": false,
+        "align": "left",
+        "data_binding": "product.name"
+      },
+      {
+        "id": "sku",
+        "type": "text",
+        "x": 2,
+        "y": 18,
+        "width": 35,
+        "height": 5,
+        "rotation": 0,
+        "font_size": 8,
+        "font_bold": false,
+        "align": "left",
+        "data_binding": "product.sku"
+      },
+      {
+        "id": "barcode",
+        "type": "barcode_1d",
+        "x": 2,
+        "y": 28,
+        "width": 45,
+        "height": 14,
+        "rotation": 0,
+        "symbology": "EAN13",
+        "data_binding": "product.barcode",
+        "show_text": true
+      },
+      {
+        "id": "qr",
+        "type": "qr",
+        "x": 52,
+        "y": 28,
+        "width": 16,
+        "height": 16,
+        "rotation": 0,
+        "data_binding": "product.barcode",
+        "qr_mode": "barcode"
+      }
+    ]
+  },
+  {
+    "default_key": "depo_raf",
+    "name": "Depo — raf",
+    "description": "Raf / koridor yığını etiketi",
+    "width_mm": 50,
+    "height_mm": 30,
+    "gap_mm": 2,
+    "layout_json": [
+      {
+        "id": "name",
+        "type": "text",
+        "x": 2,
+        "y": 2,
+        "width": 46,
+        "height": 8,
+        "rotation": 0,
+        "font_size": 9,
+        "font_bold": true,
+        "align": "left",
+        "data_binding": "product.name"
+      },
+      {
+        "id": "barcode",
+        "type": "barcode_1d",
+        "x": 2,
+        "y": 12,
+        "width": 46,
+        "height": 12,
+        "rotation": 0,
+        "symbology": "CODE128",
+        "data_binding": "product.sku",
+        "show_text": true
+      },
+      {
+        "id": "loc",
+        "type": "text",
+        "x": 2,
+        "y": 25,
+        "width": 46,
+        "height": 4,
+        "rotation": 0,
+        "font_size": 7,
+        "font_bold": false,
+        "align": "left",
+        "static_text": "RAF-A"
+      }
+    ]
+  },
+  {
+    "default_key": "magaza_fiyat",
+    "name": "Mağaza — fiyat",
+    "description": "Vitrin perakende kutusu fiyat etiketi",
+    "width_mm": 40,
+    "height_mm": 25,
+    "gap_mm": 2,
+    "layout_json": [
+      {
+        "id": "price",
+        "type": "text",
+        "x": 2,
+        "y": 2,
+        "width": 36,
+        "height": 10,
+        "rotation": 0,
+        "font_size": 16,
+        "font_bold": true,
+        "align": "center",
+        "data_binding": "product.price"
+      },
+      {
+        "id": "brand",
+        "type": "text",
+        "x": 2,
+        "y": 12,
+        "width": 36,
+        "height": 5,
+        "rotation": 0,
+        "font_size": 8,
+        "font_bold": false,
+        "align": "center",
+        "data_binding": "product.marka"
+      },
+      {
+        "id": "barcode",
+        "type": "barcode_1d",
+        "x": 2,
+        "y": 18,
+        "width": 36,
+        "height": 6,
+        "rotation": 0,
+        "symbology": "EAN13",
+        "data_binding": "product.barcode",
+        "show_text": false
+      }
+    ]
+  },
+  {
+    "default_key": "magaza_mini",
+    "name": "Mağaza — mini",
+    "description": "Küçük aksesuar etiketi",
+    "width_mm": 35,
+    "height_mm": 20,
+    "gap_mm": 2,
+    "layout_json": [
+      {
+        "id": "price",
+        "type": "text",
+        "x": 2,
+        "y": 2,
+        "width": 31,
+        "height": 7,
+        "rotation": 0,
+        "font_size": 12,
+        "font_bold": true,
+        "align": "center",
+        "data_binding": "product.price"
+      },
+      {
+        "id": "barcode",
+        "type": "barcode_1d",
+        "x": 2,
+        "y": 10,
+        "width": 31,
+        "height": 8,
+        "rotation": 0,
+        "symbology": "CODE128",
+        "data_binding": "product.sku",
+        "show_text": false
+      }
+    ]
+  },
+  {
+    "default_key": "blank",
+    "name": "Boş şablon",
+    "description": "Sıfırdan tasarım için boş etiket",
+    "width_mm": 40,
+    "height_mm": 30,
+    "gap_mm": 2,
+    "layout_json": []
+  }
+]

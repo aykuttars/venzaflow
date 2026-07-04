@@ -7,6 +7,7 @@
     "dashboard": "Dashboard",
     "products": "Products",
     "inventory": "Inventory",
+    "barcode": "Barcode",
     "employees": "Employees",
     "customers": "Customers",
     "patients": "Patients",
@@ -105,7 +106,11 @@
     "accounting.read": "View accounting",
     "accounting.write": "Manage accounting",
     "dashboard.read": "View dashboard",
-    "audit.read": "View audit logs"
+    "audit.read": "View audit logs",
+    "barcode.scan": "Scan barcodes / lookup products",
+    "barcode.print": "Print labels",
+    "barcode.labels": "Design label templates",
+    "barcode.generate": "Generate missing barcodes"
   },
   "modules": {
     "settings": "Settings",
@@ -120,7 +125,8 @@
     "accounting": "Accounting",
     "dashboard": "Dashboard",
     "audit": "Audit",
-    "signing": "e-Signature"
+    "signing": "e-Signature",
+    "barcode": "Barcode"
   },
   "signing": {
     "subtitle": "Documents signed via the e-signature desktop app and their status.",
@@ -289,6 +295,30 @@
     "uiConfigHint": "Toggle visibility of list, form, and detail fields for your tenant.",
     "reseedUi": "Reset to defaults",
     "reseeded": "UI configuration reset"
+  },
+  "barcode": {
+    "tabScan": "Scan",
+    "tabTemplates": "Label templates",
+    "tabPrint": "Print",
+    "tabTransfer": "Warehouse → Store",
+    "scanPlaceholder": "Scan or type barcode…",
+    "brand": "Brand",
+    "price": "Price",
+    "suggestTransfer": "Stock in warehouse — suggest transfer to store",
+    "palette": "Element palette",
+    "elementProps": "Element properties",
+    "rotation": "Rotation",
+    "binding": "Data binding",
+    "templateName": "Template name",
+    "preview": "Preview",
+    "seedDefaults": "Load default templates",
+    "newTemplate": "New template",
+    "size": "Size",
+    "productId": "Product ID",
+    "copies": "Copies",
+    "createPrintJob": "Create print job",
+    "printJobCreated": "Print job",
+    "transferHint": "Scan barcodes to add items for DEPO → MAGAZA transfer"
   },
   "inventory": {
     "title": "Inventory",
@@ -626,6 +656,7 @@
     "moduleParent": "Parent module",
     "moduleParentNone": "Standalone",
     "nonBillableModulesHint": "Panel and Settings (including Departments) are always included and not billed. For other modules, choose whether each is billable.",
+    "barcodeRequiresInventory": "Barcode module requires Inventory to be enabled first.",
     "moduleBillable": "Billable",
     "moduleLabels": "Module labels (optional)",
     "moduleLabelsHint": "Modules left blank use the default translation.",

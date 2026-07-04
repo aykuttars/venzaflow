@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { RouterLink } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
@@ -49,12 +50,16 @@ interface InventoryDashboard {
     MatSnackBarModule,
     MatTabsModule,
     TranslateModule,
+    RouterLink,
     PageHeaderComponent,
     SearchSelectComponent,
   ],
   template: `
     <div class="page">
       <app-page-header moduleSlug="inventory" icon="warehouse">
+        @if (hasBarcode()) {
+        <a mat-stroked-button routerLink="/barcode"><mat-icon>qr_code_scanner</mat-icon> Barkod</a>
+        }
         @if (canWrite() && tab() > 0) {
         <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> {{ 'common.new' | translate }}</button>
         }
@@ -408,6 +413,7 @@ export class InventoryComponent implements OnInit {
   }
 
   canWrite = () => this.auth.hasPermission('inventory.write');
+  hasBarcode = () => this.auth.hasModule('barcode');
   onAdd = () => {
     const t = this.tab();
     if (t === 1) this.openForm();

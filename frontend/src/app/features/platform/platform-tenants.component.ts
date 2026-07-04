@@ -529,12 +529,24 @@ export class PlatformTenantsComponent implements OnInit {
     if (this.moduleCatalog.isNonBillableDefault(slug)) {
       return;
     }
+    if (checked && slug === 'barcode' && !this.isModuleEnabled('inventory')) {
+      this.snack.open(
+        this.translate.instant('platform.barcodeRequiresInventory'),
+        undefined,
+        { duration: 4000 }
+      );
+      return;
+    }
     const current = [...this.enabledModules()];
     const extra = [...this.extraModules()];
     const nonBillable = [...this.nonBillableModules()];
     const parents = { ...this.moduleParents() };
     if (checked && !current.includes(slug)) {
       this.enabledModules.set([...current, slug]);
+      if (slug === 'barcode' && !parents['barcode']) {
+        parents['barcode'] = 'inventory';
+        this.moduleParents.set(parents);
+      }
     } else if (!checked) {
       this.enabledModules.set(current.filter((s) => s !== slug));
       this.extraModules.set(extra.filter((s) => s !== slug));
@@ -543,10 +555,24 @@ export class PlatformTenantsComponent implements OnInit {
       for (const [child, parent] of Object.entries(parents)) {
         if (parent === slug) {
           delete parents[child];
+          if (child === 'barcode' || slug === 'inventory') {
+            this.enabledModules.update((m) => m.filter((s) => s !== 'barcode'));
+          }
         }
+      }
+      if (slug === 'inventory') {
+        this.enabledModules.update((m) => m.filter((s) => s !== 'barcode'));
+        delete parents['barcode'];
       }
       this.moduleParents.set(parents);
     }
+  }
+
+  canToggleModule(slug: string): boolean {
+    if (slug === 'barcode' && !this.isModuleEnabled('inventory')) {
+      return false;
+    }
+    return !this.moduleCatalog.isNonBillableDefault(slug);
   }
 
   moduleParent(slug: string): string {

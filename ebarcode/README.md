@@ -1,0 +1,53 @@
+# Venzaflow e-barcode
+
+e-imza uygulamasından **ayrı** bir Electron masaüstü köprüsü. Termal yazıcı (XP-P328B / TSPL) ve barkod okuyucu (Netum F-18w HID) senaryolarının tamamını buradan yönetebilirsiniz.
+
+## e-imza ile aynı mimari
+
+| e-imza | e-barcode |
+|--------|----------|
+| PKCS#11 / USB token | TSPL → COM/USB yazıcı |
+| `window.api.auth` | Aynı oturum deseni |
+| `secureStore` | Session + yazıcı ayarları |
+| Dashboard | Okuma / Yazdırma / Ayarlar |
+
+## Özellikler
+
+- **Giriş** — `required_module: barcode`, tenant 4500 pilot
+- **Okuma** — HID barkod okuyucu, lookup API, DEPO/MAGAZA stok
+- **Etiket yazdır** — scan sonrası şablon seç + PrintJob + otomatik TSPL gönderimi
+- **Transfer** — DEPO → MAGAZA (1 adet, scan sonrası öneri)
+- **Yazdırma kuyruğu** — web’den oluşturulan job’ları işle
+- **Yazıcı ayarları** — COM port, test etiketi, otomatik poll
+- **Okuyucu kurulum** — Netum HID rehberi
+
+## Geliştirme
+
+```bash
+cd ebarcode
+npm install
+npm run dev
+```
+
+## Release (e-imza ile aynı hatt)
+
+```bash
+npm run build              # typecheck + bundle
+npm run build:linux:x64    # tek platform
+npm run release            # mevcut OS için tüm arch'lar
+npm run release:clean      # release/ temizleyerek
+```
+
+CI: `.github/workflows/ebarcode-build.yml` — 6 platform, merge sonrası `artifacts.aykut.io/venzaflow/ebarcode` registry'sine ORAS + cosign ile publish.
+
+Tag `v1.0.0` push → GitHub Release oluşturulur.
+
+## Pilot (4500)
+
+- Tenant: `4500`
+- Kullanıcı: `depo@tekno.local` veya `yonetici@tekno.local`
+- API: production veya `http://localhost:8000`
+
+## Windows Bluetooth
+
+Xprinter Bluetooth Port Tool ile SPP → COM atayın; Ayarlar sekmesinden COM seçin.

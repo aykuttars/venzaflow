@@ -32,12 +32,15 @@ DEFAULT_PASSWORD = "X7@qL9#vT2!mZ4$k"
 HARDWARE_MODULES = [
     "products",
     "inventory",
+    "barcode",
     "billing",
     "dashboard",
     "employees",
     "settings",
     "audit",
 ]
+
+BARCODE_MODULE_PARENTS = {"barcode": "inventory"}
 
 CATEGORIES: list[tuple[str, str]] = [
     ("Anakart", "anakart"),
@@ -216,10 +219,20 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
             "module_labels": {
                 "products": "Ürünler",
                 "inventory": "Depo & Stok",
+                "barcode": "Barkod",
             },
         },
     )
-    set_module_subscriptions(tenant, HARDWARE_MODULES, extra_modules=set())
+    set_module_subscriptions(
+        tenant,
+        HARDWARE_MODULES,
+        extra_modules=set(),
+        module_parents=BARCODE_MODULE_PARENTS,
+    )
+
+    from apps.barcode.services.seed_templates import seed_default_templates
+
+    seed_default_templates(tenant.id, skip_existing=True)
 
     admin_codes = [c[0] for c in PERMISSION_CODENAMES]
     sales_codes = [
@@ -230,12 +243,16 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "billing.read",
         "billing.write",
         "dashboard.read",
+        "barcode.scan",
+        "barcode.print",
     ]
     warehouse_codes = [
         "products.read",
         "inventory.read",
         "inventory.write",
         "dashboard.read",
+        "barcode.scan",
+        "barcode.print",
     ]
 
     dept_admin = _mk_department(tenant, "admin", "Yönetici", admin_codes, perm_index)

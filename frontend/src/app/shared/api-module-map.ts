@@ -7,6 +7,7 @@ const API_MODULE_PREFIXES: readonly { prefix: string; module: string }[] = [
   { prefix: 'products/categories', module: 'products' },
   { prefix: 'products', module: 'products' },
   { prefix: 'inventory/', module: 'inventory' },
+  { prefix: 'barcode/', module: 'barcode' },
   { prefix: 'customers', module: 'customers' },
   { prefix: 'patients', module: 'patients' },
   { prefix: 'medical-records', module: 'patients' },

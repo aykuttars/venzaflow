@@ -101,6 +101,15 @@ export const APP_ROUTES: Routes = [
         data: { module: 'inventory', permission: 'inventory.read' },
       },
       {
+        path: 'barcode',
+        loadComponent: () =>
+          import('./features/barcode/barcode.component').then(
+            (m) => m.BarcodeComponent
+          ),
+        canActivate: [roleGuard],
+        data: { module: 'barcode', permission: 'barcode.scan' },
+      },
+      {
         path: 'employees',
         loadComponent: () =>
           import('./features/employees/employees.component').then(

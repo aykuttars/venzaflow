@@ -25,6 +25,10 @@ PERMISSION_CODENAMES = [
     ("audit.read", "View audit logs"),
     ("signing.read", "View signing tasks"),
     ("signing.write", "Manage signing tasks"),
+    ("barcode.scan", "Scan barcodes and lookup products"),
+    ("barcode.print", "Print labels from templates"),
+    ("barcode.labels", "Design and manage label templates"),
+    ("barcode.generate", "Generate missing barcodes"),
 ]
 
 ALL_MODULES = [
@@ -41,6 +45,7 @@ ALL_MODULES = [
     "dashboard",
     "audit",
     "signing",
+    "barcode",
 ]
 
 # Default (English) display labels per module slug. The UI may override these
@@ -60,6 +65,7 @@ MODULE_LABELS = {
     "dashboard": "Dashboard",
     "audit": "Audit Logs",
     "signing": "e-Signature",
+    "barcode": "Barcode",
 }
 
 # Always included for every tenant by default; default is_billable=False on subscription row.
@@ -67,6 +73,11 @@ NON_BILLABLE_MODULES = [
     "dashboard",
     "settings",
 ]
+
+# Child module slug -> required parent module slug (platform UI hint + default parent).
+DEFAULT_MODULE_PARENTS: dict[str, str] = {
+    "barcode": "inventory",
+}
 
 BILLABLE_MODULES = [m for m in ALL_MODULES if m not in NON_BILLABLE_MODULES]
 

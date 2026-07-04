@@ -28,6 +28,13 @@ from apps.products.views import (
     ProductListColumnConfigViewSet,
     ProductViewSet,
 )
+from apps.barcode.views import (
+    BarcodeGenerateView,
+    BarcodeLookupView,
+    LabelTemplateViewSet,
+    PrintJobViewSet,
+    TransferWizardView,
+)
 from apps.tenants.views_platform import PlatformTenantViewSet
 from apps.signing.views_integration import (
     PlatformTenantConnectionTestView,
@@ -48,6 +55,8 @@ router.register(r"products/list-config", ProductListColumnConfigViewSet, basenam
 router.register(r"products/form-config", ProductFormConfigViewSet, basename="productformconfig")
 router.register(r"products/detail-config", ProductDetailConfigViewSet, basename="productdetailconfig")
 router.register(r"products", ProductViewSet, basename="product")
+router.register(r"barcode/templates", LabelTemplateViewSet, basename="barcode-template")
+router.register(r"barcode/print-jobs", PrintJobViewSet, basename="barcode-printjob")
 router.register(r"inventory/warehouses", WarehouseViewSet, basename="warehouse")
 router.register(r"inventory/locations", LocationViewSet, basename="location")
 router.register(r"inventory/stock", StockViewSet, basename="stock")
@@ -103,6 +112,9 @@ urlpatterns = [
     path("v1/sign/", include("apps.signing.urls")),
     path("v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("v1/inventory/dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),
+    path("v1/barcode/lookup/", BarcodeLookupView.as_view(), name="barcode-lookup"),
+    path("v1/barcode/generate/", BarcodeGenerateView.as_view(), name="barcode-generate"),
+    path("v1/barcode/transfers/", TransferWizardView.as_view(), name="barcode-transfer"),
     path("v1/audit/", ActivityLogView.as_view(), name="audit-activity"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

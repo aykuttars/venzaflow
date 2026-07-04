@@ -45,10 +45,22 @@ eimza/release/
 eimza/.eslintcache
 eimza/.env.local
 
+# Electron / e-barcode (Venzaflow e-barcode masaüstü köprüsü)
+ebarcode/node_modules/
+ebarcode/dist/
+ebarcode/out/
+ebarcode/release/
+ebarcode/.eslintcache
+ebarcode/.env.local
+
 # eimza/build holds electron-builder buildResources (icons, entitlements, hooks);
 # re-include it even though the generic `build/` rule above ignores build dirs.
 !eimza/build/
 !eimza/build/**
+
+# ebarcode/build — macOS entitlements vb. (eimza ile aynı desen)
+!ebarcode/build/
+!ebarcode/build/**
 
 # IDE
 .idea/

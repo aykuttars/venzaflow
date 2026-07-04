@@ -4,6 +4,7 @@ export const   MODULE_CHILD_HOSTS: Readonly<
 > = {
   customers: { route: '/customers', children: ['patients'] },
   patients: { route: '/patients', children: ['oral'] },
+  inventory: { route: '/inventory', children: ['barcode'] },
 };
 
 export interface ModuleNavItem {
@@ -19,6 +20,7 @@ export const MODULE_NAV: readonly ModuleNavItem[] = [
   { path: '/dashboard', labelKey: 'nav.dashboard', icon: 'dashboard', module: 'dashboard', permission: 'dashboard.read' },
   { path: '/products', labelKey: 'nav.products', icon: 'inventory_2', module: 'products', permission: 'products.read' },
   { path: '/inventory', labelKey: 'nav.inventory', icon: 'warehouse', module: 'inventory', permission: 'inventory.read' },
+  { path: '/barcode', labelKey: 'nav.barcode', icon: 'qr_code_scanner', module: 'barcode', permission: 'barcode.scan' },
   { path: '/employees', labelKey: 'nav.employees', icon: 'badge', module: 'employees', permission: 'employees.read' },
   { path: '/customers', labelKey: 'nav.customers', icon: 'people', module: 'customers', permission: 'customers.read' },
   { path: '/patients', labelKey: 'nav.patients', icon: 'medical_services', module: 'patients', permission: 'patients.read' },
