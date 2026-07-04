@@ -1,5 +1,7 @@
 name: Build ebarcode
 
+run-name: ebarcode · ${{ github.ref_name }} · ${{ github.event_name }}
+
 on:
   push:
     branches: [main, master, develop]

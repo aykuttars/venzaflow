@@ -1,5 +1,7 @@
 name: Build eimza
 
+run-name: eimza · ${{ github.ref_name }} · ${{ github.event_name }}
+
 # PR (opened/sync): build + test only — no registry publish.
 # Merge to develop/main (or direct push): GitHub fires `push` → build + publish to artifacts.aykut.io.
 # pull_request `closed` is omitted so merge does not run a second, publish-skipped workflow.
