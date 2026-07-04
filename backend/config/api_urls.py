@@ -115,6 +115,7 @@ urlpatterns = [
     path("v1/barcode/lookup/", BarcodeLookupView.as_view(), name="barcode-lookup"),
     path("v1/barcode/generate/", BarcodeGenerateView.as_view(), name="barcode-generate"),
     path("v1/barcode/transfers/", TransferWizardView.as_view(), name="barcode-transfer"),
+    path("v1/barcode/", include("apps.barcode.urls")),
     path("v1/audit/", ActivityLogView.as_view(), name="audit-activity"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

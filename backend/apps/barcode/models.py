@@ -4,7 +4,78 @@ from django.conf import settings
 from django.db import models
 
 from apps.products.models import Product
-from apps.tenants.models import TenantOwnedModel
+from apps.tenants.models import Tenant, TenantOwnedModel
+
+
+class ScanMissAction(models.TextChoices):
+    IGNORE = "ignore", "Ignore"
+    ASSIGN_EXISTING = "assign_existing", "Assign to existing product"
+    CREATE_WIZARD = "create_wizard", "Create product wizard"
+
+
+class QrContentMode(models.TextChoices):
+    BARCODE = "barcode", "Barcode only"
+    SKU = "sku", "SKU only"
+    COMPACT_DETAIL = "compact_detail", "Compact product detail"
+
+
+class StockDeductionMode(models.TextChoices):
+    OFF = "off", "Off"
+    ON_INVOICE = "on_invoice", "On invoice"
+    ON_MANUAL_CONFIRM = "on_manual_confirm", "Manual confirm"
+    BOTH = "both", "Both"
+
+
+class PrintMode(models.TextChoices):
+    QUEUE_ONLY = "queue_only", "Queue only"
+    IMMEDIATE = "immediate", "Immediate"
+    BOTH = "both", "Both"
+
+
+class BarcodeSettings(models.Model):
+    tenant = models.OneToOneField(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="barcode_settings",
+    )
+    scan_miss_action = models.CharField(
+        max_length=32,
+        choices=ScanMissAction.choices,
+        default=ScanMissAction.CREATE_WIZARD,
+    )
+    normalize_tr_scan = models.BooleanField(default=True)
+    qr_content_mode = models.CharField(
+        max_length=32,
+        choices=QrContentMode.choices,
+        default=QrContentMode.BARCODE,
+    )
+    qr_max_length = models.PositiveIntegerField(default=128)
+    ean_prefix = models.CharField(max_length=3, default="869")
+    auto_generate_on_create = models.BooleanField(default=False)
+    operation_flags = models.JSONField(default=dict)
+    stock_deduction_mode = models.CharField(
+        max_length=32,
+        choices=StockDeductionMode.choices,
+        default=StockDeductionMode.BOTH,
+    )
+    print_mode = models.CharField(
+        max_length=32,
+        choices=PrintMode.choices,
+        default=PrintMode.BOTH,
+    )
+    default_copies = models.PositiveIntegerField(default=1)
+    default_transfer_qty = models.PositiveIntegerField(default=1)
+    printer_model = models.CharField(max_length=64, default="XP-P328B")
+    printer_profile_json = models.JSONField(default=dict)
+    label_logo = models.ImageField(upload_to="barcode/logos/", blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "barcode_settings"
+
+    def __str__(self) -> str:
+        return f"BarcodeSettings tenant={self.tenant_id}"
 
 
 class LabelTemplateSource(models.TextChoices):
@@ -27,6 +98,7 @@ class LabelTemplate(TenantOwnedModel):
         default=LabelTemplateSource.CUSTOM,
     )
     default_key = models.CharField(max_length=64, blank=True, db_index=True)
+    allowed_department_keys = models.JSONField(default=list, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

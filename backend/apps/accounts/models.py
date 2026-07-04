@@ -210,6 +210,7 @@ class UserSession(models.Model):
     class Client(models.TextChoices):
         WEB = "web", "Web"
         EIMZA = "eimza", "e-İmza"
+        EBARCODE = "ebarcode", "e-Barcode"
         UNKNOWN = "unknown", "Unknown"
 
     user = models.ForeignKey(

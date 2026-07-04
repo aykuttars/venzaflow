@@ -10,11 +10,12 @@ import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { DynamicProductDetailComponent } from '../../shared/dynamic-fields/dynamic-detail.component';
 import { DetailFieldConfig, ProductRow } from '../../shared/dynamic-fields/models';
 import { ProductConfigService, unwrapList } from '../../shared/dynamic-fields/product-config.service';
+import { ProductBarcodeCellComponent } from './product-barcode-cell.component';
 
 @Component({
   selector: 'app-product-detail-dialog',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, DynamicProductDetailComponent],
+  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, DynamicProductDetailComponent, ProductBarcodeCellComponent],
   template: `
     @if (open && product()) {
     <div class="overlay" (click)="close.emit()"></div>
@@ -29,6 +30,9 @@ import { ProductConfigService, unwrapList } from '../../shared/dynamic-fields/pr
       <p>{{ 'common.loading' | translate }}</p>
       } @else {
       <app-dynamic-product-detail [config]="detailConfig()" [product]="product()!" />
+      <div style="margin-top:12px">
+        <app-product-barcode-cell [productId]="product()!.id" [barcode]="product()!.barcode || ''" />
+      </div>
       }
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px">
         @if (canWrite) {

@@ -4,6 +4,8 @@ import random
 
 from django.db import transaction
 
+from apps.barcode.models import BarcodeAssignment
+from apps.barcode.services.settings import get_or_create_settings
 from apps.products.models import Product
 
 
@@ -21,12 +23,15 @@ def generate_ean13(prefix: str = "869") -> str:
 
 
 @transaction.atomic
-def generate_missing_barcodes(tenant_id: int, *, limit: int = 100) -> dict:
-    products = list(
-        Product.objects.filter(tenant_id=tenant_id, barcode="", is_active=True).order_by(
-            "id"
-        )[:limit]
-    )
+def generate_missing_barcodes(
+    tenant_id: int, *, limit: int = 100, product_id: int | None = None
+) -> dict:
+    settings = get_or_create_settings(tenant_id)
+    prefix = (settings.ean_prefix or "869")[:3]
+    qs = Product.objects.filter(tenant_id=tenant_id, barcode="", is_active=True)
+    if product_id:
+        qs = qs.filter(pk=product_id)
+    products = list(qs.order_by("id")[:limit])
     existing = set(
         Product.objects.filter(tenant_id=tenant_id)
         .exclude(barcode="")
@@ -35,10 +40,15 @@ def generate_missing_barcodes(tenant_id: int, *, limit: int = 100) -> dict:
     updated = 0
     for product in products:
         for _ in range(20):
-            candidate = generate_ean13()
+            candidate = generate_ean13(prefix)
             if candidate not in existing:
                 product.barcode = candidate
                 product.save(update_fields=["barcode", "updated_at"])
+                BarcodeAssignment.objects.update_or_create(
+                    tenant_id=tenant_id,
+                    product=product,
+                    defaults={"symbology": "EAN13"},
+                )
                 existing.add(candidate)
                 updated += 1
                 break

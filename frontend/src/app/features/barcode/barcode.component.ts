@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,12 +8,21 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
-import { BarcodeLookupResult, BarcodeService, LabelTemplate } from './barcode.service';
+import {
+  BarcodeLookupResult,
+  BarcodeService,
+  LabelTemplate,
+  PrintBatchItem,
+  PrintJob,
+} from './barcode.service';
+import { BarcodeManagementComponent } from './barcode-management.component';
 import { BarcodeScanPanelComponent } from './barcode-scan-panel.component';
+import { EbarcodeDownloadDialogComponent } from './ebarcode-download-dialog.component';
 import { LabelDesignerComponent } from './label-designer.component';
 
 @Component({
@@ -32,11 +41,17 @@ import { LabelDesignerComponent } from './label-designer.component';
     TranslateModule,
     PageHeaderComponent,
     BarcodeScanPanelComponent,
+    BarcodeManagementComponent,
     LabelDesignerComponent,
   ],
   template: `
     <div class="page">
-      <app-page-header moduleSlug="barcode" icon="qr_code_scanner" />
+      <app-page-header moduleSlug="barcode" icon="qr_code_scanner">
+        <button mat-stroked-button type="button" (click)="openDownloadDialog()">
+          <mat-icon>download</mat-icon>
+          {{ 'ebarcodeDownload.button' | translate }}
+        </button>
+      </app-page-header>
 
       <mat-tab-group (selectedIndexChange)="onTab($event)">
         <mat-tab [label]="'barcode.tabScan' | translate">
@@ -46,6 +61,12 @@ import { LabelDesignerComponent } from './label-designer.component';
         </mat-tab>
 
         @if (canLabels()) {
+        <mat-tab [label]="'barcode.tabManagement' | translate">
+          <div class="tab-body">
+            <app-barcode-management />
+          </div>
+        </mat-tab>
+
         <mat-tab [label]="'barcode.tabTemplates' | translate">
           <div class="tab-body">
             <div class="toolbar">
@@ -71,7 +92,8 @@ import { LabelDesignerComponent } from './label-designer.component';
                   <td>{{ t.width_mm }}×{{ t.height_mm }} mm</td>
                   <td>
                     <button mat-button type="button" (click)="editTemplate(t)">{{ 'common.edit' | translate }}</button>
-                    <button mat-button type="button" (click)="duplicateTemplate(t)">Kopyala</button>
+                    <button mat-button type="button" (click)="duplicateTemplate(t)">{{ 'common.duplicate' | translate }}</button>
+                    <button mat-button color="warn" type="button" (click)="deleteTemplate(t)">{{ 'common.delete' | translate }}</button>
                   </td>
                 </tr>
                 }
@@ -90,6 +112,32 @@ import { LabelDesignerComponent } from './label-designer.component';
         @if (canPrint()) {
         <mat-tab [label]="'barcode.tabPrint' | translate">
           <div class="tab-body">
+            <p class="hint">{{ 'barcode.printScanHint' | translate }}</p>
+            <app-barcode-scan-panel (scanned)="addBatchItem($event)" />
+
+            <table class="bms-table" style="margin-top:12px">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>{{ 'barcode.copies' | translate }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of batchItems(); track item.product_id) {
+                <tr>
+                  <td>{{ item.sku }}</td>
+                  <td>
+                    <input type="number" min="1" [value]="item.copies" (change)="updateBatchCopies(item.product_id, +$any($event.target).value)" />
+                  </td>
+                  <td>
+                    <button mat-icon-button type="button" (click)="removeBatchItem(item.product_id)"><mat-icon>close</mat-icon></button>
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+
             <form [formGroup]="printForm" class="print-form">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>{{ 'barcode.templateName' | translate }}</mat-label>
@@ -99,28 +147,49 @@ import { LabelDesignerComponent } from './label-designer.component';
                   }
                 </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>{{ 'barcode.productId' | translate }}</mat-label>
-                <input matInput formControlName="product_id" type="number" />
-              </mat-form-field>
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>{{ 'barcode.copies' | translate }}</mat-label>
-                <input matInput formControlName="copies" type="number" min="1" />
-              </mat-form-field>
-              <button mat-flat-button color="primary" type="button" (click)="createPrintJob()" [disabled]="printForm.invalid">
-                {{ 'barcode.createPrintJob' | translate }}
+              <button mat-stroked-button type="button" (click)="queueBatch()" [disabled]="!batchItems().length || printForm.invalid">
+                {{ 'barcode.queueBatch' | translate }}
+              </button>
+              <button mat-flat-button color="primary" type="button" (click)="queueBatch()" [disabled]="!batchItems().length || printForm.invalid">
+                {{ 'barcode.printImmediate' | translate }}
               </button>
             </form>
-            @if (lastJobId()) {
-            <p class="hint">{{ 'barcode.printJobCreated' | translate }} #{{ lastJobId() }}</p>
-            }
+
+            <h4>{{ 'barcode.recentJobs' | translate }}</h4>
+            <table class="bms-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{{ 'barcode.templateName' | translate }}</th>
+                  <th>{{ 'common.status' | translate }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (job of printJobs(); track job.id) {
+                <tr>
+                  <td>{{ job.id }}</td>
+                  <td>{{ job.template_name }}</td>
+                  <td>{{ job.status }}</td>
+                  <td>
+                    <button mat-button type="button" (click)="downloadTspl(job.id)">TSPL</button>
+                    @if (job.status === 'queued' || job.status === 'sent') {
+                    <button mat-button type="button" (click)="cancelJob(job.id)">{{ 'common.cancel' | translate }}</button>
+                    }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </mat-tab>
+        }
 
+        @if (canTransfer()) {
         <mat-tab [label]="'barcode.tabTransfer' | translate">
           <div class="tab-body">
             <p class="hint">{{ 'barcode.transferHint' | translate }}</p>
-            <app-barcode-scan-panel #transferScan (scanned)="addTransferItem($event)" />
+            <app-barcode-scan-panel (scanned)="addTransferItem($event)" />
             <table class="bms-table" style="margin-top:12px">
               <thead>
                 <tr>
@@ -165,7 +234,7 @@ import { LabelDesignerComponent } from './label-designer.component';
         flex-wrap: wrap;
         gap: 12px;
         align-items: center;
-        max-width: 640px;
+        margin: 16px 0;
       }
       .hint {
         color: #666;
@@ -179,41 +248,59 @@ export class BarcodeComponent implements OnInit {
   private auth = inject(AuthService);
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   templates = signal<LabelTemplate[]>([]);
   editingTemplate = signal<LabelTemplate | null>(null);
-  lastJobId = signal<number | null>(null);
+  batchItems = signal<PrintBatchItem[]>([]);
+  printJobs = signal<PrintJob[]>([]);
   transferItems = signal<Array<{ product_id: number; sku: string; quantity: number }>>([]);
-  lastScan = signal<BarcodeLookupResult | null>(null);
+  defaultCopies = signal(1);
 
   printForm = this.fb.nonNullable.group({
     template_id: [0, Validators.required],
-    product_id: [0, Validators.required],
-    copies: [1, Validators.min(1)],
   });
 
   canLabels = () => this.auth.hasPermission('barcode.labels');
   canPrint = () => this.auth.hasPermission('barcode.print');
+  canTransfer = () => this.auth.hasPermission('inventory.write');
 
   ngOnInit(): void {
     this.reloadTemplates();
+    this.reloadJobs();
+    this.barcode.getSettings().subscribe({
+      next: (s) => this.defaultCopies.set(s.default_copies || 1),
+      error: () => {},
+    });
   }
 
-  onTab(_idx: number): void {}
+  openDownloadDialog(): void {
+    this.dialog.open(EbarcodeDownloadDialogComponent, { width: '720px' });
+  }
+
+  onTab(idx: number): void {
+    if (idx === 3 || idx === 2) this.reloadJobs();
+  }
 
   reloadTemplates(): void {
-    this.barcode.getTemplates().subscribe((list) => this.templates.set(list));
+    this.barcode.getTemplates().subscribe((list) => {
+      this.templates.set(list);
+      if (list.length && !this.printForm.value.template_id) {
+        this.printForm.patchValue({ template_id: list[0].id });
+      }
+    });
   }
 
-  onScanned(r: BarcodeLookupResult): void {
-    this.lastScan.set(r);
-    this.printForm.patchValue({ product_id: r.product.id });
+  reloadJobs(): void {
+    this.barcode.listPrintJobs().subscribe((jobs) => this.printJobs.set(jobs.slice(0, 20)));
   }
+
+  onScanned(_r: BarcodeLookupResult): void {}
 
   seedDefaults(): void {
     this.barcode.seedDefaults().subscribe({
       next: (r) => {
-        this.snack.open(`${r.created} şablon eklendi`, undefined, { duration: 2000 });
+        this.snack.open(`${r.created} şablon`, undefined, { duration: 2000 });
         this.reloadTemplates();
       },
     });
@@ -240,8 +327,15 @@ export class BarcodeComponent implements OnInit {
   }
 
   duplicateTemplate(t: LabelTemplate): void {
-    this.barcode.duplicateTemplate(t.id).subscribe({
-      next: () => this.reloadTemplates(),
+    this.barcode.duplicateTemplate(t.id).subscribe({ next: () => this.reloadTemplates() });
+  }
+
+  deleteTemplate(t: LabelTemplate): void {
+    this.barcode.deleteTemplate(t.id).subscribe({
+      next: (res) => {
+        this.snack.open(res.detail, undefined, { duration: 3000 });
+        this.reloadTemplates();
+      },
     });
   }
 
@@ -250,26 +344,65 @@ export class BarcodeComponent implements OnInit {
     this.reloadTemplates();
   }
 
-  createPrintJob(): void {
-    const v = this.printForm.getRawValue();
-    this.barcode.createPrintJob(v.template_id, [v.product_id], v.copies).subscribe({
-      next: (job) => {
-        this.lastJobId.set(job.id);
-        this.snack.open(`Yazdırma kuyruğu #${job.id}`, undefined, { duration: 3000 });
+  addBatchItem(r: BarcodeLookupResult): void {
+    if (this.batchItems().some((i) => i.product_id === r.product.id)) return;
+    this.batchItems.set([
+      ...this.batchItems(),
+      {
+        product_id: r.product.id,
+        sku: r.product.sku,
+        name: r.product.name,
+        barcode: r.product.barcode,
+        copies: this.defaultCopies(),
+      },
+    ]);
+  }
+
+  updateBatchCopies(productId: number, copies: number): void {
+    this.batchItems.update((list) =>
+      list.map((i) => (i.product_id === productId ? { ...i, copies } : i))
+    );
+  }
+
+  removeBatchItem(productId: number): void {
+    this.batchItems.update((list) => list.filter((i) => i.product_id !== productId));
+  }
+
+  queueBatch(): void {
+    const templateId = this.printForm.value.template_id!;
+    const items = this.batchItems().map((i) => ({ product_id: i.product_id, copies: i.copies }));
+    this.barcode.createPrintBatch(templateId, items).subscribe({
+      next: (jobs) => {
+        this.snack.open(`${jobs.length} iş kuyruğa alındı`, undefined, { duration: 3000 });
+        this.batchItems.set([]);
+        this.reloadJobs();
       },
     });
   }
 
+  downloadTspl(jobId: number): void {
+    this.barcode.downloadTspl(jobId).subscribe({
+      next: (blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `print-job-${jobId}.tspl`;
+        a.click();
+      },
+    });
+  }
+
+  cancelJob(jobId: number): void {
+    this.barcode.cancelPrintJob(jobId).subscribe({ next: () => this.reloadJobs() });
+  }
+
   addTransferItem(r: BarcodeLookupResult): void {
-    const depo = r.stock.depo_quantity;
-    if (depo <= 0) {
+    if (r.stock.depo_quantity <= 0) {
       this.snack.open('DEPO stok yok', undefined, { duration: 2000 });
       return;
     }
-    const items = this.transferItems();
-    if (items.some((i) => i.product_id === r.product.id)) return;
+    if (this.transferItems().some((i) => i.product_id === r.product.id)) return;
     this.transferItems.set([
-      ...items,
+      ...this.transferItems(),
       { product_id: r.product.id, sku: r.product.sku, quantity: 1 },
     ]);
   }
@@ -290,9 +423,8 @@ export class BarcodeComponent implements OnInit {
       quantity: i.quantity,
     }));
     this.barcode.transfer(items).subscribe({
-      next: (res: { transfers?: unknown[]; errors?: unknown[] }) => {
-        const ok = res.transfers?.length ?? 0;
-        this.snack.open(`${ok} transfer tamamlandı`, undefined, { duration: 3000 });
+      next: (res) => {
+        this.snack.open(`${res.transfers?.length ?? 0} transfer`, undefined, { duration: 3000 });
         this.transferItems.set([]);
       },
       error: () => this.snack.open('Transfer hatası', undefined, { duration: 3000 }),

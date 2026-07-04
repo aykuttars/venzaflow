@@ -234,6 +234,22 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
 
     seed_default_templates(tenant.id, skip_existing=True)
 
+    from apps.barcode.models import LabelTemplate
+    from apps.barcode.services.settings import get_or_create_settings
+
+    get_or_create_settings(tenant.id)
+    dept_template_map = {
+        "depo_koli": ["warehouse"],
+        "depo_raf": ["warehouse"],
+        "magaza_fiyat": ["sales"],
+        "magaza_mini": ["sales"],
+        "blank": ["admin", "sales", "warehouse"],
+    }
+    for default_key, dept_keys in dept_template_map.items():
+        LabelTemplate.objects.filter(tenant=tenant, default_key=default_key).update(
+            allowed_department_keys=dept_keys
+        )
+
     admin_codes = [c[0] for c in PERMISSION_CODENAMES]
     sales_codes = [
         "products.read",
@@ -245,6 +261,8 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "dashboard.read",
         "barcode.scan",
         "barcode.print",
+        "barcode.labels",
+        "barcode.generate",
     ]
     warehouse_codes = [
         "products.read",
@@ -253,6 +271,8 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "dashboard.read",
         "barcode.scan",
         "barcode.print",
+        "barcode.labels",
+        "barcode.generate",
     ]
 
     dept_admin = _mk_department(tenant, "admin", "Yönetici", admin_codes, perm_index)

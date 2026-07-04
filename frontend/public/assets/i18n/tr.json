@@ -30,6 +30,9 @@
     "searchSelectPlaceholder": "Aramak için yazın…",
     "edit": "Düzenle",
     "delete": "Sil",
+    "duplicate": "Kopyala",
+    "next": "İleri",
+    "status": "Durum",
     "yes": "Evet",
     "no": "Hayır",
     "active": "Aktif",
@@ -159,6 +162,17 @@
     "notConfigured": "İndirme servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
     "loadError": "İndirme listesi yüklenemedi. Lütfen sayfayı yenileyin."
   },
+  "ebarcodeDownload": {
+    "title": "Venzaflow e-barcode uygulamasını indir",
+    "subtitle": "Barkod okuyucu ve etiket yazıcı (XP-P328B / TSPL) için masaüstü köprüsü.",
+    "version": "Sürüm {{version}}",
+    "download": "İndir",
+    "button": "Masaüstü uygulamasını indir",
+    "publishedAt": "Yayınlandı: {{date}}",
+    "unavailable": "Kurulum dosyası şu an hazır değil. Lütfen daha sonra tekrar deneyin veya destek ekibinizle iletişime geçin.",
+    "notConfigured": "İndirme servisi geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+    "loadError": "İndirme listesi yüklenemedi. Lütfen sayfayı yenileyin."
+  },
   "signingIntegration": {
     "title": "Entegrasyon Ayarları",
     "subtitle": "Bu tenant için e-belge entegratörlerini ve imza kimliğini yapılandırın.",
@@ -221,6 +235,7 @@
     "clientType": {
       "web": "Web",
       "eimza": "e-İmza Uygulaması",
+      "ebarcode": "e-Barcode Uygulaması",
       "unknown": "Bilinmiyor"
     }
   },
@@ -318,7 +333,55 @@
     "copies": "Kopya",
     "createPrintJob": "Yazdırma işi oluştur",
     "printJobCreated": "Yazdırma kuyruğu",
-    "transferHint": "Barkod okutarak DEPO → MAGAZA transfer listesine ekleyin"
+    "transferHint": "Barkod okutarak DEPO → MAGAZA transfer listesine ekleyin",
+    "tabManagement": "Yönetim",
+    "printScanHint": "Okuma yazdırmayı tetiklemez — önce listeye ekleyin, sonra kuyruğa alın veya TSPL indirin",
+    "queueBatch": "Kuyruğa al",
+    "printImmediate": "Hemen yazdır (e-barcode)",
+    "recentJobs": "Son yazdırma işleri",
+    "generateChip": "Üret",
+    "management": {
+      "operations": "Operasyon profili",
+      "scan": "Okuma davranışı",
+      "qrGenerate": "QR ve barkod üretimi",
+      "printStock": "Yazdırma ve stok",
+      "roleTemplates": "Rol → şablon",
+      "bulkGenerate": "Toplu barkod",
+      "generateMissing": "Eksik barkodları üret",
+      "scanMissAction": "Okunamayan barkod",
+      "missIgnore": "Yoksay",
+      "missAssign": "Mevcut ürüne ata",
+      "missWizard": "2 adımlı sihirbaz",
+      "normalizeTr": "TR klavye normalizasyonu",
+      "compactDetail": "Kompakt ürün detayı",
+      "autoGenerate": "Ürün oluşturulunca otomatik barkod",
+      "printMode": "Yazdırma modu",
+      "queueOnly": "Sadece kuyruk",
+      "immediate": "Anında",
+      "both": "Her ikisi",
+      "stockDeduction": "Stok düşümü",
+      "stockOff": "Kapalı",
+      "stockInvoice": "Fatura ile",
+      "stockManual": "Manuel onay",
+      "defaultTransferQty": "Varsayılan transfer adedi",
+      "flags": {
+        "sales_stock_deduction": "Satış stok düşümü",
+        "warehouse_vitrin": "Depo–vitrin",
+        "retail_labeling": "Perakende etiket",
+        "inventory_count": "Envanter sayım",
+        "shop_accounting": "Dükkan gelir-gider"
+      }
+    },
+    "scanMiss": {
+      "title": "Bilinmeyen barkod",
+      "step1Hint": "Yeni ürün için barkod ve ad girin",
+      "step2Hint": "İsteğe bağlı fiyat bilgileri",
+      "barcode": "Barkod",
+      "productName": "Ürün adı",
+      "skip": "Atla",
+      "assign": "Ata",
+      "assignHint": "Barkodu mevcut bir ürün ID'sine bağlayın"
+    }
   },
   "inventory": {
     "title": "Envanter",

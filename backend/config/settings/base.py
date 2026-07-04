@@ -305,6 +305,7 @@ AUTHORITY_SUPPLIER_DEFAULTS = {
 # e-imza desktop installers (private OCI registry; API proxies public downloads).
 ARTIFACT_REGISTRY_URL = env("ARTIFACT_REGISTRY_URL", default="https://artifacts.aykut.io")
 ARTIFACT_REGISTRY_REPO = env("ARTIFACT_REGISTRY_REPO", default="venzaflow/eimza")
+ARTIFACT_REGISTRY_EBARCODE_REPO = env("ARTIFACT_REGISTRY_EBARCODE_REPO", default="venzaflow/ebarcode")
 ARTIFACT_REGISTRY_USER = env("ARTIFACT_REGISTRY_USER", default="")
 ARTIFACT_REGISTRY_PASSWORD = env("ARTIFACT_REGISTRY_PASSWORD", default="")
 ARTIFACT_REGISTRY_CACHE_TTL = env.int("ARTIFACT_REGISTRY_CACHE_TTL", default=300)

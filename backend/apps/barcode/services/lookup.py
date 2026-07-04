@@ -62,12 +62,6 @@ def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
         .first()
     )
     if not product:
-        product = (
-            Product.objects.filter(tenant_id=tenant_id, sku=code, is_active=True)
-            .select_related("category")
-            .first()
-        )
-    if not product:
         return None
 
     fields = _field_values(product)

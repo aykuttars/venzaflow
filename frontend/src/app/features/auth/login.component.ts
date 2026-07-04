@@ -77,6 +77,10 @@ import { AppLanguage, LanguageService } from '../../core/language.service';
               <mat-icon>download_for_offline</mat-icon>
               {{ 'eimzaDownload.title' | translate }}
             </a>
+            <a mat-button routerLink="/ebarcode" class="full-width eimza-link">
+              <mat-icon>qr_code_scanner</mat-icon>
+              {{ 'ebarcodeDownload.title' | translate }}
+            </a>
           </form>
         </mat-card-content>
       </mat-card>

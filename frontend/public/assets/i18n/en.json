@@ -30,6 +30,9 @@
     "searchSelectPlaceholder": "Type to search…",
     "edit": "Edit",
     "delete": "Delete",
+    "duplicate": "Duplicate",
+    "next": "Next",
+    "status": "Status",
     "yes": "Yes",
     "no": "No",
     "active": "Active",
@@ -159,6 +162,17 @@
     "notConfigured": "Downloads are temporarily unavailable. Please try again later.",
     "loadError": "Could not load the download list. Please refresh the page."
   },
+  "ebarcodeDownload": {
+    "title": "Download Venzaflow e-barcode app",
+    "subtitle": "Desktop bridge for barcode scanners and label printers (XP-P328B / TSPL).",
+    "version": "Version {{version}}",
+    "download": "Download",
+    "button": "Download desktop app",
+    "publishedAt": "Released: {{date}}",
+    "unavailable": "The installer is not available right now. Please try again later or contact your support team.",
+    "notConfigured": "Downloads are temporarily unavailable. Please try again later.",
+    "loadError": "Could not load the download list. Please refresh the page."
+  },
   "signingIntegration": {
     "title": "Integration Settings",
     "subtitle": "Configure the e-document integrators and signing identity for this tenant.",
@@ -221,6 +235,7 @@
     "clientType": {
       "web": "Web",
       "eimza": "e-Signature App",
+      "ebarcode": "e-Barcode App",
       "unknown": "Unknown"
     }
   },
@@ -318,7 +333,55 @@
     "copies": "Copies",
     "createPrintJob": "Create print job",
     "printJobCreated": "Print job",
-    "transferHint": "Scan barcodes to add items for DEPO → MAGAZA transfer"
+    "transferHint": "Scan barcodes to add items for DEPO → MAGAZA transfer",
+    "tabManagement": "Management",
+    "printScanHint": "Scanning does not print — add to the batch list, then queue or download TSPL",
+    "queueBatch": "Queue batch",
+    "printImmediate": "Print now (e-barcode)",
+    "recentJobs": "Recent print jobs",
+    "generateChip": "Generate",
+    "management": {
+      "operations": "Operation profile",
+      "scan": "Scan behavior",
+      "qrGenerate": "QR & generate",
+      "printStock": "Print & stock",
+      "roleTemplates": "Role → template",
+      "bulkGenerate": "Bulk barcode",
+      "generateMissing": "Generate missing barcodes",
+      "scanMissAction": "Scan miss action",
+      "missIgnore": "Ignore",
+      "missAssign": "Assign to existing",
+      "missWizard": "2-step wizard",
+      "normalizeTr": "TR keyboard normalization",
+      "compactDetail": "Compact product detail",
+      "autoGenerate": "Auto-generate on product create",
+      "printMode": "Print mode",
+      "queueOnly": "Queue only",
+      "immediate": "Immediate",
+      "both": "Both",
+      "stockDeduction": "Stock deduction",
+      "stockOff": "Off",
+      "stockInvoice": "On invoice",
+      "stockManual": "Manual confirm",
+      "defaultTransferQty": "Default transfer qty",
+      "flags": {
+        "sales_stock_deduction": "Sales stock deduction",
+        "warehouse_vitrin": "Warehouse–storefront",
+        "retail_labeling": "Retail labeling",
+        "inventory_count": "Inventory count",
+        "shop_accounting": "Shop accounting"
+      }
+    },
+    "scanMiss": {
+      "title": "Unknown barcode",
+      "step1Hint": "Enter barcode and name for a new product",
+      "step2Hint": "Optional price details",
+      "barcode": "Barcode",
+      "productName": "Product name",
+      "skip": "Skip",
+      "assign": "Assign",
+      "assignHint": "Link barcode to an existing product ID"
+    }
   },
   "inventory": {
     "title": "Inventory",

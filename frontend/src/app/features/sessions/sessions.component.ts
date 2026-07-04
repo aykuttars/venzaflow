@@ -16,7 +16,7 @@ interface UserSession {
   user: number;
   user_email: string;
   user_name: string;
-  client: 'web' | 'eimza' | 'unknown';
+  client: 'web' | 'eimza' | 'ebarcode' | 'unknown';
   client_version: string;
   ip_address: string | null;
   user_agent: string;
@@ -69,8 +69,8 @@ const ONLINE_WINDOW_MS = 2 * 60 * 1000;
               <div class="muted">{{ s.user_email }}</div>
             </td>
             <td>
-              <span class="client-badge" [class.client-badge--eimza]="s.client === 'eimza'">
-                <mat-icon>{{ s.client === 'eimza' ? 'draw' : 'public' }}</mat-icon>
+              <span class="client-badge" [class.client-badge--eimza]="s.client === 'eimza'" [class.client-badge--ebarcode]="s.client === 'ebarcode'">
+                <mat-icon>{{ s.client === 'eimza' ? 'draw' : s.client === 'ebarcode' ? 'qr_code_scanner' : 'public' }}</mat-icon>
                 {{ ('sessions.clientType.' + s.client) | translate }}
                 @if (s.client_version) { <small>v{{ s.client_version }}</small> }
               </span>
@@ -141,6 +141,10 @@ const ONLINE_WINDOW_MS = 2 * 60 * 1000;
       .client-badge--eimza {
         background: rgba(37, 99, 235, 0.12);
         color: #1d4ed8;
+      }
+      .client-badge--ebarcode {
+        background: rgba(13, 148, 136, 0.12);
+        color: #0f766e;
       }
       .client-badge small {
         opacity: 0.7;

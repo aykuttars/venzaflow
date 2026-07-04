@@ -26,6 +26,7 @@ const PALETTE: Array<{ type: LabelElement['type']; label: string; defaults: Part
   { type: 'barcode_1d', label: 'EAN13', defaults: { symbology: 'EAN13', data_binding: 'product.barcode', show_text: true } },
   { type: 'barcode_1d', label: 'Code128', defaults: { symbology: 'CODE128', data_binding: 'product.sku', show_text: true } },
   { type: 'qr', label: 'QR', defaults: { data_binding: 'product.barcode', qr_mode: 'barcode' } },
+  { type: 'image', label: 'Logo', defaults: { static_text: 'tenant_logo' } },
 ];
 
 let elemCounter = 0;
@@ -66,12 +67,7 @@ let elemCounter = 0;
         </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'barcode.rotation' | translate }}</mat-label>
-          <mat-select [value]="sel.rotation" (selectionChange)="patchSelected('rotation', $event.value)">
-            <mat-option [value]="0">0°</mat-option>
-            <mat-option [value]="90">90°</mat-option>
-            <mat-option [value]="180">180°</mat-option>
-            <mat-option [value]="270">270°</mat-option>
-          </mat-select>
+          <input matInput type="number" min="0" max="359" [value]="sel.rotation" (change)="patchSelected('rotation', +$any($event.target).value)" />
         </mat-form-field>
         @if (sel.type === 'text') {
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -133,6 +129,8 @@ let elemCounter = 0;
             <span [class.bold]="el.font_bold">T: {{ el.data_binding || el.static_text }}</span>
             } @else if (el.type === 'barcode_1d') {
             <span class="barcode-preview">||| {{ el.symbology }}</span>
+            } @else if (el.type === 'image') {
+            <span class="qr-preview">LOGO</span>
             } @else {
             <span class="qr-preview">QR</span>
             }

@@ -157,6 +157,32 @@ class ApiClient {
     return Array.isArray(res) ? res : (res.results ?? [])
   }
 
+  getEffectiveSettings(): Promise<Record<string, unknown>> {
+    return this.request('/barcode/settings/effective/')
+  }
+
+  normalizeScan(code: string): string {
+    return code
+      .trim()
+      .replace(/[İıŞşĞğÜüÖöÇç]/g, (ch) => {
+        const map: Record<string, string> = {
+          İ: 'I',
+          ı: 'i',
+          Ş: 'S',
+          ş: 's',
+          Ğ: 'G',
+          ğ: 'g',
+          Ü: 'U',
+          ü: 'u',
+          Ö: 'O',
+          ö: 'o',
+          Ç: 'C',
+          ç: 'c'
+        }
+        return map[ch] ?? ch
+      })
+  }
+
   transfer(items: Array<{ product_id: number; quantity: number }>, note = ''): Promise<unknown> {
     return this.request('/barcode/transfers/', {
       method: 'POST',

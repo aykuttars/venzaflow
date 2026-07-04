@@ -14,6 +14,7 @@ export const IPC = {
   BARCODE_CREATE_JOB: 'barcode:create-job',
   BARCODE_LIST_TEMPLATES: 'barcode:list-templates',
   BARCODE_TRANSFER: 'barcode:transfer',
+  BARCODE_EFFECTIVE_SETTINGS: 'barcode:effective-settings',
 
   PRINTER_LIST_PORTS: 'printer:list-ports',
   PRINTER_GET_SETTINGS: 'printer:get-settings',

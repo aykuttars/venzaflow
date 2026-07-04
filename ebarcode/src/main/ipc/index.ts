@@ -44,7 +44,8 @@ export function registerAuthIpc(): void {
 export function registerBarcodeIpc(): void {
   ipcMain.handle(IPC.BARCODE_LOOKUP, async (_e, code: string) => {
     try {
-      return ok(await apiClient.lookup(code))
+      const normalized = apiClient.normalizeScan(code)
+      return ok(await apiClient.lookup(normalized))
     } catch (error) {
       return fail(error)
     }
@@ -97,6 +98,14 @@ export function registerBarcodeIpc(): void {
   ipcMain.handle(IPC.BARCODE_TRANSFER, async (_e, payload: { items: Array<{ product_id: number; quantity: number }>; note?: string }) => {
     try {
       return ok(await apiClient.transfer(payload.items, payload.note))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(IPC.BARCODE_EFFECTIVE_SETTINGS, async () => {
+    try {
+      return ok(await apiClient.getEffectiveSettings())
     } catch (error) {
       return fail(error)
     }

@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   EventEmitter,
+  OnInit,
   Output,
   ViewChild,
   inject,
@@ -10,13 +11,21 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
 
-import { BarcodeLookupResult, BarcodeService } from './barcode.service';
+import {
+  BarcodeLookupMiss,
+  BarcodeLookupResult,
+  BarcodeService,
+} from './barcode.service';
+import { ScanMissWizardComponent, ScanMissWizardData } from './scan-miss-wizard.component';
+import { normalizeTrScanInput } from './tr-scan-normalizer.util';
 
 @Component({
   selector: 'app-barcode-scan-panel',
@@ -40,7 +49,6 @@ import { BarcodeLookupResult, BarcodeService } from './barcode.service';
           matInput
           [(ngModel)]="buffer"
           (keydown.enter)="onEnter($event)"
-          (input)="onInput()"
           autocomplete="off"
           spellcheck="false"
         />
@@ -66,6 +74,11 @@ import { BarcodeLookupResult, BarcodeService } from './barcode.service';
         </div>
         @if (r.suggest_transfer) {
         <p class="hint-transfer">{{ 'barcode.suggestTransfer' | translate }}</p>
+        }
+        @if (manualStockEnabled()) {
+        <button mat-stroked-button type="button" (click)="confirmStock(r)">
+          {{ 'barcode.management.stockManual' | translate }}
+        </button>
         }
         <button mat-stroked-button type="button" (click)="clear()">
           <mat-icon>clear</mat-icon> {{ 'common.close' | translate }}
@@ -117,8 +130,9 @@ import { BarcodeLookupResult, BarcodeService } from './barcode.service';
     `,
   ],
 })
-export class BarcodeScanPanelComponent {
+export class BarcodeScanPanelComponent implements OnInit {
   private barcode = inject(BarcodeService);
+  private dialog = inject(MatDialog);
 
   @ViewChild('scanInput') scanInput?: ElementRef<HTMLInputElement>;
   @Output() scanned = new EventEmitter<BarcodeLookupResult>();
@@ -127,26 +141,32 @@ export class BarcodeScanPanelComponent {
   loading = signal(false);
   error = signal('');
   result = signal<BarcodeLookupResult | null>(null);
+  normalizeTr = signal(true);
+  stockMode = signal('both');
 
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  ngOnInit(): void {
+    this.barcode.getSettings().subscribe({
+      next: (s) => {
+        this.normalizeTr.set(s.normalize_tr_scan);
+        this.stockMode.set(s.stock_deduction_mode);
+      },
+      error: () => {},
+    });
+  }
+
+  manualStockEnabled(): boolean {
+    const m = this.stockMode();
+    return m === 'on_manual_confirm' || m === 'both';
+  }
 
   focus(): void {
     setTimeout(() => this.scanInput?.nativeElement.focus(), 0);
   }
 
-  onInput(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => {
-      const code = this.buffer.trim();
-      if (code.length >= 8) {
-        this.lookup(code);
-      }
-    }, 300);
-  }
-
   onEnter(ev: Event): void {
     ev.preventDefault();
-    const code = this.buffer.trim();
+    let code = this.buffer.trim();
+    if (this.normalizeTr()) code = normalizeTrScanInput(code);
     if (code) this.lookup(code);
   }
 
@@ -158,12 +178,40 @@ export class BarcodeScanPanelComponent {
         this.result.set(r);
         this.scanned.emit(r);
         this.loading.set(false);
+        this.buffer = '';
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
+        this.loading.set(false);
+        const body = err.error as BarcodeLookupMiss | undefined;
+        if (body && body.found === false && body.scan_miss_action && body.scan_miss_action !== 'ignore') {
+          this.openMissWizard(body.code || code, body.scan_miss_action as ScanMissWizardData['action']);
+          return;
+        }
         this.error.set('Ürün bulunamadı');
         this.result.set(null);
-        this.loading.set(false);
       },
+    });
+  }
+
+  openMissWizard(code: string, action: ScanMissWizardData['action']): void {
+    const ref = this.dialog.open(ScanMissWizardComponent, {
+      width: '480px',
+      data: { code, action } satisfies ScanMissWizardData,
+    });
+    ref.afterClosed().subscribe((r?: BarcodeLookupResult) => {
+      if (r) {
+        this.result.set(r);
+        this.scanned.emit(r);
+        this.buffer = '';
+        this.error.set('');
+      }
+    });
+  }
+
+  confirmStock(r: BarcodeLookupResult): void {
+    this.barcode.manualStockDeduction(r.product.id, 1).subscribe({
+      next: () => this.lookup(r.product.barcode),
+      error: () => this.error.set('Stok düşümü başarısız'),
     });
   }
 

@@ -115,6 +115,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop("lines", None)
+        old_status = instance.status
         disc_pct = validated_data.get("discount_percent", instance.discount_percent)
         if "discount_percent" in validated_data or instance.lines.exists():
             line_payloads = [
@@ -133,7 +134,22 @@ class InvoiceSerializer(serializers.ModelSerializer):
             validated_data["discount_amount"] = discount_amount
             validated_data["total"] = total
             validated_data["discount_percent"] = disc_pct
-        return super().update(instance, validated_data)
+        updated = super().update(instance, validated_data)
+        request = self.context.get("request")
+        actor = getattr(request, "user", None) if request else None
+        if old_status != Invoice.Status.PAID and updated.status == Invoice.Status.PAID:
+            from apps.barcode.services.stock_deduction import deduct_stock_for_invoice
+
+            deduct_stock_for_invoice(updated, created_by=actor)
+        return updated
+
+
+def _maybe_deduct_invoice_stock(instance: Invoice, validated_data: dict, *, actor) -> None:
+    """Deprecated: kept for backwards compatibility if imported elsewhere."""
+    if instance.status == Invoice.Status.PAID:
+        from apps.barcode.services.stock_deduction import deduct_stock_for_invoice
+
+        deduct_stock_for_invoice(instance, created_by=actor)
 
 
 class CreateInvoiceFromOralTreatmentsSerializer(serializers.Serializer):
@@ -189,6 +205,11 @@ class PaymentSerializer(serializers.ModelSerializer):
             Decimal(str(p.amount)) for p in Payment.objects.filter(invoice=invoice)
         )
         if paid_total >= Decimal(str(invoice.total)):
+            old_status = invoice.status
             invoice.status = Invoice.Status.PAID
             invoice.save(update_fields=["status"])
+            if old_status != Invoice.Status.PAID:
+                from apps.barcode.services.stock_deduction import deduct_stock_for_invoice
+
+                deduct_stock_for_invoice(invoice, created_by=self.context["request"].user)
         return payment

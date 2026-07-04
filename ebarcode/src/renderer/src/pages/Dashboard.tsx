@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BarcodeLookupResult, LabelTemplateRow, PrintJobRow, PrinterSettings } from '@shared/types'
 import { APP_DISPLAY_NAME } from '@shared/brand'
+import BluetoothSetup from './BluetoothSetup'
 
 type Tab = 'scan' | 'print' | 'settings'
 
@@ -23,6 +24,8 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
   const [settings, setSettings] = useState<PrinterSettings>({ port: '', autoPoll: true, pollIntervalSec: 15 })
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const [showBtWizard, setShowBtWizard] = useState(false)
+  const [tenantPrintMode, setTenantPrintMode] = useState<string>('both')
   const scanRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)
   const settingsRef = useRef(settings)
@@ -50,6 +53,17 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       const tpl = (await window.api.barcode.listTemplates()) as LabelTemplateRow[]
       setTemplates(tpl)
       if (tpl.length) setSelectedTemplateId(tpl[0].id)
+      try {
+        const effective = (await window.api.barcode.effectiveSettings()) as {
+          print_mode?: string
+          default_copies?: number
+          printer_profile?: { model?: string }
+        }
+        if (effective.print_mode) setTenantPrintMode(effective.print_mode)
+        pushLog(`Tenant profil: ${effective.printer_profile?.model || 'XP-P328B'} · print=${effective.print_mode}`)
+      } catch {
+        pushLog('Tenant yazdırma profili alınamadı')
+      }
       await refreshJobs()
     })()
   }, [refreshJobs])
@@ -306,7 +320,20 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         <div className="grid two-col">
           <div className="card">
             <h2 style={{ marginTop: 0 }}>XP-P328B yazıcı</h2>
-            <p className="muted">USB doğrudan veya Bluetooth SPP → COM port (Xprinter Bluetooth Port Tool).</p>
+            <p className="muted">Tenant modu: {tenantPrintMode}. USB doğrudan veya Bluetooth SPP → COM port.</p>
+            {showBtWizard ? (
+              <BluetoothSetup
+                ports={ports}
+                selectedPort={settings.port}
+                onSelectPort={(port) => setSettings({ ...settings, port })}
+                onTestPrint={testPrint}
+                onClose={() => setShowBtWizard(false)}
+              />
+            ) : (
+              <button type="button" className="btn secondary" onClick={() => setShowBtWizard(true)}>
+                Bluetooth kurulum sihirbazı
+              </button>
+            )}
             <label>
               COM / port
               <select value={settings.port} onChange={(e) => setSettings({ ...settings, port: e.target.value })}>

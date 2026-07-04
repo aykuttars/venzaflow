@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import HasModule, HasViewPermission
-from apps.barcode.models import LabelTemplate, LabelTemplateSource, PrintJob, PrintJobStatus
+from apps.barcode.models import LabelTemplate, LabelTemplateSource, PrintJob, PrintJobStatus, ScanMissAction
 from apps.barcode.serializers import (
     BarcodeGenerateSerializer,
     LabelTemplateDuplicateSerializer,
@@ -18,10 +18,12 @@ from apps.barcode.serializers import (
     PrintJobSerializer,
     TransferWizardSerializer,
 )
+from apps.barcode.serializers_settings import PrintJobBatchSerializer
 from apps.barcode.services.generate import generate_missing_barcodes
 from apps.barcode.services.lookup import lookup_barcode
 from apps.barcode.services.preview import render_label_png
 from apps.barcode.services.seed_templates import seed_default_templates
+from apps.barcode.services.settings import get_or_create_settings
 from apps.barcode.services.tspl import render_tspl_batch
 from apps.common.viewsets import TenantScopedViewSet
 from apps.inventory.models import Stock, Warehouse
@@ -36,10 +38,25 @@ class BarcodeLookupView(APIView):
 
     def get(self, request):
         code = request.query_params.get("code", "")
-        result = lookup_barcode(request.user.tenant_id, code)
-        if not result:
-            return Response({"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(result)
+        tenant_id = request.user.tenant_id
+        settings = get_or_create_settings(tenant_id)
+        result = lookup_barcode(tenant_id, code)
+        if result:
+            return Response(result)
+
+        action = settings.scan_miss_action
+        if action == ScanMissAction.IGNORE:
+            return Response({"detail": "Product not found.", "found": False}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            {
+                "detail": "Product not found.",
+                "found": False,
+                "code": (code or "").strip(),
+                "scan_miss_action": action,
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 class BarcodeGenerateView(APIView):
@@ -51,7 +68,9 @@ class BarcodeGenerateView(APIView):
         ser = BarcodeGenerateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         result = generate_missing_barcodes(
-            request.user.tenant_id, limit=ser.validated_data["limit"]
+            request.user.tenant_id,
+            limit=ser.validated_data["limit"],
+            product_id=ser.validated_data.get("product_id"),
         )
         return Response(result)
 
@@ -126,12 +145,12 @@ class TransferWizardView(APIView):
 
 
 class LabelTemplateViewSet(TenantScopedViewSet):
-    queryset = LabelTemplate.objects.all()
+    queryset = LabelTemplate.objects.filter(is_active=True)
     serializer_class = LabelTemplateSerializer
     required_module = "barcode"
     action_permission_map = {
-        "list": "barcode.labels",
-        "retrieve": "barcode.labels",
+        "list": "barcode.print",
+        "retrieve": "barcode.print",
         "create": "barcode.labels",
         "update": "barcode.labels",
         "partial_update": "barcode.labels",
@@ -139,9 +158,32 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         "duplicate": "barcode.labels",
         "preview": "barcode.labels",
         "seed_defaults": "barcode.labels",
+        "list_for_print": "barcode.print",
     }
     search_fields = ("name", "description")
     ordering_fields = ("name", "updated_at")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.has_permission_codename("barcode.labels"):
+            return qs
+        dept_key = getattr(getattr(user, "department", None), "key", None)
+        if not dept_key:
+            return qs.none()
+        allowed_ids = [
+            tpl.pk
+            for tpl in qs
+            if not tpl.allowed_department_keys or dept_key in tpl.allowed_department_keys
+        ]
+        return qs.filter(pk__in=allowed_ids)
+
+    @action(detail=False, methods=["get"], url_path="for-print")
+    def list_for_print(self, request):
+        self.action_permission_map["list_for_print"] = "barcode.print"
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         serializer.save(
@@ -149,16 +191,33 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             source=LabelTemplateSource.CUSTOM,
         )
 
-    def perform_destroy(self, instance):
-        active_jobs = PrintJob.objects.filter(
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        cancelled = PrintJob.objects.filter(
             template=instance,
             status__in=[PrintJobStatus.QUEUED, PrintJobStatus.SENT],
-        ).exists()
-        if active_jobs:
-            from rest_framework.exceptions import ValidationError
-
-            raise ValidationError("Template has active print jobs.")
+        ).update(
+            status=PrintJobStatus.FAILED,
+            error_message="Template deleted",
+            updated_at=timezone.now(),
+        )
+        has_jobs = PrintJob.objects.filter(template=instance).exists()
+        if has_jobs:
+            instance.is_active = False
+            instance.save(update_fields=["is_active", "updated_at"])
+            return Response(
+                {
+                    "detail": "Template archived.",
+                    "cancelled_jobs": cancelled,
+                    "archived": True,
+                },
+                status=status.HTTP_200_OK,
+            )
         instance.delete()
+        return Response(
+            {"detail": "Template deleted.", "cancelled_jobs": cancelled},
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"], url_path="duplicate")
     def duplicate(self, request, pk=None):
@@ -176,6 +235,7 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             dpi=tpl.dpi,
             layout_json=list(tpl.layout_json or []),
             source=LabelTemplateSource.DUPLICATE,
+            allowed_department_keys=list(tpl.allowed_department_keys or []),
         )
         return Response(LabelTemplateSerializer(copy).data, status=status.HTTP_201_CREATED)
 
@@ -192,6 +252,7 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             layout_json=list(tpl.layout_json or []),
             tenant_id=tpl.tenant_id,
             product_id=product_id,
+            settings=get_or_create_settings(tpl.tenant_id),
         )
         return HttpResponse(png, content_type="image/png")
 
@@ -210,6 +271,8 @@ class PrintJobViewSet(TenantScopedViewSet):
         "create": "barcode.print",
         "tspl": "barcode.print",
         "complete": "barcode.print",
+        "batch": "barcode.print",
+        "cancel": "barcode.print",
     }
     http_method_names = ["get", "post", "head", "options"]
     filterset_fields = ("status", "template")
@@ -225,6 +288,66 @@ class PrintJobViewSet(TenantScopedViewSet):
         ser.is_valid(raise_exception=True)
         job = ser.save()
         return Response(PrintJobSerializer(job).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="batch")
+    def batch(self, request):
+        ser = PrintJobBatchSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        tenant_id = request.user.tenant_id
+        template = LabelTemplate.objects.filter(
+            tenant_id=tenant_id,
+            pk=ser.validated_data["template_id"],
+            is_active=True,
+        ).first()
+        if not template:
+            return Response({"detail": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        product_ids = [item["product_id"] for item in ser.validated_data["items"]]
+        products = {
+            p.pk: p
+            for p in Product.objects.filter(
+                tenant_id=tenant_id, pk__in=product_ids, is_active=True
+            )
+        }
+        jobs = []
+        for item in ser.validated_data["items"]:
+            if item["product_id"] not in products:
+                continue
+            job = PrintJob.objects.create(
+                tenant_id=tenant_id,
+                template=template,
+                product_ids=[item["product_id"]],
+                layout_snapshot=list(template.layout_json or []),
+                template_snapshot={
+                    "width_mm": str(template.width_mm),
+                    "height_mm": str(template.height_mm),
+                    "gap_mm": str(template.gap_mm),
+                    "dpi": template.dpi,
+                    "name": template.name,
+                },
+                copies=item["copies"],
+                created_by=request.user,
+                status=PrintJobStatus.QUEUED,
+            )
+            jobs.append(job)
+        return Response(
+            PrintJobSerializer(jobs, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        job = self.get_object()
+        if job.status not in (PrintJobStatus.QUEUED, PrintJobStatus.SENT):
+            return Response(
+                {"detail": "Job cannot be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        job.status = PrintJobStatus.FAILED
+        job.error_message = request.data.get("reason") or "Cancelled by user"
+        job.updated_at = timezone.now()
+        job.save(update_fields=["status", "error_message", "updated_at"])
+        return Response(PrintJobSerializer(job).data)
 
     @action(detail=True, methods=["get"])
     def tspl(self, request, pk=None):

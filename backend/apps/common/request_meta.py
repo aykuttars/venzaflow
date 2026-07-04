@@ -4,7 +4,7 @@ desktop clients from browsers."""
 
 from __future__ import annotations
 
-KNOWN_CLIENTS = {"web", "eimza"}
+KNOWN_CLIENTS = {"web", "eimza", "ebarcode"}
 
 
 def detect_client(request) -> str:

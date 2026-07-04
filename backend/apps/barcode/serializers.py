@@ -23,6 +23,7 @@ class LabelTemplateSerializer(serializers.ModelSerializer):
             "layout_json",
             "source",
             "default_key",
+            "allowed_department_keys",
             "is_active",
             "created_at",
             "updated_at",
@@ -112,6 +113,7 @@ class PrintJobCreateSerializer(serializers.Serializer):
 
 class BarcodeGenerateSerializer(serializers.Serializer):
     limit = serializers.IntegerField(min_value=1, max_value=500, default=100)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class TransferScanItemSerializer(serializers.Serializer):

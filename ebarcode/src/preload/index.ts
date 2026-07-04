@@ -29,7 +29,8 @@ const api = {
       invoke(IPC.BARCODE_CREATE_JOB, payload),
     listTemplates: () => invoke(IPC.BARCODE_LIST_TEMPLATES),
     transfer: (payload: { items: Array<{ product_id: number; quantity: number }>; note?: string }) =>
-      invoke(IPC.BARCODE_TRANSFER, payload)
+      invoke(IPC.BARCODE_TRANSFER, payload),
+    effectiveSettings: () => invoke<Record<string, unknown>>(IPC.BARCODE_EFFECTIVE_SETTINGS)
   },
   printer: {
     listPorts: () => invoke<string[]>(IPC.PRINTER_LIST_PORTS),
