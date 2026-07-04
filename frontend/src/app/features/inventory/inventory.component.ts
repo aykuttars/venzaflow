@@ -20,6 +20,7 @@ import { CrudService, Page } from '../../shared/crud.service';
 import { downloadBlob, postImportFile } from '../../shared/import-export.utils';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { SearchSelectComponent } from '../../shared/search-select.component';
+import { BarcodeService, LabelTemplate } from '../barcode/barcode.service';
 
 interface InventoryDashboard {
   total_products: number;
@@ -204,6 +205,18 @@ interface InventoryDashboard {
           @if (tab() === 1) {
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.code' | translate }}</mat-label><input matInput formControlName="code" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
+            @if (hasBarcode()) {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'inventory.labelTemplate' | translate }}</mat-label>
+              <mat-select formControlName="label_template">
+                <mat-option [value]="null">{{ 'barcode.labelTemplateDefault' | translate }}</mat-option>
+                @for (t of labelTemplates(); track t.id) {
+                <mat-option [value]="t.id">{{ t.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>{{ 'barcode.labelTemplateHint' | translate }}</mat-hint>
+            </mat-form-field>
+            }
           } @else if (tab() === 2) {
             <app-search-select
               formControlName="warehouse"
@@ -215,6 +228,18 @@ interface InventoryDashboard {
             />
             <mat-form-field appearance="outline"><mat-label>{{ 'inventory.code' | translate }}</mat-label><input matInput formControlName="code" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label><input matInput formControlName="name" /></mat-form-field>
+            @if (hasBarcode()) {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'inventory.labelTemplate' | translate }}</mat-label>
+              <mat-select formControlName="label_template">
+                <mat-option [value]="null">{{ 'barcode.labelTemplateDefault' | translate }}</mat-option>
+                @for (t of labelTemplates(); track t.id) {
+                <mat-option [value]="t.id">{{ t.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>{{ 'barcode.labelTemplateHint' | translate }}</mat-hint>
+            </mat-form-field>
+            }
           } @else if (tab() === 3) {
             <app-search-select
               formControlName="product"
@@ -304,6 +329,7 @@ export class InventoryComponent implements OnInit {
   private translate = inject(TranslateService);
   private confirmDialog = inject(ConfirmDialogService);
   protected auth = inject(AuthService);
+  private barcode = inject(BarcodeService);
 
   tab = signal(0);
   dashboard = signal<InventoryDashboard | null>(null);
@@ -313,6 +339,7 @@ export class InventoryComponent implements OnInit {
   locations = signal<any[]>([]);
   stock = signal<any[]>([]);
   movements = signal<any[]>([]);
+  labelTemplates = signal<LabelTemplate[]>([]);
   stockLocationFilter = signal<Record<string, number>>({});
   movementTypes = [
     'PURCHASE',
@@ -330,12 +357,13 @@ export class InventoryComponent implements OnInit {
   private stockCrud = new CrudService<any>(this.http, 'inventory/stock', this.auth, 'inventory');
   private movCrud = new CrudService<any>(this.http, 'inventory/movements', this.auth, 'inventory');
 
-  warehouseForm = this.fb.group({ id: this.fb.control<number | null>(null), code: ['', Validators.required], name: ['', Validators.required] });
+  warehouseForm = this.fb.group({ id: this.fb.control<number | null>(null), code: ['', Validators.required], name: ['', Validators.required], label_template: this.fb.control<number | null>(null) });
   locationForm = this.fb.group({
     id: this.fb.control<number | null>(null),
     warehouse: this.fb.control<number | null>(null, Validators.required),
     code: ['', Validators.required],
     name: ['', Validators.required],
+    label_template: this.fb.control<number | null>(null),
   });
   stockForm = this.fb.group({
     id: this.fb.control<number | null>(null),
@@ -408,6 +436,9 @@ export class InventoryComponent implements OnInit {
     this.stockForm.get('warehouse')?.valueChanges.subscribe((wh) => {
       this.stockLocationFilter.set(wh != null ? { warehouse: wh } : {});
     });
+    if (this.hasBarcode()) {
+      this.barcode.getTemplates().subscribe((list) => this.labelTemplates.set(list));
+    }
     this.reloadAll();
     this.loadDashboard();
   }
@@ -432,7 +463,7 @@ export class InventoryComponent implements OnInit {
   openForm(w?: any): void {
     this.tab.set(1);
     this.dialogTitle.set(this.translate.instant(w ? 'inventory.editWarehouse' : 'inventory.newWarehouse'));
-    this.warehouseForm.reset(w ? { id: w.id, code: w.code, name: w.name } : { id: null, code: '', name: '' });
+    this.warehouseForm.reset(w ? { id: w.id, code: w.code, name: w.name, label_template: w.label_template ?? null } : { id: null, code: '', name: '', label_template: null });
     this.editing.set(true);
   }
 
@@ -463,7 +494,7 @@ export class InventoryComponent implements OnInit {
     this.tab.set(2);
     this.dialogTitle.set(this.translate.instant(l ? 'common.edit' : 'common.new'));
     this.locationForm.reset(
-      l ? { id: l.id, warehouse: l.warehouse, code: l.code, name: l.name } : { id: null, warehouse: null, code: '', name: '' }
+      l ? { id: l.id, warehouse: l.warehouse, code: l.code, name: l.name, label_template: l.label_template ?? null } : { id: null, warehouse: null, code: '', name: '', label_template: null }
     );
     this.editing.set(true);
   }
@@ -479,7 +510,8 @@ export class InventoryComponent implements OnInit {
     const t = this.tab();
     if (t === 1) {
       const v = this.warehouseForm.getRawValue();
-      const payload = { code: v.code, name: v.name };
+      const payload: Record<string, unknown> = { code: v.code, name: v.name };
+      if (this.hasBarcode()) payload['label_template'] = v.label_template ?? null;
       const op = v.id ? this.whCrud.update(v.id!, payload) : this.whCrud.create(payload);
       op.subscribe(() => {
         this.editing.set(false);
@@ -487,7 +519,8 @@ export class InventoryComponent implements OnInit {
       });
     } else if (t === 2) {
       const v = this.locationForm.getRawValue();
-      const payload = { warehouse: v.warehouse, code: v.code, name: v.name };
+      const payload: Record<string, unknown> = { warehouse: v.warehouse, code: v.code, name: v.name };
+      if (this.hasBarcode()) payload['label_template'] = v.label_template ?? null;
       const op = v.id ? this.locCrud.update(v.id!, payload) : this.locCrud.create(payload);
       op.subscribe(() => {
         this.editing.set(false);

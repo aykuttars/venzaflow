@@ -126,6 +126,9 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
     try {
       const result = (await window.api.barcode.lookup(trimmed)) as BarcodeLookupResult
       setLookup(result)
+      if (result.suggested_template?.id) {
+        setSelectedTemplateId(result.suggested_template.id)
+      }
       pushLog(t('dashboard.log.scan', { sku: result.product.sku }))
     } catch (err) {
       setLookup(null)

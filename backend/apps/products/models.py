@@ -32,6 +32,13 @@ class Product(TenantOwnedModel):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     cost_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    label_template = models.ForeignKey(
+        "barcode.LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products",
+    )
 
     class Meta:
         db_table = "product"

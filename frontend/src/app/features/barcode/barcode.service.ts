@@ -58,6 +58,7 @@ export interface BarcodeSettings {
   print_mode: string;
   default_copies: number;
   default_transfer_qty: number;
+  default_label_template?: number | null;
   printer_model: string;
   printer_profile_json: Record<string, unknown>;
   label_logo_url?: string | null;
@@ -86,6 +87,13 @@ export interface BarcodeLookupResult {
     }>;
   };
   suggest_transfer: boolean;
+  suggested_template?: { id: number; name: string; width_mm: string; height_mm: string } | null;
+  template_source?: string;
+}
+
+export interface ResolvedLabelTemplate {
+  template: { id: number; name: string; width_mm: string; height_mm: string } | null;
+  source: string;
 }
 
 export interface BarcodeLookupMiss {
@@ -118,10 +126,23 @@ export class BarcodeService {
   private http = inject(HttpClient);
   private base = `${API_BASE}/barcode`;
 
-  lookup(code: string): Observable<BarcodeLookupResult> {
-    return this.http.get<BarcodeLookupResult>(`${this.base}/lookup/`, {
-      params: { code },
-    });
+  lookup(code: string, opts?: { warehouse_id?: number; location_id?: number }): Observable<BarcodeLookupResult> {
+    const params: Record<string, string> = { code };
+    if (opts?.warehouse_id != null) params['warehouse_id'] = String(opts.warehouse_id);
+    if (opts?.location_id != null) params['location_id'] = String(opts.location_id);
+    return this.http.get<BarcodeLookupResult>(`${this.base}/lookup/`, { params });
+  }
+
+  resolveTemplate(opts: {
+    product_id?: number;
+    warehouse_id?: number;
+    location_id?: number;
+  }): Observable<ResolvedLabelTemplate> {
+    const params: Record<string, string> = {};
+    if (opts.product_id != null) params['product_id'] = String(opts.product_id);
+    if (opts.warehouse_id != null) params['warehouse_id'] = String(opts.warehouse_id);
+    if (opts.location_id != null) params['location_id'] = String(opts.location_id);
+    return this.http.get<ResolvedLabelTemplate>(`${this.base}/templates/resolve/`, { params });
   }
 
   getSettings(): Observable<BarcodeSettings> {

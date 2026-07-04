@@ -150,6 +150,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "unit_price",
             "cost_price",
             "is_active",
+            "label_template",
             "custom_fields",
             "dynamic_fields",
             "total_stock",

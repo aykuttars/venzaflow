@@ -341,6 +341,17 @@
     "rotation": "Rotation",
     "binding": "Data binding",
     "templateName": "Template name",
+    "labelTemplateAssign": "Label template",
+    "labelTemplateDefault": "Default (automatic)",
+    "labelTemplateHint": "Leave empty to use product → location → warehouse → tenant default order",
+    "templateResolveSource": {
+      "product": "Product template",
+      "location": "Location template",
+      "warehouse": "Warehouse template",
+      "tenant_default": "Tenant default",
+      "fallback": "Automatic selection",
+      "none": "No template"
+    },
     "preview": "Preview",
     "seedDefaults": "Load default templates",
     "newTemplate": "New template",
@@ -390,6 +401,7 @@
       "stockInvoice": "On invoice",
       "stockManual": "Manual confirm",
       "defaultTransferQty": "Default transfer qty",
+      "defaultLabelTemplate": "Default label template",
       "flags": {
         "sales_stock_deduction": "Sales stock deduction",
         "warehouse_vitrin": "Warehouse–storefront",
@@ -442,7 +454,8 @@
     "editStock": "Edit stock",
     "newMovement": "New movement",
     "editMovement": "Edit movement",
-    "productsModuleRequired": "Products module is required to manage stock items."
+    "productsModuleRequired": "Products module is required to manage stock items.",
+    "labelTemplate": "Label template"
   },
   "customers": {
     "title": "Customers",

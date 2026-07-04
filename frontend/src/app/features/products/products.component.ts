@@ -33,6 +33,7 @@ import { ProductDetailDialogComponent } from './product-detail-dialog.component'
 import { ProductFieldDefinitionsComponent } from './product-field-definitions.component';
 import { ProductUiConfigComponent } from './product-ui-config.component';
 import { ProductLabelPreviewDialogComponent } from '../barcode/product-label-preview-dialog.component';
+import { BarcodeService, LabelTemplate } from '../barcode/barcode.service';
 import { forkJoin } from 'rxjs';
 
 interface Category { id: number; name: string; slug: string; }
@@ -173,6 +174,18 @@ function slugify(value: string): string {
               [fieldDefinitions]="fieldDefinitions()"
               [initial]="editingProduct()"
             />
+            @if (canPreviewLabel()) {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ 'barcode.labelTemplateAssign' | translate }}</mat-label>
+              <mat-select [value]="productLabelTemplateId()" (selectionChange)="productLabelTemplateId.set($event.value)">
+                <mat-option [value]="null">{{ 'barcode.labelTemplateDefault' | translate }}</mat-option>
+                @for (t of labelTemplates(); track t.id) {
+                <mat-option [value]="t.id">{{ t.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>{{ 'barcode.labelTemplateHint' | translate }}</mat-hint>
+            </mat-form-field>
+            }
           } @else {
             <mat-form-field appearance="outline"><mat-label>{{ 'products.name' | translate }}</mat-label>
               <input matInput formControlName="name" required />
@@ -202,6 +215,7 @@ export class ProductsComponent implements OnInit {
   private dialog = inject(MatDialog);
   private configService = inject(ProductConfigService);
   protected auth = inject(AuthService);
+  private barcode = inject(BarcodeService);
 
   private crud = new CrudService<ProductRow>(this.http, 'products', this.auth, 'products');
   private catCrud = new CrudService<Category>(this.http, 'products/categories', this.auth, 'products');
@@ -216,6 +230,8 @@ export class ProductsComponent implements OnInit {
   editingProduct = signal<ProductRow | null>(null);
   detailOpen = signal(false);
   detailProductId = signal<number | null>(null);
+  labelTemplates = signal<LabelTemplate[]>([]);
+  productLabelTemplateId = signal<number | null>(null);
   private search = '';
   @ViewChild('dynForm') dynForm?: DynamicProductFormComponent;
 
@@ -245,6 +261,9 @@ export class ProductsComponent implements OnInit {
     this.loadConfig();
     this.reloadProducts();
     this.reloadCategories();
+    if (this.canPreviewLabel()) {
+      this.barcode.getTemplates().subscribe((list) => this.labelTemplates.set(list));
+    }
   }
 
   loadConfig(): void {
@@ -366,6 +385,8 @@ export class ProductsComponent implements OnInit {
     this.tab.set(0);
     this.activeForm = this.productForm;
     this.editingProduct.set(p ?? null);
+    const tpl = p?.['label_template'] as number | null | undefined;
+    this.productLabelTemplateId.set(tpl ?? null);
     this.editing.set(true);
   }
 
@@ -395,6 +416,9 @@ export class ProductsComponent implements OnInit {
       return;
     }
     const data = this.dynForm.getPayload();
+    if (this.canPreviewLabel()) {
+      data['label_template'] = this.productLabelTemplateId();
+    }
     const id = this.editingProduct()?.id;
     const op = id
       ? this.crud.update(id, data as Partial<ProductRow>)

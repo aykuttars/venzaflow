@@ -90,6 +90,15 @@ const DEPARTMENTS = ['admin', 'sales', 'warehouse'] as const;
         <section>
           <h3>{{ 'barcode.management.printStock' | translate }}</h3>
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ 'barcode.management.defaultLabelTemplate' | translate }}</mat-label>
+            <mat-select formControlName="default_label_template">
+              <mat-option [value]="null">{{ 'barcode.labelTemplateDefault' | translate }}</mat-option>
+              @for (t of templates(); track t.id) {
+              <mat-option [value]="t.id">{{ t.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>{{ 'barcode.management.printMode' | translate }}</mat-label>
             <mat-select formControlName="print_mode">
               <mat-option value="queue_only">{{ 'barcode.management.queueOnly' | translate }}</mat-option>
@@ -230,6 +239,7 @@ export class BarcodeManagementComponent implements OnInit {
     stock_deduction_mode: ['both'],
     default_copies: [1],
     default_transfer_qty: [1],
+    default_label_template: this.fb.control<number | null>(null),
     flag_sales_stock_deduction: [true],
     flag_warehouse_vitrin: [true],
     flag_retail_labeling: [true],
@@ -251,6 +261,7 @@ export class BarcodeManagementComponent implements OnInit {
         stock_deduction_mode: s.stock_deduction_mode,
         default_copies: s.default_copies,
         default_transfer_qty: s.default_transfer_qty,
+        default_label_template: s.default_label_template ?? null,
         flag_sales_stock_deduction: !!flags['sales_stock_deduction'],
         flag_warehouse_vitrin: !!flags['warehouse_vitrin'],
         flag_retail_labeling: !!flags['retail_labeling'],
@@ -290,6 +301,7 @@ export class BarcodeManagementComponent implements OnInit {
       stock_deduction_mode: v.stock_deduction_mode!,
       default_copies: v.default_copies!,
       default_transfer_qty: v.default_transfer_qty!,
+      default_label_template: v.default_label_template ?? null,
       operation_flags: {
         sales_stock_deduction: !!v.flag_sales_stock_deduction,
         warehouse_vitrin: !!v.flag_warehouse_vitrin,

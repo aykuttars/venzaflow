@@ -7,6 +7,7 @@ from django.db.models import Sum
 
 from apps.barcode.services.product_fields import product_field_map
 from apps.barcode.services.scan_normalize import lookup_code_variants
+from apps.barcode.services.template_resolve import resolve_label_template_payload
 from apps.inventory.models import Stock
 from apps.products.models import Product
 
@@ -43,7 +44,14 @@ def _stock_by_warehouse(tenant_id: int, product_id: int) -> dict[str, Any]:
     }
 
 
-def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
+def lookup_barcode(
+    tenant_id: int,
+    code: str,
+    *,
+    warehouse_id: int | None = None,
+    location_id: int | None = None,
+    department_key: str | None = None,
+) -> dict[str, Any] | None:
     product = None
     for candidate in lookup_code_variants((code or "").strip()):
         product = (
@@ -58,6 +66,13 @@ def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
 
     fields = product_field_map(product)
     stock = _stock_by_warehouse(tenant_id, product.id)
+    suggested = resolve_label_template_payload(
+        tenant_id,
+        product_id=product.id,
+        warehouse_id=warehouse_id,
+        location_id=location_id,
+        department_key=department_key,
+    )
     return {
         "product": {
             "id": product.id,
@@ -71,4 +86,6 @@ def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
         },
         "stock": stock,
         "suggest_transfer": stock["depo_quantity"] > 0 and stock["magaza_quantity"] == 0,
+        "suggested_template": suggested.get("template"),
+        "template_source": suggested.get("source"),
     }

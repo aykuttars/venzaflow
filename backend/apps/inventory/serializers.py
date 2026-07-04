@@ -7,7 +7,7 @@ from apps.inventory.services.movement import MovementService, MovementServiceErr
 class WarehouseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Warehouse
-        fields = ("id", "code", "name", "description", "is_active")
+        fields = ("id", "code", "name", "description", "is_active", "label_template")
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -23,6 +23,7 @@ class LocationSerializer(serializers.ModelSerializer):
             "code",
             "description",
             "is_active",
+            "label_template",
         )
 
 

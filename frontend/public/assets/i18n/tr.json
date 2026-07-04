@@ -341,6 +341,17 @@
     "rotation": "Yönelim",
     "binding": "Veri alanı",
     "templateName": "Şablon adı",
+    "labelTemplateAssign": "Etiket şablonu",
+    "labelTemplateDefault": "Varsayılan (otomatik)",
+    "labelTemplateHint": "Boş bırakılırsa ürün → konum → depo → kiracı varsayılanı sırası uygulanır",
+    "templateResolveSource": {
+      "product": "Ürün şablonu",
+      "location": "Konum şablonu",
+      "warehouse": "Depo şablonu",
+      "tenant_default": "Kiracı varsayılanı",
+      "fallback": "Otomatik seçim",
+      "none": "Şablon yok"
+    },
     "preview": "Önizleme",
     "seedDefaults": "Varsayılan şablonları yükle",
     "newTemplate": "Yeni şablon",
@@ -390,6 +401,7 @@
       "stockInvoice": "Fatura ile",
       "stockManual": "Manuel onay",
       "defaultTransferQty": "Varsayılan transfer adedi",
+      "defaultLabelTemplate": "Varsayılan etiket şablonu",
       "flags": {
         "sales_stock_deduction": "Satış stok düşümü",
         "warehouse_vitrin": "Depo–vitrin",
@@ -442,7 +454,8 @@
     "editStock": "Stok düzenle",
     "newMovement": "Yeni hareket",
     "editMovement": "Hareket düzenle",
-    "productsModuleRequired": "Stok yönetimi için Ürünler modülü gerekli."
+    "productsModuleRequired": "Stok yönetimi için Ürünler modülü gerekli.",
+    "labelTemplate": "Etiket şablonu"
   },
   "customers": {
     "title": "Müşteriler",

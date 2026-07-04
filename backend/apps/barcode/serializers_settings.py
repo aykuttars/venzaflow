@@ -17,6 +17,7 @@ class BarcodeSettingsSerializer(serializers.ModelSerializer):
             "qr_max_length",
             "ean_prefix",
             "auto_generate_on_create",
+            "default_label_template",
             "operation_flags",
             "stock_deduction_mode",
             "print_mode",

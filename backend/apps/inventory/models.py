@@ -14,6 +14,13 @@ class Warehouse(TenantOwnedModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    label_template = models.ForeignKey(
+        "barcode.LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="warehouses",
+    )
 
     class Meta:
         db_table = "warehouse"
@@ -32,6 +39,13 @@ class Location(TenantOwnedModel):
     code = models.CharField(max_length=32)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    label_template = models.ForeignKey(
+        "barcode.LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="locations",
+    )
 
     class Meta:
         db_table = "location"

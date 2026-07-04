@@ -52,6 +52,13 @@ class BarcodeSettings(models.Model):
     qr_max_length = models.PositiveIntegerField(default=128)
     ean_prefix = models.CharField(max_length=3, default="869")
     auto_generate_on_create = models.BooleanField(default=False)
+    default_label_template = models.ForeignKey(
+        "LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tenant_defaults",
+    )
     operation_flags = models.JSONField(default=dict)
     stock_deduction_mode = models.CharField(
         max_length=32,

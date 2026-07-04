@@ -48,6 +48,10 @@ export interface ProductLabelPreviewDialogData {
         </mat-select>
       </mat-form-field>
 
+      @if (resolveSource()) {
+      <p class="size-hint">{{ ('barcode.templateResolveSource.' + resolveSource()) | translate }}</p>
+      }
+
       @if (loading()) {
       <div class="center"><mat-spinner diameter="40" /></div>
       } @else if (error()) {
@@ -152,6 +156,7 @@ export class ProductLabelPreviewDialogComponent implements OnDestroy {
   templates = signal<LabelTemplate[]>([]);
   selectedId = signal<number | null>(null);
   selectedTemplate = signal<LabelTemplate | null>(null);
+  resolveSource = signal('');
   previewUrl = signal<string | null>(null);
   loading = signal(true);
   error = signal('');
@@ -161,13 +166,21 @@ export class ProductLabelPreviewDialogComponent implements OnDestroy {
     this.barcode.getTemplates().subscribe({
       next: (list) => {
         this.templates.set(list);
-        const first = list[0];
-        if (!first) {
+        if (!list.length) {
           this.loading.set(false);
           this.error.set('—');
           return;
         }
-        this.onTemplateChange(first.id);
+        this.barcode.resolveTemplate({ product_id: this.data.product.id }).subscribe({
+          next: (resolved) => {
+            this.resolveSource.set(resolved.source);
+            const id = resolved.template?.id && list.some((t) => t.id === resolved.template!.id)
+              ? resolved.template!.id
+              : list[0].id;
+            this.onTemplateChange(id);
+          },
+          error: () => this.onTemplateChange(list[0].id),
+        });
       },
       error: () => {
         this.loading.set(false);

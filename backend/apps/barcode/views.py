@@ -26,7 +26,7 @@ from apps.barcode.services.scan_normalize import normalize_scan_code
 from apps.barcode.services.preview import render_label_png, resolve_preview_product_id, validate_layout_bounds
 from apps.barcode.services.seed_templates import seed_default_templates
 from apps.barcode.services.settings import get_or_create_settings
-from apps.barcode.services.tspl import render_tspl_batch
+from apps.barcode.services.template_resolve import resolve_label_template_payload
 from apps.common.viewsets import TenantScopedViewSet
 from apps.inventory.models import Stock, Warehouse
 from apps.inventory.services.movement import MovementService, MovementServiceError
@@ -43,7 +43,24 @@ class BarcodeLookupView(APIView):
         tenant_id = request.user.tenant_id
         settings = get_or_create_settings(tenant_id)
         code = normalize_scan_code(raw_code, normalize_tr=settings.normalize_tr_scan)
-        result = lookup_barcode(tenant_id, code)
+        warehouse_id = request.query_params.get("warehouse_id")
+        location_id = request.query_params.get("location_id")
+        dept_key = getattr(getattr(request.user, "department", None), "key", None)
+        try:
+            wh_id = int(warehouse_id) if warehouse_id else None
+        except (TypeError, ValueError):
+            wh_id = None
+        try:
+            loc_id = int(location_id) if location_id else None
+        except (TypeError, ValueError):
+            loc_id = None
+        result = lookup_barcode(
+            tenant_id,
+            code,
+            warehouse_id=wh_id,
+            location_id=loc_id,
+            department_key=dept_key,
+        )
         if result:
             return Response(result)
 
@@ -163,6 +180,7 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         "seed_defaults": "barcode.labels",
         "binding_fields": "barcode.labels",
         "list_for_print": "barcode.print",
+        "resolve": "barcode.print",
     }
     search_fields = ("name", "description")
     ordering_fields = ("name", "updated_at")
@@ -192,6 +210,31 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="resolve")
+    def resolve(self, request):
+        tenant_id = request.user.tenant_id
+        dept_key = getattr(getattr(request.user, "department", None), "key", None)
+        product_id = request.query_params.get("product_id")
+        warehouse_id = request.query_params.get("warehouse_id")
+        location_id = request.query_params.get("location_id")
+
+        def _int_or_none(raw: str | None) -> int | None:
+            if not raw:
+                return None
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                return None
+
+        payload = resolve_label_template_payload(
+            tenant_id,
+            product_id=_int_or_none(product_id),
+            warehouse_id=_int_or_none(warehouse_id),
+            location_id=_int_or_none(location_id),
+            department_key=dept_key,
+        )
+        return Response(payload)
 
     def perform_create(self, serializer):
         serializer.save(

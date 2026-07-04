@@ -70,21 +70,35 @@ export class ProductBarcodeCellComponent implements OnInit {
   loadPreview(): void {
     if (this.templateId && this.previewUrl()) return;
     this.loading.set(true);
-    this.barcodeSvc.getTemplates().subscribe({
-      next: (list) => {
-        const tpl = list[0];
-        if (!tpl) {
-          this.loading.set(false);
+    this.barcodeSvc.resolveTemplate({ product_id: this.productId }).subscribe({
+      next: (resolved) => {
+        const id = resolved.template?.id ?? null;
+        if (!id) {
+          this.barcodeSvc.getTemplates().subscribe({
+            next: (list) => {
+              const tpl = list[0];
+              if (!tpl) {
+                this.loading.set(false);
+                return;
+              }
+              this.renderPreview(tpl.id);
+            },
+            error: () => this.loading.set(false),
+          });
           return;
         }
-        this.templateId = tpl.id;
-        this.barcodeSvc.previewTemplate(tpl.id, this.productId).subscribe({
-          next: (blob) => {
-            this.previewUrl.set(URL.createObjectURL(blob));
-            this.loading.set(false);
-          },
-          error: () => this.loading.set(false),
-        });
+        this.renderPreview(id);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private renderPreview(templateId: number): void {
+    this.templateId = templateId;
+    this.barcodeSvc.previewTemplate(templateId, this.productId).subscribe({
+      next: (blob) => {
+        this.previewUrl.set(URL.createObjectURL(blob));
+        this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });

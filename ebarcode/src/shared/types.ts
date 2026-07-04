@@ -48,6 +48,8 @@ export interface BarcodeLookupResult {
     total_quantity: number
   }
   suggest_transfer: boolean
+  suggested_template?: { id: number; name: string; width_mm: string; height_mm: string } | null
+  template_source?: string
 }
 
 export interface PrintJobRow {
