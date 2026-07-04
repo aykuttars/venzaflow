@@ -26,7 +26,8 @@ from apps.tenants.subscription_service import set_module_subscriptions
 User = get_user_model()
 
 CUSTOMER_CODE = "4500"
-TENANT_NAME = "TeknoPoint Donanım"
+TENANT_NAME = "Lens Bilisim Teknoloji"
+EMAIL_DOMAIN = "lens.local"
 DEFAULT_PASSWORD = "X7@qL9#vT2!mZ4$k"
 
 HARDWARE_MODULES = [
@@ -410,17 +411,18 @@ def _set_dynamic_values(product: Product, field_defs: dict[str, ProductFieldDefi
 
 def _ensure_users(tenant: Tenant, dept_admin: Department) -> None:
     users = [
-        ("yonetici@tekno.local", "Yönetici"),
-        ("satis@tekno.local", "Satış"),
-        ("depo@tekno.local", "Depo"),
+        (f"yonetici@{EMAIL_DOMAIN}", "Yönetici"),
+        (f"satis@{EMAIL_DOMAIN}", "Satış"),
+        (f"depo@{EMAIL_DOMAIN}", "Depo"),
     ]
     depts = {
-        "yonetici@tekno.local": dept_admin,
-        "satis@tekno.local": Department.objects.get(tenant=tenant, key="sales"),
-        "depo@tekno.local": Department.objects.get(tenant=tenant, key="warehouse"),
+        users[0][0]: dept_admin,
+        users[1][0]: Department.objects.get(tenant=tenant, key="sales"),
+        users[2][0]: Department.objects.get(tenant=tenant, key="warehouse"),
     }
+    active_emails = {email for email, _ in users}
     for email, _label in users:
-        u, created = User.all_tenants.get_or_create(
+        u, _created = User.all_tenants.get_or_create(
             tenant=tenant,
             email=email,
             defaults={"department": depts[email], "is_active": True},
@@ -429,3 +431,4 @@ def _ensure_users(tenant: Tenant, dept_admin: Department) -> None:
         u.is_active = True
         u.set_password(DEFAULT_PASSWORD)
         u.save()
+    User.all_tenants.filter(tenant=tenant).exclude(email__in=active_emails).update(is_active=False)

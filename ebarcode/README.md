@@ -42,10 +42,10 @@ CI: `.github/workflows/ebarcode-build.yml` — 6 platform, merge sonrası `artif
 
 Tag `v1.0.0` push → GitHub Release oluşturulur.
 
-## Pilot (4500)
+## Pilot (4500 — Lens Bilisim Teknoloji)
 
 - Tenant: `4500`
-- Kullanıcı: `depo@tekno.local` veya `yonetici@tekno.local`
+- Kullanıcı: `depo@lens.local` veya `yonetici@lens.local`
 - API: production veya `http://localhost:8000`
 
 ## Windows Bluetooth

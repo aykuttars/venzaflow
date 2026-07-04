@@ -9,7 +9,7 @@ interface LoginPageProps {
 export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Element {
   const navigate = useNavigate()
   const [customerCode, setCustomerCode] = useState('4500')
-  const [email, setEmail] = useState('depo@tekno.local')
+  const [email, setEmail] = useState('depo@lens.local')
   const [password, setPassword] = useState('')
   const [apiBaseUrl, setApiBaseUrl] = useState('')
   const [loading, setLoading] = useState(false)

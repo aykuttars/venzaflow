@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from apps.products.seed_hardware_retail import (
     CUSTOMER_CODE,
     DEFAULT_PASSWORD,
+    EMAIL_DOMAIN,
     TENANT_NAME,
     seed_hardware_retail_tenant,
 )
@@ -27,5 +28,5 @@ class Command(BaseCommand):
         self.stdout.write("")
         self.stdout.write("Login:")
         self.stdout.write(f"  Customer code: {CUSTOMER_CODE}")
-        self.stdout.write("  Email: yonetici@tekno.local  (or satis@ / depo@)")
+        self.stdout.write(f"  Email: yonetici@{EMAIL_DOMAIN}  (or satis@ / depo@)")
         self.stdout.write(f"  Password: {DEFAULT_PASSWORD}")
