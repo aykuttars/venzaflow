@@ -4,7 +4,9 @@ export type MessageKey =
   | 'app.loading'
   | 'app.subtitle'
   | 'login.customerCode'
+  | 'login.customerCodePlaceholder'
   | 'login.email'
+  | 'login.emailPlaceholder'
   | 'login.password'
   | 'login.submit'
   | 'login.submitting'
@@ -78,7 +80,9 @@ const tr: Record<MessageKey, string> = {
   'app.loading': '{name} yükleniyor…',
   'app.subtitle': 'Masaüstü barkod & etiket köprüsü',
   'login.customerCode': 'Müşteri kodu',
+  'login.customerCodePlaceholder': 'Customer Code',
   'login.email': 'E-posta',
+  'login.emailPlaceholder': 'Email',
   'login.password': 'Şifre',
   'login.submit': 'Giriş yap',
   'login.submitting': 'Giriş yapılıyor…',
@@ -157,7 +161,9 @@ const en: Record<MessageKey, string> = {
   'app.loading': 'Loading {name}…',
   'app.subtitle': 'Desktop barcode & label bridge',
   'login.customerCode': 'Customer code',
+  'login.customerCodePlaceholder': 'Customer Code',
   'login.email': 'Email',
+  'login.emailPlaceholder': 'Email',
   'login.password': 'Password',
   'login.submit': 'Sign in',
   'login.submitting': 'Signing in…',
