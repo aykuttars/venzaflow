@@ -6,14 +6,26 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, shareReplay, switchMap, throwError } from 'rxjs';
 
 import { PlatformAuthService } from './platform-auth.service';
 
-let platformRefreshing = false;
+let refresh$: ReturnType<PlatformAuthService['refreshAccess']> | null = null;
 
 function isPlatformApi(url: string): boolean {
   return url.includes('/platform/');
+}
+
+function refreshOnce(auth: PlatformAuthService) {
+  if (!refresh$) {
+    refresh$ = auth.refreshAccess().pipe(
+      shareReplay(1),
+      finalize(() => {
+        refresh$ = null;
+      })
+    );
+  }
+  return refresh$;
 }
 
 export const platformAuthInterceptor: HttpInterceptorFn = (
@@ -38,18 +50,15 @@ export const platformAuthInterceptor: HttpInterceptorFn = (
 
   return next(reqWithAuth).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401 && !skip && auth.refresh() && !platformRefreshing) {
-        platformRefreshing = true;
-        return auth.refreshAccess().pipe(
+      if (err.status === 401 && !skip && auth.refresh()) {
+        return refreshOnce(auth).pipe(
           switchMap((res) => {
-            platformRefreshing = false;
             const retry = req.clone({
               setHeaders: { Authorization: `Bearer ${res.access}` },
             });
             return next(retry);
           }),
           catchError((e) => {
-            platformRefreshing = false;
             auth.logout(false);
             router.navigate(['/admin/login']);
             return throwError(() => e);

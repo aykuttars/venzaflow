@@ -6,14 +6,26 @@ import {
 } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, shareReplay, switchMap, throwError } from 'rxjs';
 
 import { AuthService } from './auth.service';
 
-let refreshing = false;
+let refresh$: ReturnType<AuthService['refreshAccess']> | null = null;
 
 function isTenantApi(url: string): boolean {
   return !url.includes('/platform/');
+}
+
+function refreshOnce(auth: AuthService) {
+  if (!refresh$) {
+    refresh$ = auth.refreshAccess().pipe(
+      shareReplay(1),
+      finalize(() => {
+        refresh$ = null;
+      })
+    );
+  }
+  return refresh$;
 }
 
 export const authInterceptor: HttpInterceptorFn = (
@@ -36,18 +48,15 @@ export const authInterceptor: HttpInterceptorFn = (
 
   return next(reqWithAuth).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401 && !skip && auth.refresh() && !refreshing) {
-        refreshing = true;
-        return auth.refreshAccess().pipe(
+      if (err.status === 401 && !skip && auth.refresh()) {
+        return refreshOnce(auth).pipe(
           switchMap((res) => {
-            refreshing = false;
             const retry = req.clone({
               setHeaders: { Authorization: `Bearer ${res.access}` },
             });
             return next(retry);
           }),
           catchError((e) => {
-            refreshing = false;
             auth.logout(false);
             router.navigate(['/login']);
             return throwError(() => e);

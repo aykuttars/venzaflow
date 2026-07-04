@@ -47,6 +47,8 @@ export class PlatformAuthService {
     return !!c && !isExpired(c) && c['is_platform'] === true;
   });
 
+  readonly hasRefreshToken = computed(() => !!this.refresh());
+
   private readMe() {
     const raw = localStorage.getItem(ME_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -77,15 +79,19 @@ export class PlatformAuthService {
       );
   }
 
-  refreshAccess(): Observable<{ access: string }> {
+  refreshAccess(): Observable<{ access: string; refresh?: string }> {
     return this.http
-      .post<{ access: string }>(`${API_BASE}/platform/auth/refresh/`, {
+      .post<{ access: string; refresh?: string }>(`${API_BASE}/platform/auth/refresh/`, {
         refresh: this.refresh(),
       })
       .pipe(
         tap((res) => {
           this.access.set(res.access);
           localStorage.setItem(ACCESS_KEY, res.access);
+          if (res.refresh) {
+            this.refresh.set(res.refresh);
+            localStorage.setItem(REFRESH_KEY, res.refresh);
+          }
         })
       );
   }

@@ -81,6 +81,9 @@ export class AuthService {
     return !!c && !isExpired(c);
   });
 
+  /** Access expired but refresh token may still renew the session. */
+  readonly hasRefreshToken = computed(() => !!this.refresh());
+
   private readMe() {
     const raw = localStorage.getItem(ME_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -141,15 +144,19 @@ export class AuthService {
       );
   }
 
-  refreshAccess(): Observable<{ access: string }> {
+  refreshAccess(): Observable<{ access: string; refresh?: string }> {
     return this.http
-      .post<{ access: string }>(`${API_BASE}/auth/refresh/`, {
+      .post<{ access: string; refresh?: string }>(`${API_BASE}/auth/refresh/`, {
         refresh: this.refresh(),
       })
       .pipe(
         tap((res) => {
           this.access.set(res.access);
           localStorage.setItem(ACCESS_KEY, res.access);
+          if (res.refresh) {
+            this.refresh.set(res.refresh);
+            localStorage.setItem(REFRESH_KEY, res.refresh);
+          }
         })
       );
   }
