@@ -8,6 +8,7 @@
     "products": "Ürünler",
     "inventory": "Envanter",
     "barcode": "Barkod",
+    "service": "Servis",
     "employees": "Çalışanlar",
     "customers": "Müşteriler",
     "patients": "Hastalar",
@@ -47,6 +48,7 @@
     "close": "Kapat",
     "refresh": "Yenile",
     "loading": "Yükleniyor…",
+    "all": "Tümü",
     "language": "Dil",
     "turkish": "Türkçe",
     "english": "İngilizce",
@@ -113,7 +115,9 @@
     "barcode.scan": "Barkod okut / ürün sorgula",
     "barcode.print": "Etiket yazdır",
     "barcode.labels": "Etiket şablonu tasarla",
-    "barcode.generate": "Eksik barkod üret"
+    "barcode.generate": "Eksik barkod üret",
+    "service.read": "Servis kayıtlarını görüntüle",
+    "service.write": "Servis kayıtlarını yönet"
   },
   "modules": {
     "settings": "Ayarlar",
@@ -129,7 +133,8 @@
     "dashboard": "Panel",
     "audit": "Denetim",
     "signing": "e-İmza",
-    "barcode": "Barkod"
+    "barcode": "Barkod",
+    "service": "Servis"
   },
   "signing": {
     "subtitle": "e-İmza masaüstü uygulaması ile imzalanan belgeler ve durumları.",
@@ -456,6 +461,58 @@
     "editMovement": "Hareket düzenle",
     "productsModuleRequired": "Stok yönetimi için Ürünler modülü gerekli.",
     "labelTemplate": "Etiket şablonu"
+  },
+  "service": {
+    "newIntake": "Yeni teslim al",
+    "ticketNumber": "Kayıt no",
+    "customer": "Müşteri",
+    "customerName": "Müşteri adı",
+    "phone": "Telefon",
+    "device": "Cihaz",
+    "brand": "Marka",
+    "model": "Model",
+    "serial": "Seri no",
+    "complaint": "Şikayet",
+    "diagnosis": "Teşhis",
+    "estimatedPrice": "Tahmini ücret",
+    "finalPrice": "Tahsil edilen tutar",
+    "paymentMethod": "Ödeme yöntemi",
+    "statusLabel": "Durum",
+    "receivedAt": "Teslim alınma",
+    "timeline": "Süreç",
+    "intakeMode": "Müşteri girişi",
+    "quickCustomer": "Hızlı (ad + telefon)",
+    "existingCustomer": "Kayıtlı müşteri",
+    "reprint": "Etiketleri yeniden yazdır",
+    "printQueued": "Yazdırma kuyruğa alındı",
+    "metrics": {
+      "open": "Açık kayıt",
+      "awaiting": "Onay bekleyen",
+      "ready": "Teslime hazır",
+      "delivered": "Bugün teslim"
+    },
+    "status": {
+      "received": "Teslim alındı",
+      "diagnosing": "Teşhis",
+      "awaiting_approval": "Onay bekliyor",
+      "in_repair": "Tamirde",
+      "ready": "Teslime hazır",
+      "delivered": "Teslim edildi",
+      "cancelled": "İptal"
+    },
+    "payment": {
+      "cash": "Nakit",
+      "card": "Kart",
+      "iban": "IBAN / Havale"
+    },
+    "actions": {
+      "diagnosis": "Teşhis gir",
+      "approve": "Müşteri onayladı",
+      "reject": "Red / iptal",
+      "markReady": "Tamir bitti",
+      "deliver": "Teslim et ve tahsil et",
+      "startDiagnosis": "Teşhise başla"
+    }
   },
   "customers": {
     "title": "Müşteriler",

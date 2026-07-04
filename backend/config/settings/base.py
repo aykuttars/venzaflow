@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.signing",
     "apps.prescriptions",
     "apps.barcode",
+    "apps.service",
 ]
 
 MIDDLEWARE = [

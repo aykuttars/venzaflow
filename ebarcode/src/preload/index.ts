@@ -32,6 +32,23 @@ const api = {
       invoke(IPC.BARCODE_TRANSFER, payload),
     effectiveSettings: () => invoke<Record<string, unknown>>(IPC.BARCODE_EFFECTIVE_SETTINGS)
   },
+  service: {
+    createTicket: (payload: {
+      customer_name: string
+      customer_phone: string
+      device_brand?: string
+      device_model?: string
+      device_serial?: string
+      complaint: string
+      print_intake?: boolean
+    }) => invoke(IPC.SERVICE_CREATE_TICKET, payload),
+    lookup: (q: string) => invoke(IPC.SERVICE_LOOKUP, q),
+    deliver: (
+      id: number,
+      payload: { final_price: string; payment_method: string; note?: string }
+    ) => invoke(IPC.SERVICE_DELIVER, { id, ...payload }),
+    printIntake: (id: number) => invoke(IPC.SERVICE_PRINT_INTAKE, id)
+  },
   printer: {
     listPorts: () => invoke<string[]>(IPC.PRINTER_LIST_PORTS),
     getSettings: () => invoke(IPC.PRINTER_GET_SETTINGS),

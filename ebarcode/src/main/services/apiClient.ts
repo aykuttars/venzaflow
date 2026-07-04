@@ -4,6 +4,7 @@ import type {
   LabelTemplateRow,
   LoginCredentials,
   PrintJobRow,
+  ServiceTicketLookupResult,
   SessionSummary
 } from '../../shared/types'
 import { SESSION_EXPIRED_MESSAGE } from '../../shared/types'
@@ -85,7 +86,7 @@ class ApiClient {
         customer_code: credentials.customerCode,
         email: credentials.email,
         password: credentials.password,
-        required_module: 'barcode'
+        required_modules: ['barcode', 'service']
       })
     })
     if (!res.ok) throw new Error(await parseError(res))
@@ -207,6 +208,47 @@ class ApiClient {
         items
       })
     })
+  }
+
+  createServiceTicket(payload: {
+    customer_name: string
+    customer_phone: string
+    device_brand?: string
+    device_model?: string
+    device_serial?: string
+    complaint: string
+    print_intake?: boolean
+  }): Promise<{ id: number; ticket_number: string }> {
+    return this.request('/service/tickets/', {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, print_intake: payload.print_intake ?? true })
+    })
+  }
+
+  async lookupServiceTicket(q: string): Promise<ServiceTicketLookupResult> {
+    try {
+      return await this.request(`/service/tickets/lookup/?q=${encodeURIComponent(q)}`)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
+        return { found: false }
+      }
+      throw e
+    }
+  }
+
+  deliverServiceTicket(
+    id: number,
+    payload: { final_price: string; payment_method: string; note?: string }
+  ): Promise<unknown> {
+    return this.request(`/service/tickets/${id}/deliver/`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  }
+
+  printServiceIntake(id: number): Promise<{ job_ids: number[] }> {
+    return this.request(`/service/tickets/${id}/print-intake/`, { method: 'POST' })
   }
 }
 

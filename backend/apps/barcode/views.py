@@ -457,7 +457,19 @@ class PrintJobViewSet(TenantScopedViewSet):
 
     @action(detail=True, methods=["get"])
     def tspl(self, request, pk=None):
+        from apps.barcode.models import PrintContextType
+        from apps.barcode.services.tspl import render_tspl_for_job, render_tspl_batch
+
         job = self.get_object()
+        if job.context_type == PrintContextType.SERVICE_TICKET:
+            tspl = render_tspl_for_job(
+                template_snapshot=job.template_snapshot,
+                layout_json=list(job.layout_snapshot or []),
+                products=[],
+                ticket_snapshot=dict(job.context_snapshot or {}),
+                copies=job.copies,
+            )
+            return Response({"tspl": tspl, "job_id": job.pk})
         products = list(
             Product.objects.filter(
                 tenant_id=job.tenant_id, pk__in=job.product_ids, is_active=True

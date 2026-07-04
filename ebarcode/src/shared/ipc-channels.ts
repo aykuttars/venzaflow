@@ -16,6 +16,11 @@ export const IPC = {
   BARCODE_TRANSFER: 'barcode:transfer',
   BARCODE_EFFECTIVE_SETTINGS: 'barcode:effective-settings',
 
+  SERVICE_CREATE_TICKET: 'service:create-ticket',
+  SERVICE_LOOKUP: 'service:lookup',
+  SERVICE_DELIVER: 'service:deliver',
+  SERVICE_PRINT_INTAKE: 'service:print-intake',
+
   PRINTER_LIST_PORTS: 'printer:list-ports',
   PRINTER_GET_SETTINGS: 'printer:get-settings',
   PRINTER_SAVE_SETTINGS: 'printer:save-settings',

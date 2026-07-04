@@ -1,0 +1,213 @@
+from __future__ import annotations
+
+from decimal import Decimal
+
+from django.db import transaction
+
+from apps.barcode.models import LabelTemplate, LabelTemplateSource
+
+
+SERVICE_TEMPLATES: list[dict] = [
+    {
+        "default_key": "service_intake_shop",
+        "name": "Servis teslim — servis nüshası",
+        "description": "Cihaza yapıştırılacak servis kaydı",
+        "width_mm": "80",
+        "height_mm": "50",
+        "gap_mm": "2",
+        "layout_json": [
+            {
+                "id": "copy",
+                "type": "text",
+                "x": 2,
+                "y": 2,
+                "width": 76,
+                "height": 6,
+                "rotation": 0,
+                "font_size": 9,
+                "font_bold": True,
+                "data_binding": "ticket.copy_label",
+            },
+            {
+                "id": "num",
+                "type": "text",
+                "x": 2,
+                "y": 10,
+                "width": 76,
+                "height": 10,
+                "rotation": 0,
+                "font_size": 16,
+                "font_bold": True,
+                "data_binding": "ticket.number",
+            },
+            {
+                "id": "qr",
+                "type": "barcode_1d",
+                "x": 2,
+                "y": 22,
+                "width": 50,
+                "height": 12,
+                "rotation": 0,
+                "symbology": "CODE128",
+                "show_text": False,
+                "data_binding": "ticket.qr",
+            },
+            {
+                "id": "cust",
+                "type": "text",
+                "x": 2,
+                "y": 36,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 10,
+                "data_binding": "ticket.customer_name",
+            },
+            {
+                "id": "phone",
+                "type": "text",
+                "x": 2,
+                "y": 41,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 9,
+                "data_binding": "ticket.customer_phone",
+            },
+            {
+                "id": "device",
+                "type": "text",
+                "x": 2,
+                "y": 46,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 9,
+                "data_binding": "ticket.device",
+            },
+        ],
+    },
+    {
+        "default_key": "service_intake_customer",
+        "name": "Servis teslim — müşteri nüshası",
+        "description": "Müşteriye verilecek teslim alma belgesi",
+        "width_mm": "80",
+        "height_mm": "60",
+        "gap_mm": "2",
+        "layout_json": [
+            {
+                "id": "copy",
+                "type": "text",
+                "x": 2,
+                "y": 2,
+                "width": 76,
+                "height": 6,
+                "rotation": 0,
+                "font_size": 9,
+                "font_bold": True,
+                "data_binding": "ticket.copy_label",
+            },
+            {
+                "id": "title",
+                "type": "text",
+                "x": 2,
+                "y": 8,
+                "width": 76,
+                "height": 6,
+                "rotation": 0,
+                "font_size": 10,
+                "font_bold": True,
+                "static_text": "Cihaz teslim alındı",
+            },
+            {
+                "id": "num",
+                "type": "text",
+                "x": 2,
+                "y": 15,
+                "width": 76,
+                "height": 8,
+                "rotation": 0,
+                "font_size": 14,
+                "font_bold": True,
+                "data_binding": "ticket.number",
+            },
+            {
+                "id": "date",
+                "type": "text",
+                "x": 2,
+                "y": 24,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 9,
+                "data_binding": "ticket.received_datetime",
+            },
+            {
+                "id": "cust",
+                "type": "text",
+                "x": 2,
+                "y": 30,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 10,
+                "data_binding": "ticket.customer_name",
+            },
+            {
+                "id": "device",
+                "type": "text",
+                "x": 2,
+                "y": 36,
+                "width": 76,
+                "height": 5,
+                "rotation": 0,
+                "font_size": 9,
+                "data_binding": "ticket.device",
+            },
+            {
+                "id": "complaint",
+                "type": "text",
+                "x": 2,
+                "y": 42,
+                "width": 76,
+                "height": 10,
+                "rotation": 0,
+                "font_size": 8,
+                "data_binding": "ticket.complaint_short",
+            },
+            {
+                "id": "qr",
+                "type": "barcode_1d",
+                "x": 2,
+                "y": 52,
+                "width": 50,
+                "height": 8,
+                "rotation": 0,
+                "symbology": "CODE128",
+                "show_text": True,
+                "data_binding": "ticket.qr",
+            },
+        ],
+    },
+]
+
+
+@transaction.atomic
+def ensure_service_templates(tenant_id: int) -> list[LabelTemplate]:
+    created: list[LabelTemplate] = []
+    for item in SERVICE_TEMPLATES:
+        if LabelTemplate.objects.filter(tenant_id=tenant_id, default_key=item["default_key"]).exists():
+            continue
+        tpl = LabelTemplate.objects.create(
+            tenant_id=tenant_id,
+            name=item["name"],
+            description=item.get("description", ""),
+            width_mm=Decimal(str(item["width_mm"])),
+            height_mm=Decimal(str(item["height_mm"])),
+            gap_mm=Decimal(str(item.get("gap_mm", 2))),
+            layout_json=item.get("layout_json", []),
+            source=LabelTemplateSource.DEFAULT,
+            default_key=item["default_key"],
+        )
+        created.append(tpl)
+    return created

@@ -35,6 +35,7 @@ from apps.barcode.views import (
     PrintJobViewSet,
     TransferWizardView,
 )
+from apps.service.views import ServiceTicketLookupView, ServiceTicketViewSet
 from apps.tenants.views_platform import PlatformTenantViewSet
 from apps.signing.views_integration import (
     PlatformTenantConnectionTestView,
@@ -61,6 +62,7 @@ router.register(r"inventory/warehouses", WarehouseViewSet, basename="warehouse")
 router.register(r"inventory/locations", LocationViewSet, basename="location")
 router.register(r"inventory/stock", StockViewSet, basename="stock")
 router.register(r"inventory/movements", StockMovementViewSet, basename="stockmovement")
+router.register(r"service/tickets", ServiceTicketViewSet, basename="service-ticket")
 router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"patients", PatientViewSet, basename="patient")
 router.register(r"medical-records", MedicalRecordViewSet, basename="medicalrecord")
@@ -113,6 +115,7 @@ urlpatterns = [
     path("v1/dashboard/summary/", DashboardSummaryView.as_view(), name="dashboard-summary"),
     path("v1/inventory/dashboard/", InventoryDashboardView.as_view(), name="inventory-dashboard"),
     path("v1/barcode/lookup/", BarcodeLookupView.as_view(), name="barcode-lookup"),
+    path("v1/service/tickets/lookup/", ServiceTicketLookupView.as_view(), name="service-ticket-lookup"),
     path("v1/barcode/generate/", BarcodeGenerateView.as_view(), name="barcode-generate"),
     path("v1/barcode/transfers/", TransferWizardView.as_view(), name="barcode-transfer"),
     path("v1/barcode/", include("apps.barcode.urls")),

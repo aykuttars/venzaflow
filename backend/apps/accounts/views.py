@@ -30,7 +30,20 @@ class LoginView(APIView):
         # e-signature desktop app) send `required_module` so tenants without
         # that subscription are rejected at login rather than after the fact.
         required_module = request.data.get("required_module")
-        if required_module and not tenant_has_module(user.tenant, required_module):
+        required_modules = request.data.get("required_modules")
+        if required_modules and isinstance(required_modules, list):
+            if not any(tenant_has_module(user.tenant, m) for m in required_modules):
+                return Response(
+                    {
+                        "detail": _(
+                            "Your account does not have access to the required module."
+                        ),
+                        "code": "module_not_enabled",
+                        "modules": required_modules,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif required_module and not tenant_has_module(user.tenant, required_module):
             return Response(
                 {
                     "detail": _(

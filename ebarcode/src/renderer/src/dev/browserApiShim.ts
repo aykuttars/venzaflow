@@ -4,6 +4,7 @@
  */
 import type { EbarcodeApi } from '../../../preload'
 import { barcodeLookupCandidates } from '../../../shared/scanNormalize'
+import type { ServiceTicketLookupResult } from '../../../shared/types'
 
 const SESSION_KEY = 'ebarcode.webDev.session'
 
@@ -69,7 +70,8 @@ export function installBrowserApiShim(): void {
             customer_code: cred.customerCode,
             email: cred.email,
             password: cred.password,
-            required_module: 'barcode'
+            required_module: 'barcode',
+            required_modules: ['barcode', 'service']
           })
         })
         const access = (data.access as string) || (data.access_token as string)
@@ -187,6 +189,51 @@ export function installBrowserApiShim(): void {
         const s = loadSession()
         if (!s) throw new Error('Oturum yok')
         return apiRequest('/barcode/settings/effective/', {}, s.accessToken)
+      }
+    },
+    service: {
+      createTicket: async (payload) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(
+          '/service/tickets/',
+          {
+            method: 'POST',
+            body: JSON.stringify({ ...payload, print_intake: payload.print_intake ?? true })
+          },
+          s.accessToken
+        )
+      },
+      lookup: async (q: string) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        try {
+          return await apiRequest<ServiceTicketLookupResult>(
+            `/service/tickets/lookup/?q=${encodeURIComponent(q)}`,
+            {},
+            s.accessToken
+          )
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
+            return { found: false }
+          }
+          throw err
+        }
+      },
+      deliver: async (id, payload) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(
+          `/service/tickets/${id}/deliver/`,
+          { method: 'POST', body: JSON.stringify(payload) },
+          s.accessToken
+        )
+      },
+      printIntake: async (id) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(`/service/tickets/${id}/print-intake/`, { method: 'POST' }, s.accessToken)
       }
     },
     printer: {

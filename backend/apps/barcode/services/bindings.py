@@ -18,6 +18,19 @@ LABEL_BINDINGS: list[tuple[str, str]] = [
     ("label.print_datetime", "Etiket tarih/saat"),
 ]
 
+TICKET_BINDINGS: list[tuple[str, str]] = [
+    ("ticket.number", "Kayıt no"),
+    ("ticket.customer_name", "Müşteri adı"),
+    ("ticket.customer_phone", "Telefon"),
+    ("ticket.device", "Cihaz"),
+    ("ticket.device_serial", "Seri no"),
+    ("ticket.complaint_short", "Şikayet"),
+    ("ticket.received_date", "Teslim tarihi"),
+    ("ticket.received_datetime", "Teslim tarih/saat"),
+    ("ticket.copy_label", "Nüsha etiketi"),
+    ("ticket.qr", "Kayıt QR/barkod"),
+]
+
 
 def list_binding_fields(tenant_id: int) -> list[dict]:
     """Catalog of bindable fields for label designer (tenant-aware)."""
@@ -45,11 +58,20 @@ def list_binding_fields(tenant_id: int) -> list[dict]:
         }
         for b, label in LABEL_BINDINGS
     )
+    items.extend(
+        {
+            "binding": b,
+            "label": label,
+            "group": "service",
+            "element_type": "barcode_1d" if b == "ticket.qr" else "text",
+        }
+        for b, label in TICKET_BINDINGS
+    )
     return items
 
 
 def _suggest_type(binding: str) -> str:
-    if binding == "product.barcode":
+    if binding in ("product.barcode", "ticket.qr"):
         return "barcode_1d"
     return "text"
 
@@ -89,4 +111,21 @@ def resolve_binding(
         if hasattr(product, key):
             val = getattr(product, key)
             return "" if val is None else str(val)
+    return binding
+
+
+def resolve_ticket_binding(binding: str, snapshot: dict[str, str]) -> str:
+    if not binding:
+        return ""
+    if binding.startswith("label."):
+        key = binding.split(".", 1)[1]
+        now = timezone.localtime()
+        if key == "print_date":
+            return now.strftime("%d.%m.%Y")
+        if key == "print_datetime":
+            return now.strftime("%d.%m.%Y %H:%M")
+        return ""
+    if binding.startswith("ticket."):
+        key = binding.split(".", 1)[1]
+        return str(snapshot.get(key, "") or "")
     return binding

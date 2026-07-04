@@ -4,8 +4,9 @@ import type { BarcodeLookupResult, LabelTemplateRow, PrintJobRow, PrinterSetting
 import { APP_DISPLAY_NAME } from '@shared/brand'
 import { useI18n } from '../i18n/I18nProvider'
 import BluetoothSetup from './BluetoothSetup'
+import ServiceTab from './ServiceTab'
 
-type Tab = 'scan' | 'print' | 'settings'
+type Tab = 'scan' | 'service' | 'print' | 'settings'
 
 interface DashboardPageProps {
   onLogout: () => void
@@ -230,6 +231,9 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         <button type="button" className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>
           {t('dashboard.tab.scan')}
         </button>
+        <button type="button" className={tab === 'service' ? 'active' : ''} onClick={() => setTab('service')}>
+          {t('dashboard.tab.service')}
+        </button>
         <button type="button" className={tab === 'print' ? 'active' : ''} onClick={() => setTab('print')}>
           {t('dashboard.tab.print', { count: jobs.length })}
         </button>
@@ -291,6 +295,16 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
             </div>
           )}
         </div>
+      )}
+
+      {tab === 'service' && (
+        <ServiceTab
+          busy={busy}
+          autoPoll={settings.autoPoll}
+          onLog={pushLog}
+          onRefreshJobs={refreshJobs}
+          onProcessQueue={processQueue}
+        />
       )}
 
       {tab === 'print' && (

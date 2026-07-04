@@ -14,6 +14,7 @@ export type MessageKey =
   | 'dashboard.refresh'
   | 'dashboard.logout'
   | 'dashboard.tab.scan'
+  | 'dashboard.tab.service'
   | 'dashboard.tab.print'
   | 'dashboard.tab.settings'
   | 'dashboard.scan.hint'
@@ -63,6 +64,44 @@ export type MessageKey =
   | 'dashboard.log.settingsSaved'
   | 'dashboard.log.testSent'
   | 'dashboard.log.testError'
+  | 'service.tab.intake'
+  | 'service.tab.lookup'
+  | 'service.intake.hint'
+  | 'service.intake.submit'
+  | 'service.lookup.hint'
+  | 'service.lookup.placeholder'
+  | 'service.lookup.notFound'
+  | 'service.lookup.reprint'
+  | 'service.deliver.title'
+  | 'service.deliver.submit'
+  | 'service.deliver.already'
+  | 'service.field.customerName'
+  | 'service.field.phone'
+  | 'service.field.brand'
+  | 'service.field.model'
+  | 'service.field.serial'
+  | 'service.field.complaint'
+  | 'service.field.status'
+  | 'service.field.estimated'
+  | 'service.field.finalPrice'
+  | 'service.field.payment'
+  | 'service.payment.cash'
+  | 'service.payment.card'
+  | 'service.payment.iban'
+  | 'service.status.received'
+  | 'service.status.diagnosing'
+  | 'service.status.awaiting'
+  | 'service.status.inRepair'
+  | 'service.status.ready'
+  | 'service.status.delivered'
+  | 'service.status.cancelled'
+  | 'service.log.intakeCreated'
+  | 'service.log.intakeError'
+  | 'service.log.lookup'
+  | 'service.log.delivered'
+  | 'service.log.deliverError'
+  | 'service.log.reprint'
+  | 'service.log.reprintError'
   | 'bt.title'
   | 'bt.step.powerOn'
   | 'bt.step.pairDarwin'
@@ -91,6 +130,7 @@ const tr: Record<MessageKey, string> = {
   'dashboard.refresh': 'Yenile',
   'dashboard.logout': 'Çıkış',
   'dashboard.tab.scan': 'Okuma',
+  'dashboard.tab.service': 'Servis',
   'dashboard.tab.print': 'Yazdırma ({count})',
   'dashboard.tab.settings': 'Yazıcı & Okuyucu',
   'dashboard.scan.hint': 'Netum F-18w USB/BT HID — okuyucu bu alana odaklıyken barkod gönderir.',
@@ -142,6 +182,44 @@ const tr: Record<MessageKey, string> = {
   'dashboard.log.settingsSaved': 'Yazıcı ayarları kaydedildi',
   'dashboard.log.testSent': 'Test etiketi gönderildi',
   'dashboard.log.testError': 'Test baskı hatası: {error}',
+  'service.tab.intake': 'Teslim al',
+  'service.tab.lookup': 'Ara / Teslim et',
+  'service.intake.hint': 'Cihaz teslim alma — kayıt oluşturulunca servis ve müşteri etiketleri yazdırma kuyruğuna eklenir.',
+  'service.intake.submit': 'Kaydet ve etiket yazdır',
+  'service.lookup.hint': 'Kayıt numarası (SR-…) veya telefon okutun / yazın.',
+  'service.lookup.placeholder': 'Kayıt no veya telefon…',
+  'service.lookup.notFound': 'Kayıt bulunamadı — «{code}»',
+  'service.lookup.reprint': 'Teslim etiketlerini yeniden yazdır',
+  'service.deliver.title': 'Teslim ve tahsilat',
+  'service.deliver.submit': 'Teslim et',
+  'service.deliver.already': 'Bu kayıt zaten teslim edilmiş.',
+  'service.field.customerName': 'Müşteri adı',
+  'service.field.phone': 'Telefon',
+  'service.field.brand': 'Marka',
+  'service.field.model': 'Model',
+  'service.field.serial': 'Seri no',
+  'service.field.complaint': 'Şikayet',
+  'service.field.status': 'Durum',
+  'service.field.estimated': 'Tahmini ücret',
+  'service.field.finalPrice': 'Tahsil edilen tutar (₺)',
+  'service.field.payment': 'Ödeme yöntemi',
+  'service.payment.cash': 'Nakit',
+  'service.payment.card': 'Kart',
+  'service.payment.iban': 'IBAN / Havale',
+  'service.status.received': 'Teslim alındı',
+  'service.status.diagnosing': 'Teşhis',
+  'service.status.awaiting': 'Onay bekliyor',
+  'service.status.inRepair': 'Tamirde',
+  'service.status.ready': 'Teslime hazır',
+  'service.status.delivered': 'Teslim edildi',
+  'service.status.cancelled': 'İptal',
+  'service.log.intakeCreated': 'Servis kaydı: {number}',
+  'service.log.intakeError': 'Teslim alma hatası: {error}',
+  'service.log.lookup': 'Kayıt bulundu: {number}',
+  'service.log.delivered': 'Teslim edildi: {number}',
+  'service.log.deliverError': 'Teslim hatası: {error}',
+  'service.log.reprint': 'Etiket kuyruğa alındı: {number}',
+  'service.log.reprintError': 'Yeniden yazdırma hatası: {error}',
   'bt.title': 'Bluetooth / Yazıcı kurulumu',
   'bt.step.powerOn': 'Bluetooth ve yazıcıyı açın',
   'bt.step.pairDarwin':
@@ -173,6 +251,7 @@ const en: Record<MessageKey, string> = {
   'dashboard.refresh': 'Refresh',
   'dashboard.logout': 'Sign out',
   'dashboard.tab.scan': 'Scan',
+  'dashboard.tab.service': 'Service',
   'dashboard.tab.print': 'Print ({count})',
   'dashboard.tab.settings': 'Printer & Scanner',
   'dashboard.scan.hint': 'Netum F-18w USB/BT HID — scanner sends barcodes while this field is focused.',
@@ -223,6 +302,44 @@ const en: Record<MessageKey, string> = {
   'dashboard.log.settingsSaved': 'Printer settings saved',
   'dashboard.log.testSent': 'Test label sent',
   'dashboard.log.testError': 'Test print error: {error}',
+  'service.tab.intake': 'Intake',
+  'service.tab.lookup': 'Lookup / Deliver',
+  'service.intake.hint': 'Device intake — shop and customer labels are queued for printing after save.',
+  'service.intake.submit': 'Save & print labels',
+  'service.lookup.hint': 'Scan or enter ticket number (SR-…) or phone.',
+  'service.lookup.placeholder': 'Ticket # or phone…',
+  'service.lookup.notFound': 'Ticket not found — «{code}»',
+  'service.lookup.reprint': 'Reprint intake labels',
+  'service.deliver.title': 'Pickup & payment',
+  'service.deliver.submit': 'Deliver',
+  'service.deliver.already': 'This ticket is already delivered.',
+  'service.field.customerName': 'Customer name',
+  'service.field.phone': 'Phone',
+  'service.field.brand': 'Brand',
+  'service.field.model': 'Model',
+  'service.field.serial': 'Serial no',
+  'service.field.complaint': 'Complaint',
+  'service.field.status': 'Status',
+  'service.field.estimated': 'Estimated price',
+  'service.field.finalPrice': 'Amount collected (₺)',
+  'service.field.payment': 'Payment method',
+  'service.payment.cash': 'Cash',
+  'service.payment.card': 'Card',
+  'service.payment.iban': 'Bank transfer',
+  'service.status.received': 'Received',
+  'service.status.diagnosing': 'Diagnosing',
+  'service.status.awaiting': 'Awaiting approval',
+  'service.status.inRepair': 'In repair',
+  'service.status.ready': 'Ready for pickup',
+  'service.status.delivered': 'Delivered',
+  'service.status.cancelled': 'Cancelled',
+  'service.log.intakeCreated': 'Service ticket: {number}',
+  'service.log.intakeError': 'Intake error: {error}',
+  'service.log.lookup': 'Ticket found: {number}',
+  'service.log.delivered': 'Delivered: {number}',
+  'service.log.deliverError': 'Delivery error: {error}',
+  'service.log.reprint': 'Labels queued: {number}',
+  'service.log.reprintError': 'Reprint error: {error}',
   'bt.title': 'Bluetooth / Printer setup',
   'bt.step.powerOn': 'Turn on Bluetooth and the printer',
   'bt.step.pairDarwin':

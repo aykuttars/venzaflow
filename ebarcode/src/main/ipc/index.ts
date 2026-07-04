@@ -111,6 +111,66 @@ export function registerBarcodeIpc(): void {
   })
 }
 
+export function registerServiceIpc(): void {
+  ipcMain.handle(
+    IPC.SERVICE_CREATE_TICKET,
+    async (
+      _e,
+      payload: {
+        customer_name: string
+        customer_phone: string
+        device_brand?: string
+        device_model?: string
+        device_serial?: string
+        complaint: string
+        print_intake?: boolean
+      }
+    ) => {
+      try {
+        return ok(await apiClient.createServiceTicket(payload))
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(IPC.SERVICE_LOOKUP, async (_e, q: string) => {
+    try {
+      return ok(await apiClient.lookupServiceTicket(q))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    IPC.SERVICE_DELIVER,
+    async (
+      _e,
+      payload: { id: number; final_price: string; payment_method: string; note?: string }
+    ) => {
+      try {
+        return ok(
+          await apiClient.deliverServiceTicket(payload.id, {
+            final_price: payload.final_price,
+            payment_method: payload.payment_method,
+            note: payload.note
+          })
+        )
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(IPC.SERVICE_PRINT_INTAKE, async (_e, id: number) => {
+    try {
+      return ok(await apiClient.printServiceIntake(id))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+}
+
 export function registerPrinterIpc(): void {
   ipcMain.handle(IPC.PRINTER_LIST_PORTS, async () => {
     try {
@@ -158,5 +218,6 @@ export function registerAllIpc(): void {
   registerSystemIpc()
   registerAuthIpc()
   registerBarcodeIpc()
+  registerServiceIpc()
   registerPrinterIpc()
 }

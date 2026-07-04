@@ -153,6 +153,11 @@ class PrintJobStatus(models.TextChoices):
     FAILED = "failed", "Failed"
 
 
+class PrintContextType(models.TextChoices):
+    PRODUCT = "product", "Product"
+    SERVICE_TICKET = "service_ticket", "Service ticket"
+
+
 class PrintJob(TenantOwnedModel):
     template = models.ForeignKey(
         LabelTemplate,
@@ -160,6 +165,13 @@ class PrintJob(TenantOwnedModel):
         related_name="print_jobs",
     )
     product_ids = models.JSONField(default=list)
+    context_type = models.CharField(
+        max_length=32,
+        choices=PrintContextType.choices,
+        default=PrintContextType.PRODUCT,
+    )
+    context_id = models.PositiveIntegerField(null=True, blank=True)
+    context_snapshot = models.JSONField(default=dict, blank=True)
     layout_snapshot = models.JSONField(default=list)
     template_snapshot = models.JSONField(default=dict)
     status = models.CharField(

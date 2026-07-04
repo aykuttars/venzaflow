@@ -8,6 +8,7 @@
     "products": "Products",
     "inventory": "Inventory",
     "barcode": "Barcode",
+    "service": "Service",
     "employees": "Employees",
     "customers": "Customers",
     "patients": "Patients",
@@ -113,7 +114,9 @@
     "barcode.scan": "Scan barcodes / lookup products",
     "barcode.print": "Print labels",
     "barcode.labels": "Design label templates",
-    "barcode.generate": "Generate missing barcodes"
+    "barcode.generate": "Generate missing barcodes",
+    "service.read": "View service tickets",
+    "service.write": "Manage service tickets"
   },
   "modules": {
     "settings": "Settings",
@@ -129,7 +132,8 @@
     "dashboard": "Dashboard",
     "audit": "Audit",
     "signing": "e-Signature",
-    "barcode": "Barcode"
+    "barcode": "Barcode",
+    "service": "Service"
   },
   "signing": {
     "subtitle": "Documents signed via the e-signature desktop app and their status.",
@@ -456,6 +460,58 @@
     "editMovement": "Edit movement",
     "productsModuleRequired": "Products module is required to manage stock items.",
     "labelTemplate": "Label template"
+  },
+  "service": {
+    "newIntake": "New intake",
+    "ticketNumber": "Ticket #",
+    "customer": "Customer",
+    "customerName": "Customer name",
+    "phone": "Phone",
+    "device": "Device",
+    "brand": "Brand",
+    "model": "Model",
+    "serial": "Serial no",
+    "complaint": "Complaint",
+    "diagnosis": "Diagnosis",
+    "estimatedPrice": "Estimated price",
+    "finalPrice": "Amount collected",
+    "paymentMethod": "Payment method",
+    "statusLabel": "Status",
+    "receivedAt": "Received",
+    "timeline": "Timeline",
+    "intakeMode": "Customer entry",
+    "quickCustomer": "Quick (name + phone)",
+    "existingCustomer": "Existing customer",
+    "reprint": "Reprint intake labels",
+    "printQueued": "Print jobs queued",
+    "metrics": {
+      "open": "Open tickets",
+      "awaiting": "Awaiting approval",
+      "ready": "Ready for pickup",
+      "delivered": "Delivered today"
+    },
+    "status": {
+      "received": "Received",
+      "diagnosing": "Diagnosing",
+      "awaiting_approval": "Awaiting approval",
+      "in_repair": "In repair",
+      "ready": "Ready for pickup",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "payment": {
+      "cash": "Cash",
+      "card": "Card",
+      "iban": "Bank transfer"
+    },
+    "actions": {
+      "diagnosis": "Enter diagnosis",
+      "approve": "Customer approved",
+      "reject": "Reject / cancel",
+      "markReady": "Repair complete",
+      "deliver": "Deliver & collect payment",
+      "startDiagnosis": "Start diagnosis"
+    }
   },
   "customers": {
     "title": "Customers",

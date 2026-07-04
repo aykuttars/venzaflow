@@ -29,6 +29,8 @@ PERMISSION_CODENAMES = [
     ("barcode.print", "Print labels from templates"),
     ("barcode.labels", "Design and manage label templates"),
     ("barcode.generate", "Generate missing barcodes"),
+    ("service.read", "View service tickets"),
+    ("service.write", "Manage service tickets"),
 ]
 
 ALL_MODULES = [
@@ -46,6 +48,7 @@ ALL_MODULES = [
     "audit",
     "signing",
     "barcode",
+    "service",
 ]
 
 # Default (English) display labels per module slug. The UI may override these
@@ -66,6 +69,7 @@ MODULE_LABELS = {
     "audit": "Audit Logs",
     "signing": "e-Signature",
     "barcode": "Barcode",
+    "service": "Service / Repair",
 }
 
 # Always included for every tenant by default; default is_billable=False on subscription row.
@@ -77,6 +81,7 @@ NON_BILLABLE_MODULES = [
 # Child module slug -> required parent module slug (platform UI hint + default parent).
 DEFAULT_MODULE_PARENTS: dict[str, str] = {
     "barcode": "inventory",
+    "service": "customers",
 }
 
 BILLABLE_MODULES = [m for m in ALL_MODULES if m not in NON_BILLABLE_MODULES]

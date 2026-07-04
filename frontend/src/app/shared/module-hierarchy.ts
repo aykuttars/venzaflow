@@ -21,6 +21,7 @@ export const MODULE_NAV: readonly ModuleNavItem[] = [
   { path: '/products', labelKey: 'nav.products', icon: 'inventory_2', module: 'products', permission: 'products.read' },
   { path: '/inventory', labelKey: 'nav.inventory', icon: 'warehouse', module: 'inventory', permission: 'inventory.read' },
   { path: '/barcode', labelKey: 'nav.barcode', icon: 'qr_code_scanner', module: 'barcode', permission: 'barcode.scan' },
+  { path: '/service', labelKey: 'nav.service', icon: 'build', module: 'service', permission: 'service.read' },
   { path: '/employees', labelKey: 'nav.employees', icon: 'badge', module: 'employees', permission: 'employees.read' },
   { path: '/customers', labelKey: 'nav.customers', icon: 'people', module: 'customers', permission: 'customers.read' },
   { path: '/patients', labelKey: 'nav.patients', icon: 'medical_services', module: 'patients', permission: 'patients.read' },

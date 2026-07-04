@@ -34,6 +34,8 @@ HARDWARE_MODULES = [
     "products",
     "inventory",
     "barcode",
+    "customers",
+    "service",
     "billing",
     "dashboard",
     "employees",
@@ -41,7 +43,7 @@ HARDWARE_MODULES = [
     "audit",
 ]
 
-BARCODE_MODULE_PARENTS = {"barcode": "inventory"}
+MODULE_PARENTS = {"barcode": "inventory", "service": "customers"}
 
 CATEGORIES: list[tuple[str, str]] = [
     ("Anakart", "anakart"),
@@ -322,6 +324,7 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
                 "products": "Ürünler",
                 "inventory": "Depo & Stok",
                 "barcode": "Barkod",
+                "service": "Teknik Servis",
             },
         },
     )
@@ -329,12 +332,16 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         tenant,
         HARDWARE_MODULES,
         extra_modules=set(),
-        module_parents=BARCODE_MODULE_PARENTS,
+        module_parents=MODULE_PARENTS,
     )
 
     from apps.barcode.services.seed_templates import seed_default_templates
 
     seed_default_templates(tenant.id, skip_existing=True)
+
+    from apps.barcode.services.seed_service_templates import ensure_service_templates
+
+    ensure_service_templates(tenant.id)
 
     from apps.barcode.models import LabelTemplate
     from apps.barcode.services.settings import get_or_create_settings
@@ -365,6 +372,8 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "barcode.print",
         "barcode.labels",
         "barcode.generate",
+        "service.read",
+        "service.write",
     ]
     warehouse_codes = [
         "products.read",
@@ -375,6 +384,8 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "barcode.print",
         "barcode.labels",
         "barcode.generate",
+        "service.read",
+        "service.write",
     ]
 
     dept_admin = _mk_department(tenant, "admin", "Yönetici", admin_codes, perm_index)
@@ -450,7 +461,65 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
     Product.objects.filter(tenant=tenant).exclude(sku__in=active_skus).update(is_active=False)
 
     _ensure_users(tenant, dept_admin)
+    _seed_sample_service_tickets(tenant)
     return tenant
+
+
+def _seed_sample_service_tickets(tenant: Tenant) -> None:
+    from decimal import Decimal
+
+    from apps.service.models import ServiceTicket, ServiceTicketEvent, ServiceTicketStatus
+    from apps.service.services.ticket_number import allocate_ticket_number
+
+    admin = User.all_tenants.filter(tenant=tenant, email=f"yonetici@{EMAIL_DOMAIN}").first()
+    samples = [
+        {
+            "customer_name": "Ahmet Yılmaz",
+            "customer_phone": "5321112233",
+            "device_brand": "HP",
+            "device_model": "Pavilion 15",
+            "complaint": "Açılmıyor, fan sesi var",
+            "status": ServiceTicketStatus.RECEIVED,
+        },
+        {
+            "customer_name": "Zeynep Kaya",
+            "customer_phone": "5334445566",
+            "device_brand": "Asus",
+            "device_model": "ROG Strix",
+            "complaint": "Ekran titriyor",
+            "status": ServiceTicketStatus.AWAITING_APPROVAL,
+            "diagnosis": "Panel değişimi gerekli",
+            "estimated_price": Decimal("3500.00"),
+        },
+        {
+            "customer_name": "Mehmet Demir",
+            "customer_phone": "5347778899",
+            "device_brand": "Lenovo",
+            "device_model": "ThinkPad E14",
+            "complaint": "Klavye çalışmıyor",
+            "status": ServiceTicketStatus.READY,
+            "diagnosis": "Klavye modülü değiştirildi",
+            "estimated_price": Decimal("850.00"),
+        },
+    ]
+    for spec in samples:
+        if ServiceTicket.objects.filter(tenant=tenant, customer_phone=spec["customer_phone"]).exists():
+            continue
+        status = spec.pop("status")
+        ticket = ServiceTicket.objects.create(
+            tenant=tenant,
+            ticket_number=allocate_ticket_number(tenant.id),
+            status=status,
+            **spec,
+        )
+        ServiceTicketEvent.objects.create(
+            tenant_id=tenant.id,
+            ticket=ticket,
+            from_status="",
+            to_status=status,
+            note="Seed sample",
+            created_by=admin,
+        )
 
 
 def _ensure_field_definitions(tenant: Tenant) -> dict[str, ProductFieldDefinition]:

@@ -52,6 +52,23 @@ export interface BarcodeLookupResult {
   template_source?: string
 }
 
+export interface ServiceTicketRow {
+  id: number
+  ticket_number: string
+  customer_name: string
+  customer_phone: string
+  device_summary: string
+  status: string
+  estimated_price: string | null
+  final_price: string | null
+  received_at: string
+}
+
+export interface ServiceTicketLookupResult {
+  found: boolean
+  ticket?: ServiceTicketRow
+}
+
 export interface PrintJobRow {
   id: number
   status: string
