@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from apps.barcode.services.preview import _resolve_binding
+from apps.barcode.services.bindings import resolve_binding
 from apps.barcode.services.product_fields import product_field_map
 from apps.products.models import Product
 
@@ -32,6 +32,7 @@ def render_tspl_for_product(
     dpi = int(template_snapshot.get("dpi", 203))
 
     fields = product_field_map(product)
+    category_name = product.category.name if product.category_id else ""
 
     lines = [
         f"SIZE {width:.2f} mm,{height:.2f} mm",
@@ -50,14 +51,14 @@ def render_tspl_for_product(
         if etype == "text":
             text = elem.get("static_text") or ""
             if elem.get("data_binding"):
-                text = _resolve_binding(product, elem["data_binding"], fields)
+                text = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             text = text.replace('"', "'")
             font_h = max(12, int(elem.get("font_size", 10) * dpi / 72))
             lines.append(f'TEXT {x},{y},"0",{rotation},{font_h},{font_h},"{text}"')
         elif etype == "barcode_1d":
             val = ""
             if elem.get("data_binding"):
-                val = _resolve_binding(product, elem["data_binding"], fields)
+                val = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             sym = elem.get("symbology", "128")
             bar_type = "128" if sym == "CODE128" else "EAN13" if sym == "EAN13" else "128"
             h = _dots(elem.get("height", 10), dpi)
@@ -68,7 +69,7 @@ def render_tspl_for_product(
         elif etype == "qr":
             val = ""
             if elem.get("data_binding"):
-                val = _resolve_binding(product, elem["data_binding"], fields)
+                val = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             cell = max(2, int(_dots(elem.get("width", 8), dpi) / 20))
             lines.append(f'QRCODE {x},{y},H,{cell},A,{rotation},"{val}"')
 

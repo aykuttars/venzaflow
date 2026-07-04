@@ -39,6 +39,13 @@ export interface LabelTemplate {
   layout_warnings?: string[];
 }
 
+export interface LabelBindingField {
+  binding: string;
+  label: string;
+  group: 'core' | 'dynamic' | 'label';
+  element_type: 'text' | 'barcode_1d';
+}
+
 export interface BarcodeSettings {
   scan_miss_action: string;
   normalize_tr_scan: boolean;
@@ -140,6 +147,10 @@ export class BarcodeService {
           error: (e) => sub.error(e),
         });
     });
+  }
+
+  getBindingFields(): Observable<LabelBindingField[]> {
+    return this.http.get<LabelBindingField[]>(`${this.base}/templates/binding-fields/`);
   }
 
   saveTemplate(t: Partial<LabelTemplate> & { id?: number }): Observable<LabelTemplate> {

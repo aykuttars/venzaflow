@@ -19,6 +19,7 @@ from apps.barcode.serializers import (
     TransferWizardSerializer,
 )
 from apps.barcode.serializers_settings import PrintJobBatchSerializer
+from apps.barcode.services.bindings import list_binding_fields
 from apps.barcode.services.generate import generate_missing_barcodes
 from apps.barcode.services.lookup import lookup_barcode
 from apps.barcode.services.preview import render_label_png, validate_layout_bounds
@@ -158,6 +159,7 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         "duplicate": "barcode.labels",
         "preview": "barcode.labels",
         "seed_defaults": "barcode.labels",
+        "binding_fields": "barcode.labels",
         "list_for_print": "barcode.print",
     }
     search_fields = ("name", "description")
@@ -177,6 +179,10 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             if not tpl.allowed_department_keys or dept_key in tpl.allowed_department_keys
         ]
         return qs.filter(pk__in=allowed_ids)
+
+    @action(detail=False, methods=["get"], url_path="binding-fields")
+    def binding_fields(self, request):
+        return Response(list_binding_fields(request.user.tenant_id))
 
     @action(detail=False, methods=["get"], url_path="for-print")
     def list_for_print(self, request):

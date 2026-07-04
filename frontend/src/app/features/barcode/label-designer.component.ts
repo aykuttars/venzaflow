@@ -4,13 +4,16 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  OnInit,
   Output,
   SimpleChanges,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -18,15 +21,27 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 
-import { BarcodeService, LabelElement, LabelTemplate } from './barcode.service';
+import { BarcodeService, LabelBindingField, LabelElement, LabelTemplate } from './barcode.service';
 
-const PALETTE: Array<{ type: LabelElement['type']; label: string; defaults: Partial<LabelElement> }> = [
-  { type: 'text', label: 'Metin', defaults: { font_size: 10, data_binding: 'product.name' } },
-  { type: 'text', label: 'Fiyat', defaults: { font_size: 14, font_bold: true, data_binding: 'product.price' } },
-  { type: 'barcode_1d', label: 'EAN13', defaults: { symbology: 'EAN13', data_binding: 'product.barcode', show_text: true } },
-  { type: 'barcode_1d', label: 'Code128', defaults: { symbology: 'CODE128', data_binding: 'product.sku', show_text: true } },
-  { type: 'qr', label: 'QR', defaults: { data_binding: 'product.barcode', qr_mode: 'barcode' } },
-  { type: 'image', label: 'Logo', defaults: { static_text: 'tenant_logo' } },
+const ELEMENT_PALETTE: Array<{ type: LabelElement['type']; label: string; defaults: Partial<LabelElement> }> = [
+  {
+    type: 'barcode_1d',
+    label: 'EAN13',
+    defaults: { symbology: 'EAN13', data_binding: 'product.barcode', show_text: false, width: 45, height: 12 },
+  },
+  {
+    type: 'barcode_1d',
+    label: 'EAN13 + numara',
+    defaults: { symbology: 'EAN13', data_binding: 'product.barcode', show_text: true, width: 45, height: 16 },
+  },
+  {
+    type: 'barcode_1d',
+    label: 'Code128',
+    defaults: { symbology: 'CODE128', data_binding: 'product.sku', show_text: true, width: 40, height: 14 },
+  },
+  { type: 'qr', label: 'QR', defaults: { data_binding: 'product.barcode', qr_mode: 'barcode', width: 14, height: 14 } },
+  { type: 'image', label: 'Logo', defaults: { static_text: 'tenant_logo', width: 12, height: 12 } },
+  { type: 'text', label: 'Serbest metin', defaults: { static_text: 'Metin', font_size: 10, width: 20, height: 6 } },
 ];
 
 let elemCounter = 0;
@@ -38,6 +53,7 @@ let elemCounter = 0;
     CommonModule,
     ReactiveFormsModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -48,15 +64,51 @@ let elemCounter = 0;
   template: `
     <div class="designer">
       <aside class="palette">
-        <h4>{{ 'barcode.palette' | translate }}</h4>
-        @for (p of palette; track p.label) {
+        <h4>{{ 'barcode.paletteElements' | translate }}</h4>
+        @for (p of elementPalette; track p.label) {
         <button mat-stroked-button type="button" class="palette-btn" (click)="addElement(p)">
           {{ p.label }}
         </button>
         }
+
+        @if (coreFields().length) {
+        <h4>{{ 'barcode.paletteCore' | translate }}</h4>
+        @for (f of coreFields(); track f.binding) {
+        <button mat-stroked-button type="button" class="palette-btn palette-btn--field" (click)="addFromBinding(f)">
+          {{ f.label }}
+        </button>
+        }
+        }
+
+        @if (dynamicFields().length) {
+        <h4>{{ 'barcode.paletteDynamic' | translate }}</h4>
+        @for (f of dynamicFields(); track f.binding) {
+        <button mat-stroked-button type="button" class="palette-btn palette-btn--field" (click)="addFromBinding(f)">
+          {{ f.label }}
+        </button>
+        }
+        }
+
+        @if (labelFields().length) {
+        <h4>{{ 'barcode.paletteLabel' | translate }}</h4>
+        @for (f of labelFields(); track f.binding) {
+        <button mat-stroked-button type="button" class="palette-btn palette-btn--field" (click)="addFromBinding(f)">
+          {{ f.label }}
+        </button>
+        }
+        }
+
         @if (selected(); as sel) {
         <hr />
         <h4>{{ 'barcode.elementProps' | translate }}</h4>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>W (mm)</mat-label>
+          <input matInput type="number" [value]="sel.width" (change)="patchSelected('width', +$any($event.target).value)" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>H (mm)</mat-label>
+          <input matInput type="number" [value]="sel.height" (change)="patchSelected('height', +$any($event.target).value)" />
+        </mat-form-field>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>X (mm)</mat-label>
           <input matInput type="number" [value]="sel.x" (change)="patchSelected('x', +$any($event.target).value)" />
@@ -69,18 +121,46 @@ let elemCounter = 0;
           <mat-label>{{ 'barcode.rotation' | translate }}</mat-label>
           <input matInput type="number" min="0" max="359" [value]="sel.rotation" (change)="patchSelected('rotation', +$any($event.target).value)" />
         </mat-form-field>
+
         @if (sel.type === 'text') {
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'barcode.staticText' | translate }}</mat-label>
+          <input matInput [value]="sel.static_text || ''" (change)="patchSelected('static_text', $any($event.target).value)" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'barcode.fontSize' | translate }}</mat-label>
+          <input matInput type="number" [value]="sel.font_size || 10" (change)="patchSelected('font_size', +$any($event.target).value)" />
+        </mat-form-field>
+        <mat-checkbox [checked]="!!sel.font_bold" (change)="patchSelected('font_bold', $event.checked)">
+          {{ 'barcode.fontBold' | translate }}
+        </mat-checkbox>
+        }
+
+        @if (sel.type === 'barcode_1d') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ 'barcode.symbology' | translate }}</mat-label>
+          <mat-select [value]="sel.symbology || 'EAN13'" (selectionChange)="patchSelected('symbology', $event.value)">
+            <mat-option value="EAN13">EAN13</mat-option>
+            <mat-option value="CODE128">Code128</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-checkbox [checked]="!!sel.show_text" (change)="patchSelected('show_text', $event.checked)">
+          {{ 'barcode.showBarcodeText' | translate }}
+        </mat-checkbox>
+        }
+
+        @if (sel.type === 'text' || sel.type === 'barcode_1d' || sel.type === 'qr') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>{{ 'barcode.binding' | translate }}</mat-label>
-          <mat-select [value]="sel.data_binding" (selectionChange)="patchSelected('data_binding', $event.value)">
-            <mat-option value="product.name">Ad</mat-option>
-            <mat-option value="product.sku">SKU</mat-option>
-            <mat-option value="product.price">Fiyat</mat-option>
-            <mat-option value="product.barcode">Barkod</mat-option>
-            <mat-option value="product.marka">Marka</mat-option>
+          <mat-select [value]="sel.data_binding || ''" (selectionChange)="patchSelected('data_binding', $event.value)">
+            <mat-option value="">{{ 'barcode.bindingNone' | translate }}</mat-option>
+            @for (f of bindingFields(); track f.binding) {
+            <mat-option [value]="f.binding">{{ bindingGroupLabel(f.group) }} — {{ f.label }}</mat-option>
+            }
           </mat-select>
         </mat-form-field>
         }
+
         <button mat-button color="warn" type="button" (click)="removeSelected()">
           <mat-icon>delete</mat-icon> {{ 'common.delete' | translate }}
         </button>
@@ -137,9 +217,9 @@ let elemCounter = 0;
             (mousedown)="startDrag($event, el)"
           >
             @if (el.type === 'text') {
-            <span [class.bold]="el.font_bold">T: {{ el.data_binding || el.static_text }}</span>
+            <span [class.bold]="el.font_bold">{{ elementCaption(el) }}</span>
             } @else if (el.type === 'barcode_1d') {
-            <span class="barcode-preview">||| {{ el.symbology }}</span>
+            <span class="barcode-preview">||| {{ el.symbology }}{{ el.show_text ? ' +#' : '' }}</span>
             } @else if (el.type === 'image') {
             <span class="qr-preview">LOGO</span>
             } @else {
@@ -160,12 +240,32 @@ let elemCounter = 0;
     `
       .designer {
         display: grid;
-        grid-template-columns: 200px 1fr;
+        grid-template-columns: minmax(240px, 280px) 1fr;
         gap: 16px;
+      }
+      .palette {
+        max-height: calc(100vh - 180px);
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .palette h4 {
+        margin: 12px 0 6px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.65;
+      }
+      .palette h4:first-child {
+        margin-top: 0;
       }
       .palette-btn {
         width: 100%;
         margin-bottom: 6px;
+        justify-content: flex-start;
+        text-align: left;
+      }
+      .palette-btn--field {
+        font-size: 13px;
       }
       .meta-row {
         display: flex;
@@ -191,6 +291,8 @@ let elemCounter = 0;
         align-items: center;
         justify-content: center;
         transform-origin: top left;
+        padding: 2px;
+        text-align: center;
       }
       .elem.selected {
         border-color: #e65100;
@@ -222,7 +324,7 @@ let elemCounter = 0;
     `,
   ],
 })
-export class LabelDesignerComponent implements OnChanges {
+export class LabelDesignerComponent implements OnChanges, OnInit {
   private fb = inject(FormBuilder);
   private barcode = inject(BarcodeService);
   private snack = inject(MatSnackBar);
@@ -230,7 +332,12 @@ export class LabelDesignerComponent implements OnChanges {
   @Input() template: LabelTemplate | null = null;
   @Output() saved = new EventEmitter<LabelTemplate>();
 
-  palette = PALETTE;
+  elementPalette = ELEMENT_PALETTE;
+  bindingFields = signal<LabelBindingField[]>([]);
+  coreFields = computed(() => this.bindingFields().filter((f) => f.group === 'core'));
+  dynamicFields = computed(() => this.bindingFields().filter((f) => f.group === 'dynamic'));
+  labelFields = computed(() => this.bindingFields().filter((f) => f.group === 'label'));
+
   scale = 4;
   elements = signal<LabelElement[]>([]);
   selectedId = signal<string | null>(null);
@@ -245,6 +352,13 @@ export class LabelDesignerComponent implements OnChanges {
     gap_mm: [2],
     dpi: [203],
   });
+
+  ngOnInit(): void {
+    this.barcode.getBindingFields().subscribe({
+      next: (fields) => this.bindingFields.set(fields),
+      error: () => this.bindingFields.set([]),
+    });
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['template'] && this.template) {
@@ -264,18 +378,62 @@ export class LabelDesignerComponent implements OnChanges {
 
   selected = () => this.elements().find((e) => e.id === this.selectedId()) ?? null;
 
-  addElement(p: (typeof PALETTE)[0]): void {
+  bindingGroupLabel(group: LabelBindingField['group']): string {
+    if (group === 'core') return 'Ürün';
+    if (group === 'dynamic') return 'Özel';
+    return 'Etiket';
+  }
+
+  elementCaption(el: LabelElement): string {
+    if (el.static_text && !el.data_binding) return el.static_text;
+    const field = this.bindingFields().find((f) => f.binding === el.data_binding);
+    return field ? field.label : el.data_binding || el.static_text || 'Metin';
+  }
+
+  addElement(p: (typeof ELEMENT_PALETTE)[0]): void {
     const id = `el-${++elemCounter}`;
     const el: LabelElement = {
       id,
       type: p.type,
       x: 2,
       y: 2,
-      width: p.type === 'qr' ? 12 : p.type === 'barcode_1d' ? 30 : 20,
-      height: p.type === 'qr' ? 12 : p.type === 'barcode_1d' ? 10 : 6,
+      width: p.defaults.width ?? (p.type === 'qr' ? 12 : p.type === 'barcode_1d' ? 30 : 20),
+      height: p.defaults.height ?? (p.type === 'qr' ? 12 : p.type === 'barcode_1d' ? 10 : 6),
       rotation: 0,
       ...p.defaults,
     } as LabelElement;
+    this.elements.update((list) => [...list, el]);
+    this.selectedId.set(id);
+  }
+
+  addFromBinding(field: LabelBindingField): void {
+    if (field.element_type === 'barcode_1d') {
+      this.addElement({
+        type: 'barcode_1d',
+        label: field.label,
+        defaults: {
+          data_binding: field.binding,
+          symbology: 'EAN13',
+          show_text: field.binding === 'product.barcode',
+          width: 45,
+          height: field.binding === 'product.barcode' ? 16 : 12,
+        },
+      });
+      return;
+    }
+    const id = `el-${++elemCounter}`;
+    const el: LabelElement = {
+      id,
+      type: 'text',
+      x: 2,
+      y: 2,
+      width: field.binding === 'product.price' ? 28 : 35,
+      height: field.binding === 'product.price' ? 8 : 6,
+      rotation: 0,
+      data_binding: field.binding,
+      font_size: field.binding === 'product.price' ? 14 : 10,
+      font_bold: field.binding === 'product.price',
+    };
     this.elements.update((list) => [...list, el]);
     this.selectedId.set(id);
   }

@@ -11,33 +11,22 @@ from barcode.writer import ImageWriter
 from PIL import Image, ImageDraw, ImageFont
 
 from apps.barcode.models import BarcodeSettings
+from apps.barcode.services.bindings import resolve_binding
 from apps.barcode.services.product_fields import product_field_map
 from apps.barcode.services.qr_payload import build_qr_payload
 from apps.products.models import Product
 
 
-def _resolve_binding(product: Product, binding: str, fields: dict[str, str]) -> str:
-    if not binding:
-        return ""
-    if binding.startswith("product."):
-        key = binding.split(".", 1)[1]
-        if key == "price":
-            return f"{product.unit_price:.2f} ₺"
-        if key == "marka":
-            return fields.get("marka", "")
-        if hasattr(product, key):
-            val = getattr(product, key)
-            return "" if val is None else str(val)
-    return binding
-
-
-def _product_context(tenant_id: int, product_id: int | None) -> tuple[Product | None, dict[str, str]]:
+def _product_context(tenant_id: int, product_id: int | None) -> tuple[Product | None, dict[str, str], str]:
     if not product_id:
-        return None, {}
-    product = Product.objects.filter(tenant_id=tenant_id, pk=product_id).first()
+        return None, {}, ""
+    product = (
+        Product.objects.filter(tenant_id=tenant_id, pk=product_id).select_related("category").first()
+    )
     if not product:
-        return None, {}
-    return product, product_field_map(product)
+        return None, {}, ""
+    category_name = product.category.name if product.category_id else ""
+    return product, product_field_map(product), category_name
 
 
 def _mm_to_px(mm: float, dpi: int) -> int:
@@ -81,6 +70,36 @@ def _paste_rotated(base: Image.Image, overlay: Image.Image, x: int, y: int, angl
         return
     rotated = overlay.rotate(-angle, expand=True, fillcolor="white")
     base.paste(rotated, (x, y))
+
+
+def _render_barcode_block(
+    value: str,
+    symbology: str,
+    width_px: int,
+    height_px: int,
+    *,
+    show_text: bool,
+    font,
+) -> Image.Image:
+    if show_text and value:
+        bar_h = max(1, int(height_px * 0.72))
+        text_h = height_px - bar_h
+        bar_img = _render_barcode_image(value, symbology, width_px, bar_h)
+        sub = Image.new("RGB", (width_px, height_px), "white")
+        sub.paste(bar_img, (0, 0))
+        if text_h > 0:
+            sd = ImageDraw.Draw(sub)
+            display = value
+            try:
+                bbox = sd.textbbox((0, 0), display, font=font)
+                tw = bbox[2] - bbox[0]
+            except AttributeError:
+                tw = len(display) * 6
+            tx = max(0, (width_px - tw) // 2)
+            ty = bar_h + max(0, (text_h - 10) // 2)
+            sd.text((tx, ty), display, fill="black", font=font)
+        return sub
+    return _render_barcode_image(value, symbology, width_px, height_px)
 
 
 def _render_barcode_image(value: str, symbology: str, width_px: int, height_px: int) -> Image.Image:
@@ -140,7 +159,7 @@ def render_label_png(
     except OSError:
         font_sm = ImageFont.load_default()
 
-    product, fields = _product_context(tenant_id, product_id)
+    product, fields, category_name = _product_context(tenant_id, product_id)
     scale = dpi / 203.0
     logo_img = None
     if settings and settings.label_logo:
@@ -166,7 +185,7 @@ def render_label_png(
         elif etype == "text":
             text = elem.get("static_text") or ""
             if product and elem.get("data_binding"):
-                text = _resolve_binding(product, elem["data_binding"], fields)
+                text = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             fsize = int(elem.get("font_size", 10) * scale)
             try:
                 fnt = ImageFont.truetype(
@@ -184,9 +203,16 @@ def render_label_png(
         elif etype == "barcode_1d":
             val = ""
             if product and elem.get("data_binding"):
-                val = _resolve_binding(product, elem["data_binding"], fields)
+                val = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             sym = elem.get("symbology", "EAN13")
-            sub = _render_barcode_image(val, sym, ew, eh)
+            sub = _render_barcode_block(
+                val,
+                sym,
+                ew,
+                eh,
+                show_text=bool(elem.get("show_text")),
+                font=font_sm,
+            )
             _paste_rotated(img, sub, ex, ey, rotation)
         elif etype == "qr":
             if product and settings:
@@ -200,7 +226,7 @@ def render_label_png(
                     },
                 )
             elif product and elem.get("data_binding"):
-                payload = _resolve_binding(product, elem["data_binding"], fields)
+                payload = resolve_binding(product, elem["data_binding"], fields, category_name=category_name)
             else:
                 payload = ""
             size = min(ew, eh)

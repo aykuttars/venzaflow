@@ -116,3 +116,50 @@ class BarcodeApiTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res["Content-Type"], "image/png")
         self.assertGreater(len(res.content), 100)
+
+    def test_binding_fields_api(self):
+        from apps.products.models import FieldType, ProductFieldDefinition
+
+        ProductFieldDefinition.objects.create(
+            tenant=self.tenant,
+            key="marka",
+            label="Marka",
+            field_type=FieldType.TEXT.value,
+            is_active=True,
+        )
+        res = self.client.get("/api/v1/barcode/templates/binding-fields/")
+        self.assertEqual(res.status_code, 200)
+        bindings = {row["binding"] for row in res.data}
+        self.assertIn("product.price", bindings)
+        self.assertIn("product.field.marka", bindings)
+        self.assertIn("label.print_date", bindings)
+
+    def test_template_preview_barcode_show_text(self):
+        from apps.barcode.services.preview import render_label_png
+        from apps.barcode.services.settings import get_or_create_settings
+
+        tpl = LabelTemplate.objects.filter(tenant_id=self.tenant.id).first()
+        layout = [
+            {
+                "id": "bc",
+                "type": "barcode_1d",
+                "x": 2,
+                "y": 2,
+                "width": 40,
+                "height": 16,
+                "rotation": 0,
+                "symbology": "EAN13",
+                "data_binding": "product.barcode",
+                "show_text": True,
+            }
+        ]
+        png = render_label_png(
+            width_mm=tpl.width_mm,
+            height_mm=tpl.height_mm,
+            dpi=tpl.dpi,
+            layout_json=layout,
+            tenant_id=self.tenant.id,
+            product_id=self.product.pk,
+            settings=get_or_create_settings(self.tenant.id),
+        )
+        self.assertGreater(len(png), 100)
