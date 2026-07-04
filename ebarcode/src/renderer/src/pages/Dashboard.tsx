@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BarcodeLookupResult, LabelTemplateRow, PrintJobRow, PrinterSettings } from '@shared/types'
 import { APP_DISPLAY_NAME } from '@shared/brand'
+import { useI18n } from '../i18n/I18nProvider'
 import BluetoothSetup from './BluetoothSetup'
 
 type Tab = 'scan' | 'print' | 'settings'
@@ -12,6 +13,7 @@ interface DashboardPageProps {
 
 export default function DashboardPage({ onLogout }: DashboardPageProps): React.JSX.Element {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [tab, setTab] = useState<Tab>('scan')
   const [sessionEmail, setSessionEmail] = useState('')
   const [scanBuffer, setScanBuffer] = useState('')
@@ -39,9 +41,9 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       const list = (await window.api.barcode.listJobs()) as PrintJobRow[]
       setJobs(list)
     } catch (e) {
-      pushLog('Kuyruk okunamadı: ' + String(e))
+      pushLog(t('dashboard.log.queueReadError', { error: String(e) }))
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void (async () => {
@@ -60,46 +62,54 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
           printer_profile?: { model?: string }
         }
         if (effective.print_mode) setTenantPrintMode(effective.print_mode)
-        pushLog(`Tenant profil: ${effective.printer_profile?.model || 'XP-P328B'} · print=${effective.print_mode}`)
+        pushLog(
+          t('dashboard.log.tenantProfile', {
+            model: effective.printer_profile?.model || 'XP-P328B',
+            mode: effective.print_mode || 'both'
+          })
+        )
       } catch {
-        pushLog('Tenant yazdırma profili alınamadı')
+        pushLog(t('dashboard.log.tenantProfileError'))
       }
       await refreshJobs()
     })()
-  }, [refreshJobs])
+  }, [refreshJobs, t])
 
   useEffect(() => {
     if (tab === 'scan') scanRef.current?.focus()
   }, [tab])
 
-  const processQueue = useCallback(async (silent = false): Promise<void> => {
-    if (busyRef.current) return
-    busyRef.current = true
-    setBusy(true)
-    try {
-      const queued = (await window.api.barcode.listJobs()) as PrintJobRow[]
-      if (!queued.length) {
-        if (!silent) pushLog('Kuyrukta iş yok')
-        return
+  const processQueue = useCallback(
+    async (silent = false): Promise<void> => {
+      if (busyRef.current) return
+      busyRef.current = true
+      setBusy(true)
+      try {
+        const queued = (await window.api.barcode.listJobs()) as PrintJobRow[]
+        if (!queued.length) {
+          if (!silent) pushLog(t('dashboard.log.queueEmpty'))
+          return
+        }
+        for (const job of queued) {
+          pushLog(t('dashboard.log.printing', { id: job.id, name: job.template_name }))
+          const tspl = await window.api.barcode.jobTspl(job.id)
+          await window.api.printer.sendRaw({
+            port: settingsRef.current.port || undefined,
+            tspl
+          })
+          await window.api.barcode.completeJob({ jobId: job.id, status: 'done' })
+          pushLog(t('dashboard.log.done', { id: job.id }))
+        }
+        await refreshJobs()
+      } catch (e) {
+        pushLog(t('dashboard.log.printError', { error: String(e) }))
+      } finally {
+        busyRef.current = false
+        setBusy(false)
       }
-      for (const job of queued) {
-        pushLog(`Yazdırılıyor #${job.id} ${job.template_name}`)
-        const tspl = await window.api.barcode.jobTspl(job.id)
-        await window.api.printer.sendRaw({
-          port: settingsRef.current.port || undefined,
-          tspl
-        })
-        await window.api.barcode.completeJob({ jobId: job.id, status: 'done' })
-        pushLog(`Tamamlandı #${job.id}`)
-      }
-      await refreshJobs()
-    } catch (e) {
-      pushLog('Yazdırma hatası: ' + String(e))
-    } finally {
-      busyRef.current = false
-      setBusy(false)
-    }
-  }, [refreshJobs])
+    },
+    [refreshJobs, t]
+  )
 
   useEffect(() => {
     if (!settings.autoPoll) return
@@ -116,10 +126,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
     try {
       const result = (await window.api.barcode.lookup(trimmed)) as BarcodeLookupResult
       setLookup(result)
-      pushLog(`Scan: ${result.product.sku}`)
+      pushLog(t('dashboard.log.scan', { sku: result.product.sku }))
     } catch {
       setLookup(null)
-      setLookupError('Ürün bulunamadı')
+      setLookupError(t('dashboard.scan.notFound'))
     }
   }
 
@@ -140,11 +150,11 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         productIds: [lookup.product.id],
         copies: 1
       })
-      pushLog(`PrintJob oluşturuldu: ${lookup.product.sku}`)
+      pushLog(t('dashboard.log.jobCreated', { sku: lookup.product.sku }))
       await refreshJobs()
       if (settings.autoPoll) await processQueue(true)
     } catch (e) {
-      pushLog('Job oluşturma hatası: ' + String(e))
+      pushLog(t('dashboard.log.jobError', { error: String(e) }))
     } finally {
       setBusy(false)
     }
@@ -158,10 +168,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         items: [{ product_id: lookup.product.id, quantity: 1 }],
         note: 'e-barcode transfer'
       })
-      pushLog(`Transfer: ${lookup.product.sku} DEPO→MAGAZA`)
+      pushLog(t('dashboard.log.transfer', { sku: lookup.product.sku }))
       await doLookup(lookup.product.barcode || lookup.product.sku)
     } catch (e) {
-      pushLog('Transfer hatası: ' + String(e))
+      pushLog(t('dashboard.log.transferError', { error: String(e) }))
     } finally {
       setBusy(false)
     }
@@ -169,15 +179,15 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
 
   async function saveSettings(): Promise<void> {
     await window.api.printer.saveSettings(settings)
-    pushLog('Yazıcı ayarları kaydedildi')
+    pushLog(t('dashboard.log.settingsSaved'))
   }
 
   async function testPrint(): Promise<void> {
     try {
       await window.api.printer.test(settings.port || undefined)
-      pushLog('Test etiketi gönderildi')
+      pushLog(t('dashboard.log.testSent'))
     } catch (e) {
-      pushLog('Test baskı hatası: ' + String(e))
+      pushLog(t('dashboard.log.testError', { error: String(e) }))
     }
   }
 
@@ -196,37 +206,37 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         </div>
         <div className="topbar-actions">
           <button type="button" className="btn ghost" onClick={() => void refreshJobs()}>
-            Yenile
+            {t('dashboard.refresh')}
           </button>
           <button type="button" className="btn secondary" onClick={() => void logout()}>
-            Çıkış
+            {t('dashboard.logout')}
           </button>
         </div>
       </div>
 
       <div className="tabs">
         <button type="button" className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>
-          Okuma
+          {t('dashboard.tab.scan')}
         </button>
         <button type="button" className={tab === 'print' ? 'active' : ''} onClick={() => setTab('print')}>
-          Yazdırma ({jobs.length})
+          {t('dashboard.tab.print', { count: jobs.length })}
         </button>
         <button type="button" className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
-          Yazıcı & Okuyucu
+          {t('dashboard.tab.settings')}
         </button>
       </div>
 
       {tab === 'scan' && (
         <div className="card">
-          <p className="muted">Netum F-18w USB/BT HID — okuyucu bu alana odaklıyken barkod gönderir.</p>
+          <p className="muted">{t('dashboard.scan.hint')}</p>
           <label>
-            Barkod
+            {t('dashboard.tab.scan')}
             <input
               ref={scanRef}
               value={scanBuffer}
               onChange={(e) => setScanBuffer(e.target.value)}
               onKeyDown={(e) => void handleScanKey(e)}
-              placeholder="Barkod okutun…"
+              placeholder={t('dashboard.scan.placeholder')}
               autoComplete="off"
             />
           </label>
@@ -237,13 +247,13 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
               <span>
                 SKU: {lookup.product.sku} · EAN: {lookup.product.barcode} · {lookup.product.unit_price} ₺
               </span>
-              {lookup.product.marka && <span>Marka: {lookup.product.marka}</span>}
+              {lookup.product.marka && <span>{t('dashboard.scan.brand', { brand: lookup.product.marka })}</span>}
               <span>
                 DEPO: {lookup.stock.depo_quantity} · MAGAZA: {lookup.stock.magaza_quantity}
               </span>
               {lookup.suggest_transfer && (
                 <div className="alert warning" style={{ marginTop: 8 }}>
-                  DEPO&apos;da stok var — vitrin için transfer önerilir
+                  {t('dashboard.scan.transferHint')}
                 </div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
@@ -251,18 +261,18 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
                 >
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.width_mm}×{t.height_mm} mm)
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} ({tpl.width_mm}×{tpl.height_mm} mm)
                     </option>
                   ))}
                 </select>
                 <button type="button" className="btn primary" disabled={busy} onClick={() => void printScannedProduct()}>
-                  Etiket yazdır
+                  {t('dashboard.scan.printLabel')}
                 </button>
                 {lookup.suggest_transfer && (
                   <button type="button" className="btn secondary" disabled={busy} onClick={() => void transferOne()}>
-                    DEPO → MAGAZA (1 adet)
+                    {t('dashboard.scan.transfer')}
                   </button>
                 )}
               </div>
@@ -275,22 +285,22 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         <div className="card">
           <div className="section-head">
             <div>
-              <h2 style={{ margin: 0 }}>Yazdırma kuyruğu</h2>
-              <p className="muted">Web veya bu uygulamadan oluşturulan queued işler</p>
+              <h2 style={{ margin: 0 }}>{t('dashboard.print.title')}</h2>
+              <p className="muted">{t('dashboard.print.subtitle')}</p>
             </div>
             <button type="button" className="btn primary" disabled={busy} onClick={() => void processQueue()}>
-              Kuyruğu yazdır
+              {t('dashboard.print.runQueue')}
             </button>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Şablon</th>
-                  <th>Ürünler</th>
-                  <th>Kopya</th>
-                  <th>Durum</th>
+                  <th>{t('dashboard.print.col.id')}</th>
+                  <th>{t('dashboard.print.col.template')}</th>
+                  <th>{t('dashboard.print.col.products')}</th>
+                  <th>{t('dashboard.print.col.copies')}</th>
+                  <th>{t('dashboard.print.col.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -306,7 +316,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
                 {!jobs.length && (
                   <tr>
                     <td colSpan={5} className="empty-state">
-                      Kuyrukta iş yok
+                      {t('dashboard.print.empty')}
                     </td>
                   </tr>
                 )}
@@ -319,8 +329,8 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       {tab === 'settings' && (
         <div className="grid two-col">
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>XP-P328B yazıcı</h2>
-            <p className="muted">Tenant modu: {tenantPrintMode}. USB doğrudan veya Bluetooth SPP → COM port.</p>
+            <h2 style={{ marginTop: 0 }}>{t('dashboard.settings.printerTitle')}</h2>
+            <p className="muted">{t('dashboard.settings.printerHint', { mode: tenantPrintMode })}</p>
             {showBtWizard ? (
               <BluetoothSetup
                 ports={ports}
@@ -331,13 +341,13 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
               />
             ) : (
               <button type="button" className="btn secondary" onClick={() => setShowBtWizard(true)}>
-                Bluetooth kurulum sihirbazı
+                {t('dashboard.settings.btWizard')}
               </button>
             )}
             <label>
-              COM / port
+              {t('dashboard.settings.port')}
               <select value={settings.port} onChange={(e) => setSettings({ ...settings, port: e.target.value })}>
-                <option value="">Varsayılan sistem yazıcısı</option>
+                <option value="">{t('dashboard.settings.portDefault')}</option>
                 {ports.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -351,10 +361,10 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
                 checked={settings.autoPoll}
                 onChange={(e) => setSettings({ ...settings, autoPoll: e.target.checked })}
               />{' '}
-              Otomatik kuyruk kontrolü
+              {t('dashboard.settings.autoPoll')}
             </label>
             <label>
-              Kontrol aralığı (sn)
+              {t('dashboard.settings.pollInterval')}
               <input
                 type="number"
                 min={5}
@@ -365,23 +375,20 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button type="button" className="btn secondary" onClick={() => void saveSettings()}>
-                Kaydet
+                {t('dashboard.settings.save')}
               </button>
               <button type="button" className="btn primary" onClick={() => void testPrint()}>
-                Test etiketi
+                {t('dashboard.settings.testLabel')}
               </button>
             </div>
           </div>
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>Netum F-18w okuyucu</h2>
-            <p className="muted">
-              Varsayılan <strong>HID klavye</strong> modu — ek sürücü gerekmez. USB veya BT HID ile bağlayın;
-              Okuma sekmesindeki alan odaktayken barkod okutun.
-            </p>
+            <h2 style={{ marginTop: 0 }}>{t('dashboard.settings.scannerTitle')}</h2>
+            <p className="muted">{t('dashboard.settings.scannerHint')}</p>
             <ol className="setup-guide__steps">
-              <li>Okuyucuyu USB veya Bluetooth HID modunda eşleştirin</li>
-              <li>Bu uygulamada Okuma sekmesine geçin (otomatik odak)</li>
-              <li>Kutu üzerindeki EAN barkodunu okutun</li>
+              <li>{t('dashboard.settings.scannerStep1')}</li>
+              <li>{t('dashboard.settings.scannerStep2')}</li>
+              <li>{t('dashboard.settings.scannerStep3')}</li>
             </ol>
           </div>
         </div>
@@ -389,7 +396,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
 
       {log.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Günlük</h3>
+          <h3 style={{ marginTop: 0 }}>{t('dashboard.log.title')}</h3>
           <pre style={{ margin: 0, fontSize: 12, maxHeight: 160, overflow: 'auto' }}>{log.join('\n')}</pre>
         </div>
       )}

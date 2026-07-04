@@ -44,7 +44,8 @@ class ApiClient {
     return {
       customerCode: this.session.customerCode,
       email: this.session.email,
-      tenantName: this.session.tenantName
+      tenantName: this.session.tenantName,
+      defaultLanguage: this.session.defaultLanguage
     }
   }
 
@@ -72,7 +73,7 @@ class ApiClient {
   }
 
   async login(credentials: LoginCredentials): Promise<AuthSession> {
-    const base = (credentials.apiBaseUrl || getDefaultBaseUrl()).replace(/\/$/, '')
+    const base = getDefaultBaseUrl()
     const res = await fetch(`${base}/api/v1/auth/login/`, {
       method: 'POST',
       headers: {
@@ -90,12 +91,17 @@ class ApiClient {
     const data = (await res.json()) as Record<string, unknown>
     const access = (data.access as string) || (data.access_token as string)
     if (!access) throw new Error("Token alınamadı.")
+    const defaultLanguage =
+      typeof data.default_language === 'string' && data.default_language.toLowerCase().startsWith('en')
+        ? 'en'
+        : 'tr'
     this.session = {
       accessToken: access,
       refreshToken: (data.refresh as string) || undefined,
       customerCode: credentials.customerCode,
       email: credentials.email,
       tenantName: (data.tenant_name as string) || undefined,
+      defaultLanguage,
       apiBaseUrl: base
     }
     saveSession(this.session)
@@ -107,7 +113,13 @@ class ApiClient {
     if (!stored?.accessToken) return null
     this.session = stored
     try {
-      await this.request('/auth/me/')
+      const me = await this.request<Record<string, unknown>>('/auth/me/')
+      const defaultLanguage =
+        typeof me.default_language === 'string' && me.default_language.toLowerCase().startsWith('en')
+          ? 'en'
+          : 'tr'
+      this.session = { ...this.session, defaultLanguage }
+      saveSession(this.session)
       return this.session
     } catch {
       clearSession()

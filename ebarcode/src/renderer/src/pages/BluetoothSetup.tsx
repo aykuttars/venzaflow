@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useI18n } from '../i18n/I18nProvider'
+import type { MessageKey } from '../i18n/messages'
 
 interface BluetoothSetupProps {
   ports: string[]
@@ -8,14 +10,6 @@ interface BluetoothSetupProps {
   onClose: () => void
 }
 
-const STEPS = [
-  'Bluetooth ve yazıcıyı açın',
-  'Windows’ta Xprinter sürücüsünü / eşleştirmeyi tamamlayın',
-  'Aşağıdan COM/USB portunu seçin',
-  'Test yazdırması gönderin',
-  'Başarılıysa ayarları kaydedin',
-]
-
 export default function BluetoothSetup({
   ports,
   selectedPort,
@@ -23,14 +17,36 @@ export default function BluetoothSetup({
   onTestPrint,
   onClose
 }: BluetoothSetupProps): React.JSX.Element {
+  const { t } = useI18n()
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [platform, setPlatform] = useState<NodeJS.Platform>('darwin')
+
+  useEffect(() => {
+    void window.api.system.getInfo().then((info) => setPlatform(info.platform))
+  }, [])
+
+  const steps = useMemo(() => {
+    const pairKey: MessageKey =
+      platform === 'win32'
+        ? 'bt.step.pairWin32'
+        : platform === 'linux'
+          ? 'bt.step.pairLinux'
+          : 'bt.step.pairDarwin'
+    return [
+      t('bt.step.powerOn'),
+      t(pairKey),
+      t('bt.step.selectPort'),
+      t('bt.step.testPrint'),
+      t('bt.step.save')
+    ]
+  }, [platform, t])
 
   async function handleTest(): Promise<void> {
     setBusy(true)
     try {
       await onTestPrint()
-      setStep(STEPS.length - 1)
+      setStep(steps.length - 1)
     } finally {
       setBusy(false)
     }
@@ -38,9 +54,9 @@ export default function BluetoothSetup({
 
   return (
     <div className="bt-wizard">
-      <h3>Bluetooth / Yazıcı kurulumu</h3>
+      <h3>{t('bt.title')}</h3>
       <ol>
-        {STEPS.map((label, idx) => (
+        {steps.map((label, idx) => (
           <li key={label} className={idx <= step ? 'done' : ''}>
             {label}
           </li>
@@ -48,9 +64,9 @@ export default function BluetoothSetup({
       </ol>
       {step >= 2 && (
         <label>
-          Port
+          {t('bt.port')}
           <select value={selectedPort} onChange={(e) => onSelectPort(e.target.value)}>
-            <option value="">Seçin…</option>
+            <option value="">{t('bt.portSelect')}</option>
             {ports.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -61,17 +77,17 @@ export default function BluetoothSetup({
       )}
       <div className="bt-actions">
         {step < 2 && (
-          <button type="button" onClick={() => setStep((s) => Math.min(s + 1, STEPS.length - 1))}>
-            İleri
+          <button type="button" onClick={() => setStep((s) => Math.min(s + 1, steps.length - 1))}>
+            {t('bt.next')}
           </button>
         )}
         {step >= 2 && (
           <button type="button" disabled={!selectedPort || busy} onClick={() => void handleTest()}>
-            Test yazdır
+            {t('bt.test')}
           </button>
         )}
         <button type="button" onClick={onClose}>
-          Kapat
+          {t('bt.close')}
         </button>
       </div>
     </div>

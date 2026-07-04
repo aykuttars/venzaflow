@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { APP_DISPLAY_NAME } from '@shared/brand'
+import { useI18n } from '../i18n/I18nProvider'
 
 interface LoginPageProps {
-  onSuccess: () => void
+  onSuccess: (defaultLanguage?: string) => void
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Element {
   const navigate = useNavigate()
-  const [customerCode, setCustomerCode] = useState('4500')
-  const [email, setEmail] = useState('depo@lens.local')
+  const { t } = useI18n()
+  const [customerCode, setCustomerCode] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [apiBaseUrl, setApiBaseUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,16 +21,15 @@ export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Elem
     setLoading(true)
     setError(null)
     try {
-      await window.api.auth.login({
+      const summary = (await window.api.auth.login({
         customerCode,
         email,
-        password,
-        ...(apiBaseUrl.trim() ? { apiBaseUrl: apiBaseUrl.trim() } : {})
-      })
-      onSuccess()
+        password
+      })) as { defaultLanguage?: string }
+      onSuccess(summary.defaultLanguage)
       navigate('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Giriş başarısız')
+      setError(err instanceof Error ? err.message : t('login.failed'))
     } finally {
       setLoading(false)
     }
@@ -42,34 +42,43 @@ export default function LoginPage({ onSuccess }: LoginPageProps): React.JSX.Elem
           <div className="brand-icon">B</div>
           <div>
             <h1>{APP_DISPLAY_NAME}</h1>
-            <p>Masaüstü barkod & etiket köprüsü</p>
+            <p>{t('app.subtitle')}</p>
           </div>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)}>
           <label>
-            Müşteri kodu
-            <input value={customerCode} onChange={(e) => setCustomerCode(e.target.value)} required autoFocus />
-          </label>
-          <label>
-            E-posta
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
-          <label>
-            Şifre
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </label>
-          <label>
-            API adresi (opsiyonel)
+            {t('login.customerCode')}
             <input
-              value={apiBaseUrl}
-              onChange={(e) => setApiBaseUrl(e.target.value)}
-              placeholder="https://venzaflow-api.aykut.in/api/v1"
+              value={customerCode}
+              onChange={(e) => setCustomerCode(e.target.value)}
+              placeholder="4500"
+              required
+              autoFocus
+            />
+          </label>
+          <label>
+            {t('login.email')}
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              required
+            />
+          </label>
+          <label>
+            {t('login.password')}
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </label>
           {error && <div className="alert error">{error}</div>}
           <button type="submit" className="btn primary" disabled={loading}>
-            {loading ? 'Giriş yapılıyor…' : 'Giriş yap'}
+            {loading ? t('login.submitting') : t('login.submit')}
           </button>
         </form>
       </div>

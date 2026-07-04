@@ -8,7 +8,6 @@ export interface LoginCredentials {
   customerCode: string
   email: string
   password: string
-  apiBaseUrl?: string
 }
 
 export interface AuthSession {
@@ -17,6 +16,7 @@ export interface AuthSession {
   customerCode: string
   email: string
   tenantName?: string
+  defaultLanguage?: 'tr' | 'en'
   apiBaseUrl: string
 }
 
@@ -24,6 +24,7 @@ export interface SessionSummary {
   customerCode: string
   email: string
   tenantName?: string
+  defaultLanguage?: 'tr' | 'en'
 }
 
 export interface PrinterSettings {
