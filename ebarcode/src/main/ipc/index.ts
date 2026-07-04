@@ -44,8 +44,7 @@ export function registerAuthIpc(): void {
 export function registerBarcodeIpc(): void {
   ipcMain.handle(IPC.BARCODE_LOOKUP, async (_e, code: string) => {
     try {
-      const normalized = apiClient.normalizeScan(code)
-      return ok(await apiClient.lookup(normalized))
+      return ok(await apiClient.lookup(code))
     } catch (error) {
       return fail(error)
     }

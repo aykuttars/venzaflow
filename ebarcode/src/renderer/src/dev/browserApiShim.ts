@@ -3,6 +3,7 @@
  * Electron IPC is unavailable without a display; this talks to remote API via Vite proxy.
  */
 import type { EbarcodeApi } from '../../../preload'
+import { barcodeLookupCandidates } from '../../../shared/scanNormalize'
 
 const SESSION_KEY = 'ebarcode.webDev.session'
 
@@ -134,7 +135,22 @@ export function installBrowserApiShim(): void {
       lookup: async (code: string) => {
         const s = loadSession()
         if (!s) throw new Error('Oturum yok')
-        return apiRequest(`/barcode/lookup/?code=${encodeURIComponent(code)}`, {}, s.accessToken)
+        const candidates = barcodeLookupCandidates(code)
+        let lastErr: Error | null = null
+        for (const candidate of candidates) {
+          try {
+            return await apiRequest(
+              `/barcode/lookup/?code=${encodeURIComponent(candidate)}`,
+              {},
+              s.accessToken
+            )
+          } catch (err) {
+            lastErr = err instanceof Error ? err : new Error(String(err))
+            const msg = lastErr.message.toLowerCase()
+            if (!msg.includes('not found') && !msg.includes('404')) throw lastErr
+          }
+        }
+        throw lastErr ?? new Error('Product not found.')
       },
       listJobs: async () => {
         const s = loadSession()

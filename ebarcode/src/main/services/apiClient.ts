@@ -7,6 +7,7 @@ import type {
   SessionSummary
 } from '../../shared/types'
 import { SESSION_EXPIRED_MESSAGE } from '../../shared/types'
+import { normalizeScanInput, barcodeLookupCandidates } from '../../shared/scanNormalize'
 import { clearSession, loadSession, saveSession } from './secureStore'
 
 const DEFAULT_BASE_URL = 'https://venzaflow-api.aykut.in'
@@ -134,7 +135,25 @@ class ApiClient {
   }
 
   lookup(code: string): Promise<BarcodeLookupResult> {
-    return this.request(`/barcode/lookup/?code=${encodeURIComponent(code)}`)
+    const candidates = barcodeLookupCandidates(code)
+    return this.lookupCandidates(candidates)
+  }
+
+  private async lookupCandidates(candidates: string[]): Promise<BarcodeLookupResult> {
+    let lastErr: Error | null = null
+    for (const candidate of candidates) {
+      try {
+        return await this.request<BarcodeLookupResult>(
+          `/barcode/lookup/?code=${encodeURIComponent(candidate)}`
+        )
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err))
+        lastErr = e
+        const miss = e.message.toLowerCase().includes('not found') || e.message.includes('404')
+        if (!miss) throw e
+      }
+    }
+    throw lastErr ?? new Error('Product not found.')
   }
 
   async listQueuedJobs(): Promise<PrintJobRow[]> {
@@ -175,25 +194,7 @@ class ApiClient {
   }
 
   normalizeScan(code: string): string {
-    return code
-      .trim()
-      .replace(/[İıŞşĞğÜüÖöÇç]/g, (ch) => {
-        const map: Record<string, string> = {
-          İ: 'I',
-          ı: 'i',
-          Ş: 'S',
-          ş: 's',
-          Ğ: 'G',
-          ğ: 'g',
-          Ü: 'U',
-          ü: 'u',
-          Ö: 'O',
-          ö: 'o',
-          Ç: 'C',
-          ç: 'c'
-        }
-        return map[ch] ?? ch
-      })
+    return normalizeScanInput(code)
   }
 
   transfer(items: Array<{ product_id: number; quantity: number }>, note = ''): Promise<unknown> {

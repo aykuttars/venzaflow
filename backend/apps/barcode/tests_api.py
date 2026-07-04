@@ -117,6 +117,17 @@ class BarcodeApiTests(TestCase):
         self.assertEqual(res["Content-Type"], "image/png")
         self.assertGreater(len(res.content), 100)
 
+    def test_template_preview_auto_product(self):
+        tpl = LabelTemplate.objects.filter(tenant_id=self.tenant.id).first()
+        res = self.client.post(
+            f"/api/v1/barcode/templates/{tpl.pk}/preview/",
+            {},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "image/png")
+        self.assertGreater(len(res.content), 100)
+
     def test_binding_fields_api(self):
         from apps.products.models import FieldType, ProductFieldDefinition
 

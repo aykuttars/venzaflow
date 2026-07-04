@@ -29,6 +29,15 @@ def _product_context(tenant_id: int, product_id: int | None) -> tuple[Product | 
     return product, product_field_map(product), category_name
 
 
+def resolve_preview_product_id(tenant_id: int, product_id: int | None) -> int | None:
+    """Use explicit product when provided; otherwise first tenant product for designer preview."""
+    if product_id:
+        if Product.objects.filter(tenant_id=tenant_id, pk=product_id).exists():
+            return product_id
+        return None
+    return Product.objects.filter(tenant_id=tenant_id).order_by("pk").values_list("pk", flat=True).first()
+
+
 def _mm_to_px(mm: float, dpi: int) -> int:
     return max(1, int(round(float(mm) / 25.4 * dpi)))
 

@@ -19,6 +19,7 @@ export type MessageKey =
   | 'dashboard.scan.hint'
   | 'dashboard.scan.placeholder'
   | 'dashboard.scan.notFound'
+  | 'dashboard.scan.notFoundDetail'
   | 'dashboard.scan.brand'
   | 'dashboard.scan.transferHint'
   | 'dashboard.scan.printLabel'
@@ -95,6 +96,7 @@ const tr: Record<MessageKey, string> = {
   'dashboard.scan.hint': 'Netum F-18w USB/BT HID — okuyucu bu alana odaklıyken barkod gönderir.',
   'dashboard.scan.placeholder': 'Barkod okutun…',
   'dashboard.scan.notFound': 'Ürün bulunamadı',
+  'dashboard.scan.notFoundDetail': 'Ürün bulunamadı — okunan: «{code}»',
   'dashboard.scan.brand': 'Marka: {brand}',
   'dashboard.scan.transferHint': "DEPO'da stok var — vitrin için transfer önerilir",
   'dashboard.scan.printLabel': 'Etiket yazdır',
@@ -176,6 +178,7 @@ const en: Record<MessageKey, string> = {
   'dashboard.scan.hint': 'Netum F-18w USB/BT HID — scanner sends barcodes while this field is focused.',
   'dashboard.scan.placeholder': 'Scan barcode…',
   'dashboard.scan.notFound': 'Product not found',
+  'dashboard.scan.notFoundDetail': 'Product not found — scanned: «{code}»',
   'dashboard.scan.brand': 'Brand: {brand}',
   'dashboard.scan.transferHint': 'Stock in warehouse — transfer to storefront suggested',
   'dashboard.scan.printLabel': 'Print label',

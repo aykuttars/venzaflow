@@ -22,7 +22,8 @@ from apps.barcode.serializers_settings import PrintJobBatchSerializer
 from apps.barcode.services.bindings import list_binding_fields
 from apps.barcode.services.generate import generate_missing_barcodes
 from apps.barcode.services.lookup import lookup_barcode
-from apps.barcode.services.preview import render_label_png, validate_layout_bounds
+from apps.barcode.services.scan_normalize import normalize_scan_code
+from apps.barcode.services.preview import render_label_png, resolve_preview_product_id, validate_layout_bounds
 from apps.barcode.services.seed_templates import seed_default_templates
 from apps.barcode.services.settings import get_or_create_settings
 from apps.barcode.services.tspl import render_tspl_batch
@@ -38,9 +39,10 @@ class BarcodeLookupView(APIView):
     required_permission = "barcode.scan"
 
     def get(self, request):
-        code = request.query_params.get("code", "")
+        raw_code = request.query_params.get("code", "")
         tenant_id = request.user.tenant_id
         settings = get_or_create_settings(tenant_id)
+        code = normalize_scan_code(raw_code, normalize_tr=settings.normalize_tr_scan)
         result = lookup_barcode(tenant_id, code)
         if result:
             return Response(result)
@@ -53,7 +55,7 @@ class BarcodeLookupView(APIView):
             {
                 "detail": "Product not found.",
                 "found": False,
-                "code": (code or "").strip(),
+                "code": code or (raw_code or "").strip(),
                 "scan_miss_action": action,
             },
             status=status.HTTP_404_NOT_FOUND,
@@ -294,7 +296,7 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         tpl = self.get_object()
         ser = LabelTemplatePreviewSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        product_id = ser.validated_data.get("product_id")
+        product_id = resolve_preview_product_id(tpl.tenant_id, ser.validated_data.get("product_id"))
         warnings = validate_layout_bounds(
             width_mm=tpl.width_mm,
             height_mm=tpl.height_mm,

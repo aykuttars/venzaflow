@@ -6,6 +6,7 @@ from typing import Any
 from django.db.models import Sum
 
 from apps.barcode.services.product_fields import product_field_map
+from apps.barcode.services.scan_normalize import lookup_code_variants
 from apps.inventory.models import Stock
 from apps.products.models import Product
 
@@ -43,14 +44,15 @@ def _stock_by_warehouse(tenant_id: int, product_id: int) -> dict[str, Any]:
 
 
 def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
-    code = (code or "").strip()
-    if not code:
-        return None
-    product = (
-        Product.objects.filter(tenant_id=tenant_id, barcode=code, is_active=True)
-        .select_related("category")
-        .first()
-    )
+    product = None
+    for candidate in lookup_code_variants((code or "").strip()):
+        product = (
+            Product.objects.filter(tenant_id=tenant_id, barcode=candidate, is_active=True)
+            .select_related("category")
+            .first()
+        )
+        if product:
+            break
     if not product:
         return None
 

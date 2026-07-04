@@ -2,12 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -24,6 +27,7 @@ import { BarcodeManagementComponent } from './barcode-management.component';
 import { BarcodeScanPanelComponent } from './barcode-scan-panel.component';
 import { EbarcodeDownloadDialogComponent } from './ebarcode-download-dialog.component';
 import { LabelDesignerComponent } from './label-designer.component';
+import { LabelTemplateThumbComponent } from './label-template-thumb.component';
 
 @Component({
   selector: 'app-barcode',
@@ -32,17 +36,21 @@ import { LabelDesignerComponent } from './label-designer.component';
     CommonModule,
     ReactiveFormsModule,
     MatButtonModule,
+    MatCardModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatMenuModule,
     MatSelectModule,
     MatSnackBarModule,
     MatTabsModule,
+    MatTooltipModule,
     TranslateModule,
     PageHeaderComponent,
     BarcodeScanPanelComponent,
     BarcodeManagementComponent,
     LabelDesignerComponent,
+    LabelTemplateThumbComponent,
   ],
   template: `
     <div class="page">
@@ -68,37 +76,59 @@ import { LabelDesignerComponent } from './label-designer.component';
         </mat-tab>
 
         <mat-tab [label]="'barcode.tabTemplates' | translate">
-          <div class="tab-body">
-            <div class="toolbar">
-              <button mat-stroked-button type="button" (click)="seedDefaults()">
-                <mat-icon>restore</mat-icon> {{ 'barcode.seedDefaults' | translate }}
-              </button>
-              <button mat-flat-button color="primary" type="button" (click)="newTemplate()">
-                <mat-icon>add</mat-icon> {{ 'barcode.newTemplate' | translate }}
-              </button>
+          <div class="tab-body templates-tab">
+            <div class="templates-header">
+              <div>
+                <h3 class="templates-title">{{ 'barcode.tabTemplates' | translate }}</h3>
+                <p class="templates-subtitle">{{ 'barcode.templatesSubtitle' | translate }}</p>
+              </div>
+              <div class="templates-actions">
+                <button mat-stroked-button type="button" (click)="seedDefaults()">
+                  <mat-icon>restore</mat-icon> {{ 'barcode.seedDefaults' | translate }}
+                </button>
+                <button mat-flat-button color="primary" type="button" (click)="newTemplate()">
+                  <mat-icon>add</mat-icon> {{ 'barcode.newTemplate' | translate }}
+                </button>
+              </div>
             </div>
-            <table class="bms-table">
-              <thead>
-                <tr>
-                  <th>{{ 'barcode.templateName' | translate }}</th>
-                  <th>{{ 'barcode.size' | translate }}</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (t of templates(); track t.id) {
-                <tr>
-                  <td>{{ t.name }}</td>
-                  <td>{{ t.width_mm }}×{{ t.height_mm }} mm</td>
-                  <td>
-                    <button mat-button type="button" (click)="editTemplate(t)">{{ 'common.edit' | translate }}</button>
-                    <button mat-button type="button" (click)="duplicateTemplate(t)">{{ 'common.duplicate' | translate }}</button>
-                    <button mat-button color="warn" type="button" (click)="deleteTemplate(t)">{{ 'common.delete' | translate }}</button>
-                  </td>
-                </tr>
-                }
-              </tbody>
-            </table>
+
+            @if (templates().length === 0) {
+            <mat-card class="templates-empty">
+              <mat-icon>label_off</mat-icon>
+              <p>{{ 'barcode.templatesEmpty' | translate }}</p>
+              <button mat-stroked-button type="button" (click)="seedDefaults()">{{ 'barcode.seedDefaults' | translate }}</button>
+            </mat-card>
+            } @else {
+            <div class="template-grid">
+              @for (t of templates(); track t.id) {
+              <mat-card
+                class="template-card"
+                [class.template-card--active]="editingTemplate()?.id === t.id"
+                (click)="editTemplate(t)"
+              >
+                <div class="template-card__preview" [style.aspect-ratio]="templateAspect(t)">
+                  <app-label-template-thumb [template]="t" />
+                </div>
+                <div class="template-card__body">
+                  <h4>{{ t.name }}</h4>
+                  <span class="template-card__meta">{{ t.width_mm }} × {{ t.height_mm }} mm · {{ t.layout_json.length || 0 }} {{ 'barcode.templateElements' | translate }}</span>
+                </div>
+                <div class="template-card__actions" (click)="$event.stopPropagation()">
+                  <button mat-icon-button type="button" [matTooltip]="'common.edit' | translate" (click)="editTemplate(t)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button type="button" [matTooltip]="'common.duplicate' | translate" (click)="duplicateTemplate(t)">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                  <button mat-icon-button type="button" color="warn" [matTooltip]="'common.delete' | translate" (click)="deleteTemplate(t)">
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              </mat-card>
+              }
+            </div>
+            }
+
             @if (editingTemplate()) {
             <app-label-designer
               [template]="editingTemplate()"
@@ -240,6 +270,38 @@ import { LabelDesignerComponent } from './label-designer.component';
         color: #666;
         font-size: 14px;
       }
+      .templates-tab { display: flex; flex-direction: column; gap: 20px; }
+      .templates-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: space-between; }
+      .templates-title { margin: 0; font-size: 18px; font-weight: 600; }
+      .templates-subtitle { margin: 4px 0 0; font-size: 13px; color: rgba(0,0,0,.55); }
+      .templates-actions { display: flex; gap: 8px; flex-shrink: 0; }
+      .templates-actions button mat-icon { margin-right: 4px; font-size: 18px; width: 18px; height: 18px; }
+      .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+      .template-card {
+        cursor: pointer;
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 12px;
+        padding: 0;
+        overflow: hidden;
+        transition: box-shadow .2s, border-color .2s, transform .15s;
+      }
+      .template-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); transform: translateY(-1px); }
+      .template-card--active { border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,.18); }
+      .template-card__preview {
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(145deg, #f0f3f6, #e8ecf0);
+        min-height: 88px; padding: 10px;
+      }
+      .template-card__body { padding: 12px 14px 4px; }
+      .template-card__body h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; line-height: 1.3; }
+      .template-card__meta { font-size: 12px; color: rgba(0,0,0,.5); }
+      .template-card__actions { display: flex; justify-content: flex-end; padding: 0 4px 4px; gap: 0; }
+      .templates-empty {
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+        padding: 40px 24px; text-align: center; color: rgba(0,0,0,.5); border-radius: 12px;
+      }
+      .templates-empty mat-icon { font-size: 48px; width: 48px; height: 48px; opacity: .35; }
+      .templates-empty p { margin: 0; }
     `,
   ],
 })
@@ -324,6 +386,12 @@ export class BarcodeComponent implements OnInit {
 
   editTemplate(t: LabelTemplate): void {
     this.editingTemplate.set({ ...t, layout_json: structuredClone(t.layout_json) });
+  }
+
+  templateAspect(t: LabelTemplate): string {
+    const w = Math.max(1, +t.width_mm);
+    const h = Math.max(1, +t.height_mm);
+    return `${w} / ${h}`;
   }
 
   duplicateTemplate(t: LabelTemplate): void {
