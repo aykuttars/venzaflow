@@ -11,8 +11,9 @@ from barcode.writer import ImageWriter
 from PIL import Image, ImageDraw, ImageFont
 
 from apps.barcode.models import BarcodeSettings
+from apps.barcode.services.product_fields import product_field_map
 from apps.barcode.services.qr_payload import build_qr_payload
-from apps.products.models import Product, ProductFieldValue
+from apps.products.models import Product
 
 
 def _resolve_binding(product: Product, binding: str, fields: dict[str, str]) -> str:
@@ -36,13 +37,7 @@ def _product_context(tenant_id: int, product_id: int | None) -> tuple[Product | 
     product = Product.objects.filter(tenant_id=tenant_id, pk=product_id).first()
     if not product:
         return None, {}
-    fields = {
-        fv.field_definition.key: fv.value or ""
-        for fv in ProductFieldValue.objects.filter(product=product).select_related(
-            "field_definition"
-        )
-    }
-    return product, fields
+    return product, product_field_map(product)
 
 
 def _mm_to_px(mm: float, dpi: int) -> int:

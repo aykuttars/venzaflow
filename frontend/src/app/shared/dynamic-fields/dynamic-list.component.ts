@@ -6,21 +6,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { ListColumnConfig, ProductRow } from './models';
-import { ProductBarcodeCellComponent } from '../../features/barcode/product-barcode-cell.component';
 
 @Component({
   selector: 'app-dynamic-product-list',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, ProductBarcodeCellComponent],
+  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule],
   template: `
     <table class="bms-table">
       <thead>
         <tr>
           @for (col of visibleColumns; track col.field_key + col.field_source) {
           <th [style.width]="col.width || null">{{ col.label || col.field_key }}</th>
-          }
-          @if (showBarcodeColumn) {
-          <th>{{ 'barcode.labelColumn' | translate }}</th>
           }
           @if (showActions) {
           <th></th>
@@ -33,17 +29,18 @@ import { ProductBarcodeCellComponent } from '../../features/barcode/product-barc
           @for (col of visibleColumns; track col.field_key + col.field_source) {
           <td>{{ cellValue(row, col) }}</td>
           }
-          @if (showBarcodeColumn) {
-          <td>
-            <app-product-barcode-cell
-              [productId]="row.id"
-              [barcode]="row.barcode || ''"
-              [autoLoadPreview]="true"
-            />
-          </td>
-          }
           @if (showActions) {
-          <td style="text-align:right">
+          <td style="text-align:right; white-space:nowrap">
+            @if (onBarcodeLabel) {
+            <button
+              mat-icon-button
+              type="button"
+              (click)="onBarcodeLabel(row)"
+              [attr.aria-label]="'barcode.labelPreviewTitle' | translate"
+            >
+              <mat-icon>qr_code_2</mat-icon>
+            </button>
+            }
             @if (onView) {
             <button mat-icon-button type="button" (click)="onView(row)"><mat-icon>visibility</mat-icon></button>
             }
@@ -58,7 +55,7 @@ import { ProductBarcodeCellComponent } from '../../features/barcode/product-barc
         </tr>
         } @empty {
         <tr>
-          <td [attr.colspan]="visibleColumns.length + (showBarcodeColumn ? 1 : 0) + (showActions ? 1 : 0)" class="empty-row">
+          <td [attr.colspan]="visibleColumns.length + (showActions ? 1 : 0)" class="empty-row">
             {{ emptyMessage }}
           </td>
         </tr>
@@ -80,11 +77,11 @@ export class DynamicProductListComponent {
   @Input() columns: ListColumnConfig[] = [];
   @Input() rows: ProductRow[] = [];
   @Input() showActions = true;
-  @Input() showBarcodeColumn = false;
   @Input() emptyMessage = '—';
   @Input() onView?: (row: ProductRow) => void;
   @Input() onEdit?: (row: ProductRow) => void;
   @Input() onDelete?: (row: ProductRow) => void;
+  @Input() onBarcodeLabel?: (row: ProductRow) => void;
 
   get visibleColumns(): ListColumnConfig[] {
     return [...this.columns]
@@ -104,6 +101,7 @@ export class DynamicProductListComponent {
     }
     const v = row[key];
     if (key === 'is_active') return v ? '✓' : '—';
+    if (key === 'category') return row.category_name || (v == null ? '—' : String(v));
     if (key === 'unit_price' || key === 'cost_price') return v != null ? String(v) : '—';
     return v == null || v === '' ? '—' : String(v);
   }

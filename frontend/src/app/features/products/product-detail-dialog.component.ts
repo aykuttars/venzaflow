@@ -2,20 +2,22 @@ import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, EventEmitter, Input, OnChanges, Output, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { API_BASE } from '../../core/api';
+import { AuthService } from '../../core/auth.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { DynamicProductDetailComponent } from '../../shared/dynamic-fields/dynamic-detail.component';
 import { DetailFieldConfig, ProductRow } from '../../shared/dynamic-fields/models';
 import { ProductConfigService, unwrapList } from '../../shared/dynamic-fields/product-config.service';
-import { ProductBarcodeCellComponent } from '../barcode/product-barcode-cell.component';
+import { ProductLabelPreviewDialogComponent } from '../barcode/product-label-preview-dialog.component';
 
 @Component({
   selector: 'app-product-detail-dialog',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, DynamicProductDetailComponent, ProductBarcodeCellComponent],
+  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, DynamicProductDetailComponent],
   template: `
     @if (open && product()) {
     <div class="overlay" (click)="close.emit()"></div>
@@ -30,9 +32,13 @@ import { ProductBarcodeCellComponent } from '../barcode/product-barcode-cell.com
       <p>{{ 'common.loading' | translate }}</p>
       } @else {
       <app-dynamic-product-detail [config]="detailConfig()" [product]="product()!" />
+      @if (canPreviewLabel()) {
       <div style="margin-top:12px">
-        <app-product-barcode-cell [productId]="product()!.id" [barcode]="product()!.barcode || ''" />
+        <button mat-stroked-button type="button" (click)="openLabelPreview()">
+          <mat-icon>qr_code_2</mat-icon> {{ 'barcode.labelPreviewTitle' | translate }}
+        </button>
       </div>
+      }
       }
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px">
         @if (canWrite) {
@@ -58,6 +64,8 @@ import { ProductBarcodeCellComponent } from '../barcode/product-barcode-cell.com
 export class ProductDetailDialogComponent implements OnChanges {
   private http = inject(HttpClient);
   private configService = inject(ProductConfigService);
+  private dialog = inject(MatDialog);
+  private auth = inject(AuthService);
 
   @Input() open = false;
   @Input() productId: number | null = null;
@@ -68,6 +76,21 @@ export class ProductDetailDialogComponent implements OnChanges {
   product = signal<ProductRow | null>(null);
   detailConfig = signal<DetailFieldConfig[]>([]);
   loading = signal(false);
+
+  canPreviewLabel = () =>
+    this.auth.hasModule('barcode') && this.auth.hasPermission('barcode.labels');
+
+  openLabelPreview(): void {
+    const p = this.product();
+    if (!p) return;
+    this.dialog.open(ProductLabelPreviewDialogComponent, {
+      width: '640px',
+      maxWidth: '96vw',
+      data: {
+        product: { id: p.id, sku: p.sku, name: p.name, barcode: p.barcode || '' },
+      },
+    });
+  }
 
   ngOnChanges(): void {
     if (this.open && this.productId) {

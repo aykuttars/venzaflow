@@ -14,6 +14,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
@@ -31,6 +32,7 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
 import { ProductDetailDialogComponent } from './product-detail-dialog.component';
 import { ProductFieldDefinitionsComponent } from './product-field-definitions.component';
 import { ProductUiConfigComponent } from './product-ui-config.component';
+import { ProductLabelPreviewDialogComponent } from '../barcode/product-label-preview-dialog.component';
 import { forkJoin } from 'rxjs';
 
 interface Category { id: number; name: string; slug: string; }
@@ -58,6 +60,7 @@ function slugify(value: string): string {
     MatSelectModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    MatDialogModule,
     MatTabsModule,
     TranslateModule,
     PageHeaderComponent,
@@ -102,11 +105,11 @@ function slugify(value: string): string {
           <app-dynamic-product-list
             [columns]="listColumns()"
             [rows]="items()"
-            [showBarcodeColumn]="hasBarcodeModule()"
             [showActions]="true"
             [onView]="viewHandler"
             [onEdit]="canWrite() ? editHandler : undefined"
             [onDelete]="canWrite() ? deleteHandler : undefined"
+            [onBarcodeLabel]="canPreviewLabel() ? barcodeLabelHandler : undefined"
             [emptyMessage]="'common.noRecords' | translate"
           />
         </mat-tab>
@@ -196,6 +199,7 @@ export class ProductsComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   private confirmDialog = inject(ConfirmDialogService);
+  private dialog = inject(MatDialog);
   private configService = inject(ProductConfigService);
   protected auth = inject(AuthService);
 
@@ -218,6 +222,7 @@ export class ProductsComponent implements OnInit {
   viewHandler = (p: ProductRow) => this.openDetail(p);
   editHandler = (p: ProductRow) => this.openProductForm(p);
   deleteHandler = (p: ProductRow) => this.removeProduct(p);
+  barcodeLabelHandler = (p: ProductRow) => this.openLabelPreview(p);
 
   productForm = this.fb.nonNullable.group({
     id: this.fb.control<number | null>(null),
@@ -258,6 +263,22 @@ export class ProductsComponent implements OnInit {
 
   canWrite = () => this.auth.hasPermission('products.write');
   hasBarcodeModule = () => this.auth.hasModule('barcode');
+  canPreviewLabel = () => this.hasBarcodeModule() && this.auth.hasPermission('barcode.labels');
+
+  openLabelPreview(p: ProductRow): void {
+    this.dialog.open(ProductLabelPreviewDialogComponent, {
+      width: '640px',
+      maxWidth: '96vw',
+      data: {
+        product: {
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          barcode: p.barcode || '',
+        },
+      },
+    });
+  }
 
   dialogTitle(): string {
     if (this.tab() === 0) {

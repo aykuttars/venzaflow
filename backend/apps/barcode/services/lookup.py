@@ -5,19 +5,9 @@ from typing import Any
 
 from django.db.models import Sum
 
-from apps.inventory.models import Stock, Warehouse
-from apps.products.models import Product, ProductFieldValue
-
-
-def _field_values(product: Product) -> dict[str, str]:
-    values: dict[str, str] = {}
-    for fv in ProductFieldValue.objects.filter(product=product).select_related(
-        "field_definition"
-    ):
-        key = fv.field_definition.key
-        values[key] = fv.value or ""
-    return values
-
+from apps.barcode.services.product_fields import product_field_map
+from apps.inventory.models import Stock
+from apps.products.models import Product
 
 def _stock_by_warehouse(tenant_id: int, product_id: int) -> dict[str, Any]:
     rows = (
@@ -64,7 +54,7 @@ def lookup_barcode(tenant_id: int, code: str) -> dict[str, Any] | None:
     if not product:
         return None
 
-    fields = _field_values(product)
+    fields = product_field_map(product)
     stock = _stock_by_warehouse(tenant_id, product.id)
     return {
         "product": {

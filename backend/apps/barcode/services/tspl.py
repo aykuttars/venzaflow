@@ -4,7 +4,8 @@ from decimal import Decimal
 from typing import Any
 
 from apps.barcode.services.preview import _resolve_binding
-from apps.products.models import Product, ProductFieldValue
+from apps.barcode.services.product_fields import product_field_map
+from apps.products.models import Product
 
 
 def _dots(mm: float, dpi: int = 203) -> int:
@@ -30,12 +31,7 @@ def render_tspl_for_product(
     gap = float(template_snapshot.get("gap_mm", 2))
     dpi = int(template_snapshot.get("dpi", 203))
 
-    fields = {
-        fv.field_definition.key: fv.value or ""
-        for fv in ProductFieldValue.objects.filter(product=product).select_related(
-            "field_definition"
-        )
-    }
+    fields = product_field_map(product)
 
     lines = [
         f"SIZE {width:.2f} mm,{height:.2f} mm",

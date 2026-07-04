@@ -81,6 +81,7 @@ export class DynamicProductDetailComponent {
     }
     const v = this.product[key];
     if (key === 'is_active') return v ? '✓' : '—';
+    if (key === 'category') return this.product.category_name || (v == null ? '—' : String(v));
     return v == null || v === '' ? '—' : String(v);
   }
 }

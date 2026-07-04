@@ -90,3 +90,29 @@ class BarcodeApiTests(TestCase):
         )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.data["status"], "queued")
+
+    def test_template_preview_with_product(self):
+        from apps.products.models import FieldType, ProductFieldDefinition, ProductFieldValue
+
+        ProductFieldDefinition.objects.create(
+            tenant=self.tenant,
+            key="marka",
+            label="Marka",
+            field_type=FieldType.TEXT.value,
+            is_active=True,
+        )
+        ProductFieldValue.objects.create(
+            tenant=self.tenant,
+            product=self.product,
+            field_definition=ProductFieldDefinition.objects.get(tenant=self.tenant, key="marka"),
+            value_text="TestMarka",
+        )
+        tpl = LabelTemplate.objects.filter(tenant_id=self.tenant.id).first()
+        res = self.client.post(
+            f"/api/v1/barcode/templates/{tpl.pk}/preview/",
+            {"product_id": self.product.pk},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "image/png")
+        self.assertGreater(len(res.content), 100)
