@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from django.http import Http404, StreamingHttpResponse
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import HasModule, HasViewPermission
 from apps.barcode.services import ebarcode_artifacts
 
 
 class EbarcodeReleasesView(APIView):
-    """Latest released e-barcode installers for end users (public, no login)."""
+    """Latest released e-barcode installers (barcode module users only)."""
 
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [HasModule, HasViewPermission]
+    required_module = "barcode"
+    required_permission = "barcode.scan"
 
     def get(self, request):
         def download_url(slug: str) -> str:
@@ -23,10 +24,11 @@ class EbarcodeReleasesView(APIView):
 
 
 class EbarcodeDownloadView(APIView):
-    """Stream a released installer from the artifact registry (public)."""
+    """Stream a released installer from the artifact registry (barcode module users only)."""
 
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [HasModule, HasViewPermission]
+    required_module = "barcode"
+    required_permission = "barcode.scan"
 
     def get(self, request, slug: str):
         if slug not in ebarcode_artifacts.PLATFORM_BY_SLUG:

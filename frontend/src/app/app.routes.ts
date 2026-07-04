@@ -65,13 +65,6 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
-    path: 'ebarcode',
-    loadComponent: () =>
-      import('./features/barcode/ebarcode-download-page.component').then(
-        (m) => m.EbarcodeDownloadPageComponent
-      ),
-  },
-  {
     path: '',
     loadComponent: () =>
       import('./core/layout/main-layout.component').then(

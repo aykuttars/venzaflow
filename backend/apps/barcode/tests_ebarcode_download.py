@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from django.test import TestCase, override_settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from apps.accounts.models import Department, Permission
+from apps.tenants.models import Tenant
+from apps.tenants.subscription_service import set_module_subscriptions
+
+User = get_user_model()
 
 TAGS_RESPONSE = {
     "tags": [
@@ -50,12 +56,36 @@ def _manifest_response():
 )
 class EbarcodeDownloadApiTests(TestCase):
     def setUp(self):
+        self.tenant = Tenant.objects.create(
+            customer_code="EBC",
+            name="Ebarcode Test",
+            enabled_modules=["products", "inventory", "barcode"],
+            max_users=5,
+        )
+        set_module_subscriptions(
+            self.tenant,
+            ["products", "inventory", "barcode"],
+            module_parents={"barcode": "inventory"},
+        )
+        Permission.objects.get_or_create(codename="barcode.scan", defaults={"name": "barcode.scan"})
+        dept = Department.objects.create(tenant=self.tenant, key="admin", name="Admin")
+        dept.permissions.set(Permission.objects.filter(codename="barcode.scan"))
+        self.user = User.all_tenants.create(
+            tenant=self.tenant,
+            email="admin@ebc.test",
+            department=dept,
+            is_active=True,
+        )
+        self.user.set_password("TestPass123!@#X")
+        self.user.save()
+
         self.client = APIClient()
         cache.clear()
 
     @patch("apps.barcode.services.ebarcode_artifacts.resolve_manifest")
     @patch("apps.barcode.services.ebarcode_artifacts.fetch_tags")
     def test_releases_lists_latest_semver_only(self, fetch_tags, resolve_manifest):
+        self.client.force_authenticate(user=self.user)
         fetch_tags.return_value = TAGS_RESPONSE["tags"]
         resolve_manifest.return_value = _manifest_response()
         response = self.client.get("/api/v1/barcode/ebarcode/releases/")
@@ -75,6 +105,7 @@ class EbarcodeDownloadApiTests(TestCase):
     @patch("apps.barcode.services.ebarcode_artifacts.stream_blob")
     @patch("apps.barcode.services.ebarcode_artifacts.resolve_download")
     def test_download_streams_installer(self, resolve_download, stream_blob):
+        self.client.force_authenticate(user=self.user)
         resolve_download.return_value = (
             "1.0.1-win-x64-venzaflow-ebarcode-1.0.1-setup-x64.exe",
             "sha256:abc123",
@@ -87,12 +118,22 @@ class EbarcodeDownloadApiTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), b"fake-installer")
         self.assertIn("attachment", response["Content-Disposition"])
 
+    def test_releases_requires_authentication(self):
+        response = self.client.get("/api/v1/barcode/ebarcode/releases/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_download_requires_authentication(self):
+        response = self.client.get("/api/v1/barcode/ebarcode/download/windows/")
+        self.assertEqual(response.status_code, 401)
+
     def test_download_unknown_platform_404(self):
+        self.client.force_authenticate(user=self.user)
         response = self.client.get("/api/v1/barcode/ebarcode/download/unknown-os/")
         self.assertEqual(response.status_code, 404)
 
     @override_settings(ARTIFACT_REGISTRY_USER="", ARTIFACT_REGISTRY_PASSWORD="")
     def test_releases_not_configured(self):
+        self.client.force_authenticate(user=self.user)
         response = self.client.get("/api/v1/barcode/ebarcode/releases/")
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -103,6 +144,7 @@ class EbarcodeDownloadApiTests(TestCase):
     @patch("apps.barcode.services.ebarcode_artifacts.resolve_manifest")
     @patch("apps.barcode.services.ebarcode_artifacts.fetch_tags")
     def test_releases_fallback_to_ci_builds(self, fetch_tags, resolve_manifest):
+        self.client.force_authenticate(user=self.user)
         fetch_tags.return_value = [
             "develop-34-win-x64-venzaflow-ebarcode-1.0.0-setup-x64.exe",
             "develop-34-mac-arm64-venzaflow-ebarcode-1.0.0-mac-arm64.dmg",
