@@ -1,0 +1,57 @@
+# Portainer Custom Template — git.aykut.io (MAN)
+# GitLab CE 19.1.1 — fresh install (upgrade stop gerekmez)
+# DEPRECATED — use ../docker-compose.yml
+# Volume: .../gitlab/env/
+#
+# Daha önce 17.x ile çalıştırdıysan önce stack'i durdur, sonra temiz kurulum:
+#   docker compose down
+#   sudo rm -rf .../env/data/* .../env/config/*
+# (logs/ silmek zorunlu değil)
+
+version: '3.8'
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:19.1.1-ce.0
+    container_name: gitlab
+    restart: always
+    hostname: git.aykut.io
+    shm_size: '512m'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://git.aykut.io'
+
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['redirect_http_to_https'] = false
+        letsencrypt['enable'] = false
+
+        nginx['real_ip_trusted_addresses'] = ['172.16.0.0/12', '192.168.0.0/16', '10.0.0.0/8']
+        nginx['real_ip_header'] = 'X-Forwarded-For'
+        nginx['real_ip_recursive'] = 'on'
+        gitlab_rails['trusted_proxies'] = ['172.16.0.0/12', '192.168.0.0/16', '10.0.0.0/8']
+
+        gitlab_rails['initial_root_password'] = 'ayk3278ayk*'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2424
+
+        gitlab_rails['smtp_enable'] = true
+        gitlab_rails['smtp_address'] = "smtp.gmail.com"
+        gitlab_rails['smtp_port'] = 587
+        gitlab_rails['smtp_user_name'] = "aykut.gitlab@gmail.com"
+        gitlab_rails['smtp_password'] = "ptvgtxkdrufxtgyp"
+        gitlab_rails['smtp_domain'] = "smtp.gmail.com"
+        gitlab_rails['smtp_authentication'] = "login"
+        gitlab_rails['smtp_enable_starttls_auto'] = true
+        gitlab_rails['smtp_tls'] = false
+        gitlab_rails['smtp_openssl_verify_mode'] = 'peer'
+        gitlab_rails['gitlab_email_from'] = 'git@aykut.io'
+        gitlab_rails['gitlab_email_reply_to'] = 'git@aykut.io'
+
+        gitlab_rails['max_attachment_size'] = 512
+    ports:
+      - '8929:80'
+      - '2424:22'
+    volumes:
+      - '/home/management/DockerFiles/gitlab/env/config:/etc/gitlab'
+      - '/home/management/DockerFiles/gitlab/env/logs:/var/log/gitlab'
+      - '/home/management/DockerFiles/gitlab/env/data:/var/opt/gitlab'

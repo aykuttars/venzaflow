@@ -6,35 +6,28 @@
 #     config/config.json
 #     docker-compose.yml
 #     data/
-#     auth/htpasswd
+#     auth/htpasswd          ← scripts/setup-htpasswd.sh ile oluşturulur
 #
-# Registry UI (dev): https://artifacts.aykut.io  (aykutt + .env şifresi)
+# İlk kurulum:
+#   cp .env.example .env && düzenle
+#   ./scripts/setup-htpasswd.sh
+#   docker compose up -d
+#
+# Registry UI: https://artifacts.aykut.io  (REGISTRY_USER + .env şifresi)
 # NPM: artifacts → 127.0.0.1:5099 (Websockets)
+#
+# Retention (şimdilik sadece eimza): platform başına son 1 release.
+# scripts/retention-keep-releases.sh — RETENTION_MODE=per-platform KEEP_RELEASES=1
+# Örnek cron (MAN): 0 3 * * * /home/management/DockerFiles/artifacts-registry/scripts/retention-keep-releases.sh >> /var/log/zot-retention.log 2>&1
 
 version: "3.8"
 
 services:
-  auth-init:
-    image: httpd:2-alpine
-    restart: unless-stopped
-    volumes:
-      - /home/management/DockerFiles/artifacts-registry/.env:/etc/registry.env:ro
-      - /home/management/DockerFiles/artifacts-registry/auth:/auth
-    command:
-      - /bin/sh
-      - -c
-      - |
-        REGISTRY_USER=$$(grep '^REGISTRY_USER=' /etc/registry.env | cut -d= -f2- | sed "s/^['\"]//;s/['\"]$$//")
-        REGISTRY_PASSWORD=$$(grep '^REGISTRY_PASSWORD=' /etc/registry.env | cut -d= -f2- | sed "s/^['\"]//;s/['\"]$$//")
-        htpasswd -Bbn "$$REGISTRY_USER" "$$REGISTRY_PASSWORD" > /auth/htpasswd
-
   zot:
     image: ghcr.io/project-zot/zot:v2.1.2
     container_name: artifacts-registry
+    
     restart: unless-stopped
-    depends_on:
-      auth-init:
-        condition: service_completed_successfully
     command: ["serve", "/config/config.json"]
     ports:
       - "5099:5000"
