@@ -62,13 +62,14 @@ CATEGORIES: list[tuple[str, str]] = [
 ]
 
 # (sku, name, category_slug, unit_price, cost_price, barcode, brand, stock_qty, reorder)
+# stock_qty = toplam; PHOTO_STOCK ile depo/magaza 1:1 override edilir.
 PRODUCTS: list[tuple[str, str, str, str, str, str, str, int, int]] = [
     ("MB-ASUS-Z690-P", "ASUS Prime Z690-P WIFI", "anakart", "8499.00", "7200.00", "8598765432101", "ASUS", 8, 2),
-    ("MB-MSI-B760", "MSI PRO B760M-P DDR4", "anakart", "4299.00", "3600.00", "8598765432102", "MSI", 14, 3),
+    ("MB-MSI-B760", "MSI PRO B760M-P WIFI DDR4", "anakart", "4299.00", "3600.00", "8598765432102", "MSI", 6, 2),
     ("MB-GIGABYTE-B550", "Gigabyte B550 AORUS ELITE", "anakart", "5199.00", "4400.00", "8598765432103", "Gigabyte", 6, 2),
     ("GPU-RTX4060-GB", "Gigabyte GeForce RTX 4060 8G", "ekran-karti", "12999.00", "11200.00", "8598765432201", "Gigabyte", 5, 2),
     ("GPU-RTX4060-ASUS", "ASUS Dual RTX 4060 OC 8GB", "ekran-karti", "13499.00", "11600.00", "8598765432202", "ASUS", 4, 1),
-    ("GPU-RTX4070-MSI", "MSI Ventus 2X RTX 4070 12G", "ekran-karti", "21999.00", "19800.00", "8598765432203", "MSI", 3, 1),
+    ("GPU-RTX4070-MSI", "MSI GeForce RTX 4070 Gaming Trio 12G", "ekran-karti", "22999.00", "20500.00", "8598765432203", "MSI", 5, 2),
     ("GPU-RX7600-SAP", "Sapphire Pulse RX 7600 8GB", "ekran-karti", "10999.00", "9800.00", "8598765432204", "Sapphire", 6, 2),
     ("PSU-RMP-650", "Rampage Smart 650W 80+ Bronze", "guc-kaynagi", "2499.00", "1950.00", "8598765432301", "Rampage", 22, 5),
     ("PSU-RMP-750G", "Rampage Turbo 750W 80+ Gold", "guc-kaynagi", "3799.00", "3100.00", "8598765432302", "Rampage", 15, 4),
@@ -112,7 +113,7 @@ PRODUCTS: list[tuple[str, str, str, str, str, str, str, int, int]] = [
     ("CASE-ZOKO-CHIKO-W", "Zoko Chiko White Tempered Glass", "kasa", "2099.00", "1580.00", "8598765432411", "Zoko", 14, 4),
     ("CASE-ZOKO-MELODY", "Zoko Melody RGB Gaming Case", "kasa", "2199.00", "1650.00", "8598765432412", "Zoko", 12, 4),
     ("CASE-ZOKO-KING", "Zoko King Mid Tower", "kasa", "1799.00", "1350.00", "8598765432413", "Zoko", 16, 5),
-    ("CASE-AMIRAL-LUX", "Amiral Luxury PC Chassis", "kasa", "3299.00", "2600.00", "8598765432414", "Amiral", 8, 2),
+    ("CASE-ZOKO-AMMIRAL", "Zoko Ammiral Gaming PC Case", "kasa", "2299.00", "1750.00", "8598765434007", "Zoko", 2, 1),
     ("CASE-ARCHON-NEON", "Archon Neon X Computer Case", "kasa", "2499.00", "1900.00", "8598765432415", "Archon", 10, 3),
     ("CASE-FAZEON-F7", "Fazeon F7 Mesh Gaming Case", "kasa", "2799.00", "2100.00", "8598765432416", "Fazeon", 11, 3),
     ("CASE-PB-P803", "Power Boost PB-P803AB Mesh ARGB", "kasa", "1999.00", "1500.00", "8598765432417", "Power Boost", 15, 4),
@@ -155,7 +156,7 @@ PRODUCTS: list[tuple[str, str, str, str, str, str, str, int, int]] = [
     ("NET-ASUS-RT", "ASUS RT-AX55 WiFi 6 Router", "ag-guvenlik", "3499.00", "2850.00", "8598765433112", "ASUS", 8, 2),
     ("NET-SW-8", "8 Port Gigabit Switch", "ag-guvenlik", "899.00", "580.00", "8598765433113", "Generic", 25, 8),
     # — Ses —
-    ("SPK-PLAT-4127", "Platoon PL-4127 RGB Portable Speaker", "ses", "1299.00", "850.00", "8598765433201", "Platoon", 20, 6),
+    ("SPK-PLAN-4177", "Plantron PL-4177 Taşınabilir Hoparlör", "ses", "1499.00", "980.00", "8598765434038", "Plantron", 8, 3),
     ("SPK-JBL-GO", "JBL Go 3 Bluetooth Hoparlör", "ses", "1499.00", "1100.00", "8598765433202", "JBL", 15, 5),
   # — Kablo & duvar aksesuar (yüksek adet) —
     ("ACC-HDMI-3M", "HDMI 2.1 Kablo 3m", "aksesuar", "399.00", "150.00", "8598765433010", "Generic", 100, 25),
@@ -173,7 +174,107 @@ PRODUCTS: list[tuple[str, str, str, str, str, str, str, int, int]] = [
     ("OFC-EPSON-L3250", "Epson EcoTank L3250 Yazıcı", "ofis", "8999.00", "7500.00", "8598765433301", "Epson", 5, 2),
     ("OFC-EPSON-L1250", "Epson L1250 Tek Fonksiyon", "ofis", "4999.00", "4100.00", "8598765433302", "Epson", 7, 2),
     ("OFC-CANON-G3410", "Canon G3410 Mürekkep Tank", "ofis", "6999.00", "5800.00", "8598765433303", "Canon", 4, 1),
+    # — Depo fotoğrafları (exdepo1/2) — eksik modeller —
+    ("CASE-ZOKO-PHANTOM", "Zoko Phantom Gaming PC Case", "kasa", "1999.00", "1520.00", "8598765434001", "Zoko", 16, 4),
+    ("CASE-PHANTOM-RGB", "Phantom Gaming PC Case RGB", "kasa", "1899.00", "1420.00", "8598765434002", "Phantom", 10, 3),
+    ("CASE-CORSAIR-4000X", "Corsair iCUE 4000X RGB Mid Tower", "kasa", "5499.00", "4600.00", "8598765434003", "Corsair", 3, 1),
+    ("MB-MSI-MAG-B760", "MSI MAG B760M MORTAR WIFI DDR4", "anakart", "7999.00", "6800.00", "8598765434004", "MSI", 3, 1),
+    ("MON-DEPO-24", "24\" FHD Monitör (kutusuz demo)", "monitor", "3499.00", "2800.00", "8598765434005", "Generic", 3, 1),
+    ("CASE-DEPO-OPEN", "Açık Demo ATX Kasa (kutusuz)", "kasa", "1499.00", "900.00", "8598765434006", "Generic", 3, 1),
+    # — Vitrin fotoğrafı (exVitrin1) —
+    ("GPU-RTX4070-ASUS-PRM", "ASUS Prime GeForce RTX 4070 OC 12GB", "ekran-karti", "23499.00", "21000.00", "8598765434010", "ASUS", 4, 2),
+    ("MB-ASUS-TUF-B660", "ASUS TUF Gaming B660-PLUS WIFI D4", "anakart", "6499.00", "5500.00", "8598765434011", "ASUS", 6, 2),
+    ("CON-PS4-PAD-K", "PS4 DualShock 4 Siyah", "konsol", "2499.00", "1850.00", "8598765434012", "Sony", 10, 4),
+    ("CON-PS4-PAD-CAMO", "PS4 DualShock 4 Turuncu Kamuflaj", "konsol", "2599.00", "1920.00", "8598765434013", "Sony", 6, 2),
+    ("KEY-RAZER-ORN-V3", "Razer Ornata V3", "periferik", "3499.00", "2800.00", "8598765434014", "Razer", 4, 2),
+    ("KEY-RAZER-ORN-TKL", "Razer Ornata V3 Tenkeyless", "periferik", "2999.00", "2400.00", "8598765434015", "Razer", 3, 1),
+    ("KEY-REDRAGON-K552", "Redragon K552 Kumara Mekanik Klavye", "periferik", "1299.00", "950.00", "8598765434016", "Redragon", 5, 2),
+    ("MOU-RAZER-BASIL", "Razer Basilisk V3", "periferik", "2199.00", "1750.00", "8598765434017", "Razer", 5, 2),
+    ("MOU-RAZER-DA-V2", "Razer DeathAdder V2", "periferik", "1599.00", "1200.00", "8598765434018", "Razer", 6, 2),
+    ("HS-RAZER-BSV2X", "Razer BlackShark V2 X", "periferik", "2799.00", "2200.00", "8598765434019", "Razer", 5, 2),
+    ("HS-RAZER-KRV3X", "Razer Kraken V3 X", "periferik", "2999.00", "2350.00", "8598765434020", "Razer", 4, 2),
+    ("CPU-INTEL-12400F", "Intel Core i5-12400F 12.Nesil", "islemci", "7499.00", "6800.00", "8598765434021", "Intel", 5, 2),
+    ("CPU-INTEL-13700", "Intel Core i7-13700 13.Nesil", "islemci", "13999.00", "12600.00", "8598765434022", "Intel", 3, 1),
+    ("PSU-GMP-CR650", "GamePower Cratos Lite 650W 80+", "guc-kaynagi", "2199.00", "1700.00", "8598765434023", "GamePower", 6, 2),
+    ("PSU-GMP-CR750", "GamePower Cratos Lite 750W 80+", "guc-kaynagi", "2499.00", "1950.00", "8598765434024", "GamePower", 4, 2),
+    ("PSU-TT-BX750", "Thermaltake Smart BX1 750W 80+", "guc-kaynagi", "2799.00", "2200.00", "8598765434025", "Thermaltake", 5, 2),
+    ("PSU-RMP-600W", "Rampage Smart 600W 80+ Bronze", "guc-kaynagi", "1899.00", "1450.00", "8598765434026", "Rampage", 6, 2),
+    ("COOL-MSI-240R", "MSI MAG CoreLiquid 240R V2", "sogutma", "3999.00", "3400.00", "8598765434027", "MSI", 4, 2),
+    ("COOL-MSI-360R", "MSI MAG CoreLiquid 360R V2", "sogutma", "5499.00", "4700.00", "8598765434028", "MSI", 3, 1),
+    ("COOL-DC-LS720W", "DeepCool LS720 SE WH 360mm AIO", "sogutma", "5999.00", "5100.00", "8598765434029", "DeepCool", 3, 1),
+    ("HDD-SEA-EXP2T", "Seagate Expansion 2TB USB 3.0 Harici", "depolama", "2499.00", "1950.00", "8598765434030", "Seagate", 6, 2),
+    ("NET-TP-AX12", "TP-Link Archer AX12 WiFi 6 Router", "ag-guvenlik", "3299.00", "2600.00", "8598765434031", "TP-Link", 5, 2),
+    ("NET-TP-RE300", "TP-Link RE300 WiFi Menzil Genişletici", "ag-guvenlik", "899.00", "620.00", "8598765434032", "TP-Link", 8, 3),
+    ("NET-TP-WN722N", "TP-Link TL-WN722N USB WiFi Adaptör", "ag-guvenlik", "499.00", "320.00", "8598765434033", "TP-Link", 10, 4),
+    ("ACC-NB-F80", "North Bayou NB F80 Gazlı Monitör Kolu", "aksesuar", "1299.00", "900.00", "8598765434034", "North Bayou", 7, 3),
+    ("MOU-LOG-M185", "Logitech M185 Kablosuz Ofis Faresi", "periferik", "599.00", "420.00", "8598765434035", "Logitech", 12, 4),
+    ("MOU-HP-S1000", "HP S1000 Plus Kablosuz Fare", "periferik", "449.00", "310.00", "8598765434036", "HP", 10, 3),
+    ("HS-RMP-V500", "Rampage V500 7.1 RGB Gaming Kulaklık", "periferik", "1199.00", "850.00", "8598765434037", "Rampage", 8, 3),
 ]
+
+# Fotoğraflardaki gerçek depo/magaza adetleri: sku -> (depo, magaza, reorder)
+PHOTO_STOCK: dict[str, tuple[int, int, int]] = {
+    # exdepo2 — Zoko kasa koridoru
+    "CASE-ZOKO-CHIKO": (18, 4, 6),
+    "CASE-ZOKO-CHIKO-W": (6, 2, 4),
+    "CASE-ZOKO-MELODY": (5, 2, 4),
+    "CASE-ZOKO-KING": (28, 3, 6),
+    "CASE-ZOKO-PHANTOM": (14, 2, 4),
+    "CASE-ZOKO-AMMIRAL": (1, 1, 1),
+    # exdepo1 — büyük kasa yığını
+    "CASE-SHARK-CA300": (4, 1, 2),
+    "CASE-PHANTOM-RGB": (8, 2, 3),
+    "CASE-CORSAIR-4000X": (2, 1, 1),
+    "CASE-DEPO-OPEN": (2, 1, 1),
+    "MON-DEPO-24": (2, 1, 1),
+    "MB-MSI-B760": (2, 2, 2),
+    "MB-MSI-MAG-B760": (2, 1, 1),
+    "GPU-RTX4060-GB": (2, 2, 2),
+    "GPU-RTX4060-ASUS": (1, 3, 2),
+    "GPU-RTX4060-TUF": (2, 2, 2),
+    "GPU-RTX4070-MSI": (2, 2, 2),
+    "GPU-RTX4070-ASUS-PRM": (1, 3, 2),
+    # exVitrin1 — cam vitrin rafları
+    "CON-PS4-PAD-B": (2, 6, 4),
+    "CON-PS4-PAD-W": (2, 5, 3),
+    "CON-PS4-PAD-K": (2, 8, 4),
+    "CON-PS4-PAD-CAMO": (1, 5, 2),
+    "MOU-RAZER-DA": (2, 8, 4),
+    "MOU-RAZER-BASIL": (1, 4, 2),
+    "MOU-RAZER-DA-V2": (1, 5, 2),
+    "MOU-LOG-G502": (2, 6, 3),
+    "MOU-LOG-M185": (3, 9, 4),
+    "MOU-HP-S1000": (2, 8, 3),
+    "MOU-RMP-BLAZE": (4, 10, 5),
+    "MOU-RMP-SMART": (4, 12, 6),
+    "KEY-RAZER-ORN-V3": (1, 3, 2),
+    "KEY-RAZER-ORN-TKL": (1, 2, 1),
+    "KEY-REDRAGON-K552": (1, 4, 2),
+    "KEY-RMP-RGB": (3, 8, 4),
+    "HS-RAZER-BSV2X": (1, 4, 2),
+    "HS-RAZER-KRV3X": (1, 3, 2),
+    "HS-RMP-7.1": (3, 6, 3),
+    "HS-RMP-V500": (2, 6, 3),
+    "MB-ASUS-TUF-B660": (2, 4, 2),
+    "CPU-INTEL-12400F": (2, 3, 2),
+    "CPU-INTEL-13700": (1, 2, 1),
+    "CPU-INTEL-13400F": (2, 3, 2),
+    "PSU-GMP-CR650": (2, 4, 2),
+    "PSU-GMP-CR750": (1, 3, 2),
+    "PSU-TT-BX750": (2, 3, 2),
+    "PSU-RMP-600W": (2, 4, 2),
+    "PSU-SHARK-600": (3, 4, 3),
+    "COOL-MSI-240R": (1, 3, 2),
+    "COOL-MSI-360R": (1, 2, 1),
+    "COOL-DC-LS720W": (1, 2, 1),
+    "HDD-SEA-EXP2T": (2, 4, 2),
+    "NET-TP-AX12": (2, 3, 2),
+    "NET-TP-RE300": (3, 5, 3),
+    "NET-TP-WN722N": (4, 6, 4),
+    "ACC-NB-F80": (2, 5, 3),
+    "SPK-PLAN-4177": (2, 3, 2),
+    "ACC-WEBCAM-HD": (3, 5, 3),
+}
 
 
 def _ensure_permissions() -> dict[str, Permission]:
@@ -307,6 +408,10 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         tenant=tenant, warehouse=wh_shop, code="DUVAR", defaults={"name": "Duvar askılık"}
     )
 
+    active_skus = {row[0] for row in PRODUCTS}
+    retired_skus = ("CASE-AMIRAL-LUX", "SPK-PLAT-4127")
+    Product.objects.filter(tenant=tenant, sku__in=retired_skus).update(barcode="", is_active=False)
+
     for sku, name, cat_slug, price, cost, barcode, brand, qty, reorder in PRODUCTS:
         product, _ = Product.objects.update_or_create(
             tenant=tenant,
@@ -321,14 +426,18 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
             },
         )
         _set_dynamic_values(product, field_defs, brand=brand)
-        shop_qty = max(1, qty // 4)
-        depo_qty = qty - shop_qty
+        photo = PHOTO_STOCK.get(sku)
+        if photo:
+            depo_qty, magaza_qty, reorder = photo
+        else:
+            magaza_qty = max(1, qty // 4)
+            depo_qty = qty - magaza_qty
         Stock.objects.update_or_create(
             tenant=tenant,
             product=product,
             warehouse=wh_shop,
             location=None,
-            defaults={"quantity": shop_qty, "reserved_quantity": 0, "reorder_level": max(1, reorder // 2)},
+            defaults={"quantity": magaza_qty, "reserved_quantity": 0, "reorder_level": max(1, reorder // 2)},
         )
         Stock.objects.update_or_create(
             tenant=tenant,
@@ -337,6 +446,8 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
             location=loc_a,
             defaults={"quantity": depo_qty, "reserved_quantity": 0, "reorder_level": reorder},
         )
+
+    Product.objects.filter(tenant=tenant).exclude(sku__in=active_skus).update(is_active=False)
 
     _ensure_users(tenant, dept_admin)
     return tenant
