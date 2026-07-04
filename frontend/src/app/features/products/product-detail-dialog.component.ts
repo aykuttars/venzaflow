@@ -10,7 +10,7 @@ import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { DynamicProductDetailComponent } from '../../shared/dynamic-fields/dynamic-detail.component';
 import { DetailFieldConfig, ProductRow } from '../../shared/dynamic-fields/models';
 import { ProductConfigService, unwrapList } from '../../shared/dynamic-fields/product-config.service';
-import { ProductBarcodeCellComponent } from './product-barcode-cell.component';
+import { ProductBarcodeCellComponent } from '../barcode/product-barcode-cell.component';
 
 @Component({
   selector: 'app-product-detail-dialog',

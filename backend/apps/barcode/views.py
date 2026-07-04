@@ -21,7 +21,7 @@ from apps.barcode.serializers import (
 from apps.barcode.serializers_settings import PrintJobBatchSerializer
 from apps.barcode.services.generate import generate_missing_barcodes
 from apps.barcode.services.lookup import lookup_barcode
-from apps.barcode.services.preview import render_label_png
+from apps.barcode.services.preview import render_label_png, validate_layout_bounds
 from apps.barcode.services.seed_templates import seed_default_templates
 from apps.barcode.services.settings import get_or_create_settings
 from apps.barcode.services.tspl import render_tspl_batch
@@ -191,6 +191,50 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             source=LabelTemplateSource.CUSTOM,
         )
 
+    def _layout_warnings(self, data: dict) -> list[str]:
+        layout = data.get("layout_json") if "layout_json" in data else None
+        if layout is None:
+            return []
+        return validate_layout_bounds(
+            width_mm=data.get("width_mm", 40),
+            height_mm=data.get("height_mm", 30),
+            dpi=int(data.get("dpi", 203)),
+            layout_json=list(layout or []),
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        warnings = self._layout_warnings(serializer.validated_data)
+        self.perform_create(serializer)
+        payload = dict(serializer.data)
+        if warnings:
+            payload["layout_warnings"] = warnings
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        warnings = self._layout_warnings(
+            {
+                "width_mm": serializer.validated_data.get("width_mm", instance.width_mm),
+                "height_mm": serializer.validated_data.get("height_mm", instance.height_mm),
+                "dpi": serializer.validated_data.get("dpi", instance.dpi),
+                "layout_json": serializer.validated_data.get("layout_json", instance.layout_json),
+            }
+        )
+        self.perform_update(serializer)
+        payload = dict(serializer.data)
+        if warnings:
+            payload["layout_warnings"] = warnings
+        return Response(payload)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         cancelled = PrintJob.objects.filter(
@@ -245,6 +289,12 @@ class LabelTemplateViewSet(TenantScopedViewSet):
         ser = LabelTemplatePreviewSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         product_id = ser.validated_data.get("product_id")
+        warnings = validate_layout_bounds(
+            width_mm=tpl.width_mm,
+            height_mm=tpl.height_mm,
+            dpi=tpl.dpi,
+            layout_json=list(tpl.layout_json or []),
+        )
         png = render_label_png(
             width_mm=tpl.width_mm,
             height_mm=tpl.height_mm,
@@ -254,7 +304,10 @@ class LabelTemplateViewSet(TenantScopedViewSet):
             product_id=product_id,
             settings=get_or_create_settings(tpl.tenant_id),
         )
-        return HttpResponse(png, content_type="image/png")
+        response = HttpResponse(png, content_type="image/png")
+        if warnings:
+            response["X-Layout-Warnings"] = "; ".join(warnings)
+        return response
 
     @action(detail=False, methods=["post"], url_path="seed-defaults")
     def seed_defaults(self, request):
@@ -309,6 +362,8 @@ class PrintJobViewSet(TenantScopedViewSet):
                 tenant_id=tenant_id, pk__in=product_ids, is_active=True
             )
         }
+        immediate = ser.validated_data.get("immediate", False)
+        job_status = PrintJobStatus.SENT if immediate else PrintJobStatus.QUEUED
         jobs = []
         for item in ser.validated_data["items"]:
             if item["product_id"] not in products:
@@ -327,7 +382,7 @@ class PrintJobViewSet(TenantScopedViewSet):
                 },
                 copies=item["copies"],
                 created_by=request.user,
-                status=PrintJobStatus.QUEUED,
+                status=job_status,
             )
             jobs.append(job)
         return Response(

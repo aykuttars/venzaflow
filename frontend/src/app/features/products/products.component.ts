@@ -102,6 +102,7 @@ function slugify(value: string): string {
           <app-dynamic-product-list
             [columns]="listColumns()"
             [rows]="items()"
+            [showBarcodeColumn]="hasBarcodeModule()"
             [showActions]="true"
             [onView]="viewHandler"
             [onEdit]="canWrite() ? editHandler : undefined"
@@ -256,6 +257,7 @@ export class ProductsComponent implements OnInit {
   }
 
   canWrite = () => this.auth.hasPermission('products.write');
+  hasBarcodeModule = () => this.auth.hasModule('barcode');
 
   dialogTitle(): string {
     if (this.tab() === 0) {

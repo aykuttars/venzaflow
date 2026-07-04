@@ -147,10 +147,10 @@ import { LabelDesignerComponent } from './label-designer.component';
                   }
                 </mat-select>
               </mat-form-field>
-              <button mat-stroked-button type="button" (click)="queueBatch()" [disabled]="!batchItems().length || printForm.invalid">
+              <button mat-stroked-button type="button" (click)="queueBatch(false)" [disabled]="!batchItems().length || printForm.invalid">
                 {{ 'barcode.queueBatch' | translate }}
               </button>
-              <button mat-flat-button color="primary" type="button" (click)="queueBatch()" [disabled]="!batchItems().length || printForm.invalid">
+              <button mat-flat-button color="primary" type="button" (click)="queueBatch(true)" [disabled]="!batchItems().length || printForm.invalid">
                 {{ 'barcode.printImmediate' | translate }}
               </button>
             </form>
@@ -368,12 +368,15 @@ export class BarcodeComponent implements OnInit {
     this.batchItems.update((list) => list.filter((i) => i.product_id !== productId));
   }
 
-  queueBatch(): void {
+  queueBatch(immediate = false): void {
     const templateId = this.printForm.value.template_id!;
     const items = this.batchItems().map((i) => ({ product_id: i.product_id, copies: i.copies }));
-    this.barcode.createPrintBatch(templateId, items).subscribe({
+    this.barcode.createPrintBatch(templateId, items, immediate).subscribe({
       next: (jobs) => {
-        this.snack.open(`${jobs.length} iş kuyruğa alındı`, undefined, { duration: 3000 });
+        const msg = immediate
+          ? `${jobs.length} iş hemen yazdırma için gönderildi`
+          : `${jobs.length} iş kuyruğa alındı`;
+        this.snack.open(msg, undefined, { duration: 3000 });
         this.batchItems.set([]);
         this.reloadJobs();
       },

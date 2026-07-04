@@ -69,6 +69,7 @@ class PrintJobBatchItemSerializer(serializers.Serializer):
 class PrintJobBatchSerializer(serializers.Serializer):
     template_id = serializers.IntegerField()
     items = PrintJobBatchItemSerializer(many=True, min_length=1, max_length=500)
+    immediate = serializers.BooleanField(default=False)
 
 
 class ManualStockDeductionSerializer(serializers.Serializer):

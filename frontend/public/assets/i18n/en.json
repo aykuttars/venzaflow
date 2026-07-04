@@ -340,6 +340,8 @@
     "printImmediate": "Print now (e-barcode)",
     "recentJobs": "Recent print jobs",
     "generateChip": "Generate",
+    "labelColumn": "Label",
+    "previewProductId": "Preview product ID",
     "management": {
       "operations": "Operation profile",
       "scan": "Scan behavior",
@@ -348,6 +350,8 @@
       "roleTemplates": "Role → template",
       "bulkGenerate": "Bulk barcode",
       "generateMissing": "Generate missing barcodes",
+      "logo": "Tenant logo",
+      "logoHint": "PNG/JPEG — used by the logo element in label templates",
       "scanMissAction": "Scan miss action",
       "missIgnore": "Ignore",
       "missAssign": "Assign to existing",

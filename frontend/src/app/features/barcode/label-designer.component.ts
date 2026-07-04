@@ -106,6 +106,17 @@ let elemCounter = 0;
           </button>
           <button mat-stroked-button type="button" (click)="preview()">{{ 'barcode.preview' | translate }}</button>
         </form>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="preview-product">
+          <mat-label>{{ 'barcode.previewProductId' | translate }}</mat-label>
+          <input matInput type="number" [value]="previewProductId()" (change)="previewProductId.set(+$any($event.target).value)" />
+        </mat-form-field>
+        @if (layoutWarnings().length) {
+        <div class="warn-box">
+          @for (w of layoutWarnings(); track w) {
+          <p>{{ w }}</p>
+          }
+        </div>
+        }
 
         <div
           class="canvas"
@@ -197,6 +208,17 @@ let elemCounter = 0;
         margin-top: 12px;
         border: 1px solid #ddd;
       }
+      .preview-product {
+        margin-top: 8px;
+        width: 200px;
+      }
+      .warn-box {
+        margin-top: 8px;
+        padding: 8px;
+        background: #fff3e0;
+        border-radius: 4px;
+        font-size: 13px;
+      }
     `,
   ],
 })
@@ -213,6 +235,8 @@ export class LabelDesignerComponent implements OnChanges {
   elements = signal<LabelElement[]>([]);
   selectedId = signal<string | null>(null);
   previewUrl = signal<string | null>(null);
+  previewProductId = signal<number | null>(null);
+  layoutWarnings = signal<string[]>([]);
 
   metaForm = this.fb.nonNullable.group({
     name: ['', Validators.required],
@@ -319,7 +343,14 @@ export class LabelDesignerComponent implements OnChanges {
     };
     this.barcode.saveTemplate(payload).subscribe({
       next: (t) => {
-        this.snack.open('Kaydedildi', undefined, { duration: 2000 });
+        const warnings = (t as LabelTemplate & { layout_warnings?: string[] }).layout_warnings;
+        if (warnings?.length) {
+          this.layoutWarnings.set(warnings);
+          this.snack.open('Kaydedildi (uyarılar var)', undefined, { duration: 3000 });
+        } else {
+          this.layoutWarnings.set([]);
+          this.snack.open('Kaydedildi', undefined, { duration: 2000 });
+        }
         this.saved.emit(t);
       },
       error: () => this.snack.open('Hata', undefined, { duration: 3000 }),
@@ -332,7 +363,8 @@ export class LabelDesignerComponent implements OnChanges {
       this.snack.open('Önce kaydedin', undefined, { duration: 2000 });
       return;
     }
-    this.barcode.previewTemplate(tplId).subscribe({
+    const pid = this.previewProductId() || undefined;
+    this.barcode.previewTemplate(tplId, pid).subscribe({
       next: (blob) => {
         const old = this.previewUrl();
         if (old) URL.revokeObjectURL(old);

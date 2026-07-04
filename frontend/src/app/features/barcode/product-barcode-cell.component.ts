@@ -1,12 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
-import { BarcodeService } from '../barcode/barcode.service';
+import { BarcodeService } from './barcode.service';
 
 @Component({
   selector: 'app-product-barcode-cell',
@@ -45,9 +45,11 @@ import { BarcodeService } from '../barcode/barcode.service';
     `,
   ],
 })
-export class ProductBarcodeCellComponent {
+export class ProductBarcodeCellComponent implements OnInit {
   @Input({ required: true }) productId!: number;
   @Input() barcode = '';
+  @Input() autoLoadPreview = false;
+  @Output() barcodeChanged = new EventEmitter<string>();
 
   private barcodeSvc = inject(BarcodeService);
   private auth = inject(AuthService);
@@ -58,6 +60,12 @@ export class ProductBarcodeCellComponent {
   private templateId: number | null = null;
 
   canGenerate = () => this.auth.hasPermission('barcode.generate');
+
+  ngOnInit(): void {
+    if (this.autoLoadPreview && this.barcode) {
+      this.loadPreview();
+    }
+  }
 
   loadPreview(): void {
     if (this.templateId && this.previewUrl()) return;
@@ -87,6 +95,7 @@ export class ProductBarcodeCellComponent {
     this.barcodeSvc.generateMissing(1, this.productId).subscribe({
       next: () => {
         this.generating.set(false);
+        this.barcodeChanged.emit('generated');
         window.location.reload();
       },
       error: () => this.generating.set(false),

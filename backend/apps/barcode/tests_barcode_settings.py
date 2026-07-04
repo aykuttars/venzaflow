@@ -121,3 +121,42 @@ class BarcodeSettingsTests(TestCase):
         self.assertEqual(res.status_code, 200)
         job.refresh_from_db()
         self.assertEqual(job.status, PrintJobStatus.FAILED)
+
+    def test_auto_generate_on_product_create(self):
+        settings = get_or_create_settings(self.tenant.id)
+        settings.auto_generate_on_create = True
+        settings.save()
+        product = Product.objects.create(
+            tenant=self.tenant,
+            category=self.product.category,
+            sku="AUTO-GEN-1",
+            name="Auto Gen",
+            barcode="",
+            unit_price=Decimal("10.00"),
+            is_active=True,
+        )
+        product.refresh_from_db()
+        self.assertTrue(product.barcode)
+        self.assertEqual(len(product.barcode), 13)
+
+    def test_print_batch_immediate_status(self):
+        tpl = LabelTemplate.objects.filter(tenant_id=self.tenant.id).first()
+        if not tpl:
+            tpl = LabelTemplate.objects.create(
+                tenant=self.tenant,
+                name="Batch",
+                width_mm=40,
+                height_mm=30,
+                layout_json=[],
+            )
+        res = self.client.post(
+            "/api/v1/barcode/print-jobs/batch/",
+            {
+                "template_id": tpl.pk,
+                "immediate": True,
+                "items": [{"product_id": self.product.pk, "copies": 1}],
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data[0]["status"], "sent")

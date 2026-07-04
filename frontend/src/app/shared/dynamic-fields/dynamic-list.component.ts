@@ -3,18 +3,24 @@ import { Component, Input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
+import { TranslateModule } from '@ngx-translate/core';
+
 import { ListColumnConfig, ProductRow } from './models';
+import { ProductBarcodeCellComponent } from '../../features/barcode/product-barcode-cell.component';
 
 @Component({
   selector: 'app-dynamic-product-list',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, TranslateModule, ProductBarcodeCellComponent],
   template: `
     <table class="bms-table">
       <thead>
         <tr>
           @for (col of visibleColumns; track col.field_key + col.field_source) {
           <th [style.width]="col.width || null">{{ col.label || col.field_key }}</th>
+          }
+          @if (showBarcodeColumn) {
+          <th>{{ 'barcode.labelColumn' | translate }}</th>
           }
           @if (showActions) {
           <th></th>
@@ -26,6 +32,15 @@ import { ListColumnConfig, ProductRow } from './models';
         <tr>
           @for (col of visibleColumns; track col.field_key + col.field_source) {
           <td>{{ cellValue(row, col) }}</td>
+          }
+          @if (showBarcodeColumn) {
+          <td>
+            <app-product-barcode-cell
+              [productId]="row.id"
+              [barcode]="row.barcode || ''"
+              [autoLoadPreview]="true"
+            />
+          </td>
           }
           @if (showActions) {
           <td style="text-align:right">
@@ -43,7 +58,7 @@ import { ListColumnConfig, ProductRow } from './models';
         </tr>
         } @empty {
         <tr>
-          <td [attr.colspan]="visibleColumns.length + (showActions ? 1 : 0)" class="empty-row">
+          <td [attr.colspan]="visibleColumns.length + (showBarcodeColumn ? 1 : 0) + (showActions ? 1 : 0)" class="empty-row">
             {{ emptyMessage }}
           </td>
         </tr>
@@ -65,6 +80,7 @@ export class DynamicProductListComponent {
   @Input() columns: ListColumnConfig[] = [];
   @Input() rows: ProductRow[] = [];
   @Input() showActions = true;
+  @Input() showBarcodeColumn = false;
   @Input() emptyMessage = '—';
   @Input() onView?: (row: ProductRow) => void;
   @Input() onEdit?: (row: ProductRow) => void;

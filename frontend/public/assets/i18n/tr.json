@@ -340,6 +340,8 @@
     "printImmediate": "Hemen yazdır (e-barcode)",
     "recentJobs": "Son yazdırma işleri",
     "generateChip": "Üret",
+    "labelColumn": "Etiket",
+    "previewProductId": "Önizleme ürün ID",
     "management": {
       "operations": "Operasyon profili",
       "scan": "Okuma davranışı",
@@ -348,6 +350,8 @@
       "roleTemplates": "Rol → şablon",
       "bulkGenerate": "Toplu barkod",
       "generateMissing": "Eksik barkodları üret",
+      "logo": "Tenant logosu",
+      "logoHint": "PNG/JPEG — etiket tasarımında logo elemanı için kullanılır",
       "scanMissAction": "Okunamayan barkod",
       "missIgnore": "Yoksay",
       "missAssign": "Mevcut ürüne ata",

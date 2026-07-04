@@ -43,7 +43,7 @@ def generate_missing_barcodes(
             candidate = generate_ean13(prefix)
             if candidate not in existing:
                 product.barcode = candidate
-                product.save(update_fields=["barcode", "updated_at"])
+                product.save(update_fields=["barcode"])
                 BarcodeAssignment.objects.update_or_create(
                     tenant_id=tenant_id,
                     product=product,

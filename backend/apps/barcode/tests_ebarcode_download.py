@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 
@@ -41,10 +42,16 @@ def _manifest_response():
     ARTIFACT_REGISTRY_USER="registry-user",
     ARTIFACT_REGISTRY_PASSWORD="registry-pass",
     ARTIFACT_REGISTRY_CACHE_TTL=300,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    },
 )
 class EbarcodeDownloadApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        cache.clear()
 
     @patch("apps.barcode.services.ebarcode_artifacts.resolve_manifest")
     @patch("apps.barcode.services.ebarcode_artifacts.fetch_tags")

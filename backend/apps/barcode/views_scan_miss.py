@@ -43,7 +43,7 @@ class ScanMissAssignView(APIView):
             return Response({"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
 
         product.barcode = code
-        product.save(update_fields=["barcode", "updated_at"])
+        product.save(update_fields=["barcode"])
         BarcodeAssignment.objects.update_or_create(
             tenant_id=tenant_id,
             product=product,
@@ -73,7 +73,7 @@ class ScanMissCreateView(APIView):
                     {"detail": "Barcode already exists."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            category = Category.objects.filter(tenant_id=tenant_id, is_active=True).first()
+            category = Category.objects.filter(tenant_id=tenant_id).first()
             if not category:
                 return Response(
                     {"detail": "No category available."},
@@ -133,7 +133,6 @@ class ScanMissCreateView(APIView):
             product.cost_price = ser.validated_data["cost_price"]
             updates.append("cost_price")
         if updates:
-            updates.append("updated_at")
             product.save(update_fields=updates)
 
         from apps.barcode.services.lookup import lookup_barcode

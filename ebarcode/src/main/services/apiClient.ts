@@ -127,9 +127,10 @@ class ApiClient {
 
   async listQueuedJobs(): Promise<PrintJobRow[]> {
     const res = await this.request<{ results?: PrintJobRow[] } | PrintJobRow[]>(
-      '/barcode/print-jobs/?status=queued'
+      '/barcode/print-jobs/'
     )
-    return Array.isArray(res) ? res : (res.results ?? [])
+    const list = Array.isArray(res) ? res : (res.results ?? [])
+    return list.filter((j) => j.status === 'queued' || j.status === 'sent')
   }
 
   jobTspl(jobId: number): Promise<string> {

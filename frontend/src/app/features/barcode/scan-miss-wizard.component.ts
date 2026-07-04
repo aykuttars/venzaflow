@@ -5,8 +5,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatStepperModule } from '@angular/material/stepper';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -27,8 +25,6 @@ export interface ScanMissWizardData {
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
-    MatStepperModule,
     MatSnackBarModule,
     TranslateModule,
   ],
@@ -36,41 +32,31 @@ export interface ScanMissWizardData {
     <h2 mat-dialog-title>{{ 'barcode.scanMiss.title' | translate }}</h2>
     <mat-dialog-content>
       @if (data.action === 'create_wizard') {
-      <mat-stepper linear>
-        <mat-step [stepControl]="step1Form">
-          <form [formGroup]="step1Form">
-            <p>{{ 'barcode.scanMiss.step1Hint' | translate }}</p>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-              <mat-label>{{ 'barcode.scanMiss.barcode' | translate }}</mat-label>
-              <input matInput formControlName="code" readonly />
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-              <mat-label>{{ 'barcode.scanMiss.productName' | translate }}</mat-label>
-              <input matInput formControlName="name" />
-            </mat-form-field>
-            <button mat-flat-button color="primary" type="button" (click)="submitStep1()" [disabled]="step1Form.invalid">
-              {{ 'common.next' | translate }}
-            </button>
-          </form>
-        </mat-step>
-        <mat-step>
-          <p>{{ 'barcode.scanMiss.step2Hint' | translate }}</p>
-          <form [formGroup]="step2Form">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-              <mat-label>{{ 'barcode.price' | translate }}</mat-label>
-              <input matInput type="number" formControlName="unit_price" />
-            </mat-form-field>
-            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
-              <mat-label>{{ 'products.cost' | translate }}</mat-label>
-              <input matInput type="number" formControlName="cost_price" />
-            </mat-form-field>
-          </form>
-          <div class="actions">
-            <button mat-stroked-button type="button" (click)="skipStep2()">{{ 'barcode.scanMiss.skip' | translate }}</button>
-            <button mat-flat-button color="primary" type="button" (click)="submitStep2()">{{ 'common.save' | translate }}</button>
-          </div>
-        </mat-step>
-      </mat-stepper>
+        @if (step() === 1) {
+        <form [formGroup]="step1Form">
+          <p>{{ 'barcode.scanMiss.step1Hint' | translate }}</p>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>{{ 'barcode.scanMiss.barcode' | translate }}</mat-label>
+            <input matInput formControlName="code" readonly />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>{{ 'barcode.scanMiss.productName' | translate }}</mat-label>
+            <input matInput formControlName="name" />
+          </mat-form-field>
+        </form>
+        } @else {
+        <p>{{ 'barcode.scanMiss.step2Hint' | translate }}</p>
+        <form [formGroup]="step2Form">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>{{ 'barcode.price' | translate }}</mat-label>
+            <input matInput type="number" formControlName="unit_price" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="full">
+            <mat-label>{{ 'products.cost' | translate }}</mat-label>
+            <input matInput type="number" formControlName="cost_price" />
+          </mat-form-field>
+        </form>
+        }
       } @else {
       <p>{{ 'barcode.scanMiss.assignHint' | translate }}</p>
       <form [formGroup]="assignForm">
@@ -87,7 +73,14 @@ export interface ScanMissWizardData {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button type="button" (click)="dialogRef.close()">{{ 'common.cancel' | translate }}</button>
-      @if (data.action === 'assign_existing') {
+      @if (data.action === 'create_wizard' && step() === 1) {
+      <button mat-flat-button color="primary" type="button" (click)="submitStep1()" [disabled]="step1Form.invalid || busy()">
+        {{ 'common.next' | translate }}
+      </button>
+      } @else if (data.action === 'create_wizard' && step() === 2) {
+      <button mat-stroked-button type="button" (click)="skipStep2()">{{ 'barcode.scanMiss.skip' | translate }}</button>
+      <button mat-flat-button color="primary" type="button" (click)="submitStep2()" [disabled]="busy()">{{ 'common.save' | translate }}</button>
+      } @else if (data.action === 'assign_existing') {
       <button mat-flat-button color="primary" type="button" (click)="submitAssign()" [disabled]="assignForm.invalid">
         {{ 'barcode.scanMiss.assign' | translate }}
       </button>
@@ -100,11 +93,6 @@ export interface ScanMissWizardData {
         width: 100%;
         display: block;
       }
-      .actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 12px;
-      }
     `,
   ],
 })
@@ -115,6 +103,8 @@ export class ScanMissWizardComponent {
   private barcode = inject(BarcodeService);
   private snack = inject(MatSnackBar);
 
+  step = signal(1);
+  busy = signal(false);
   productId = signal<number | null>(null);
 
   step1Form = this.fb.nonNullable.group({
@@ -134,23 +124,32 @@ export class ScanMissWizardComponent {
 
   submitStep1(): void {
     if (this.step1Form.invalid) return;
+    this.busy.set(true);
     const v = this.step1Form.getRawValue();
     this.barcode.scanMissCreateStep1(v.code, v.name).subscribe({
       next: (res) => {
         this.productId.set(res.product_id);
-        this.snack.open('Ürün oluşturuldu', undefined, { duration: 2000 });
+        this.step.set(2);
+        this.busy.set(false);
       },
-      error: () => this.snack.open('Hata', undefined, { duration: 3000 }),
+      error: () => {
+        this.snack.open('Hata', undefined, { duration: 3000 });
+        this.busy.set(false);
+      },
     });
   }
 
   submitStep2(): void {
     const pid = this.productId();
     if (!pid) return;
+    this.busy.set(true);
     const v = this.step2Form.getRawValue();
     this.barcode.scanMissCreateStep2(pid, v).subscribe({
       next: (res) => this.dialogRef.close(res.product as BarcodeLookupResult),
-      error: () => this.snack.open('Hata', undefined, { duration: 3000 }),
+      error: () => {
+        this.snack.open('Hata', undefined, { duration: 3000 });
+        this.busy.set(false);
+      },
     });
   }
 

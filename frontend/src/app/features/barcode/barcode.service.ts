@@ -36,6 +36,7 @@ export interface LabelTemplate {
   default_key: string;
   allowed_department_keys?: string[];
   is_active: boolean;
+  layout_warnings?: string[];
 }
 
 export interface BarcodeSettings {
@@ -178,11 +179,22 @@ export class BarcodeService {
     });
   }
 
-  createPrintBatch(templateId: number, items: Array<{ product_id: number; copies: number }>): Observable<PrintJob[]> {
+  createPrintBatch(
+    templateId: number,
+    items: Array<{ product_id: number; copies: number }>,
+    immediate = false
+  ): Observable<PrintJob[]> {
     return this.http.post<PrintJob[]>(`${this.base}/print-jobs/batch/`, {
       template_id: templateId,
       items,
+      immediate,
     });
+  }
+
+  uploadLogo(file: File): Observable<BarcodeSettings> {
+    const fd = new FormData();
+    fd.append('label_logo', file);
+    return this.http.patch<BarcodeSettings>(`${this.base}/settings/`, fd);
   }
 
   listPrintJobs(): Observable<PrintJob[]> {

@@ -119,6 +119,15 @@ const DEPARTMENTS = ['admin', 'sales', 'warehouse'] as const;
         </section>
 
         <section>
+          <h3>{{ 'barcode.management.logo' | translate }}</h3>
+          @if (settings()?.label_logo_url) {
+          <img [src]="settings()!.label_logo_url!" alt="logo" class="logo-preview" />
+          }
+          <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onLogoSelected($event)" />
+          <p class="hint">{{ 'barcode.management.logoHint' | translate }}</p>
+        </section>
+
+        <section>
           <h3>{{ 'barcode.management.roleTemplates' | translate }}</h3>
           <table class="bms-table">
             <thead>
@@ -187,6 +196,15 @@ const DEPARTMENTS = ['admin', 'sales', 'warehouse'] as const;
       }
       .actions {
         margin-top: 16px;
+      }
+      .logo-preview {
+        max-height: 64px;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .hint {
+        font-size: 13px;
+        color: #666;
       }
     `,
   ],
@@ -292,6 +310,19 @@ export class BarcodeManagementComponent implements OnInit {
   bulkGenerate(): void {
     this.barcode.generateMissing(500).subscribe({
       next: (r) => this.snack.open(`${r.generated} barkod üretildi`, undefined, { duration: 3000 }),
+    });
+  }
+
+  onLogoSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.barcode.uploadLogo(file).subscribe({
+      next: (s) => {
+        this.settings.set(s);
+        this.snack.open('Logo yüklendi', undefined, { duration: 2000 });
+      },
+      error: () => this.snack.open('Logo yüklenemedi', undefined, { duration: 3000 }),
     });
   }
 }
