@@ -23,11 +23,28 @@ e-imza uygulamasından **ayrı** bir Electron masaüstü köprüsü. Termal yaz�
 
 ## Geliştirme
 
+**API her zaman remote** (production). Local sadece uygulama arayüzü çalışır.
+
+### Mac / Windows (Electron — yazıcı + okuyucu)
+
 ```bash
 cd ebarcode
 npm install
 npm run dev
 ```
+
+`.env.development` varsayılan: `EBARCODE_API_BASE_URL=https://venzaflow-api.aykut.in`
+
+### Headless VM veya sadece UI testi (tarayıcı)
+
+Electron GUI için ekran gerekir (`Missing X server`). VM’de veya sadece login/UI denemek için:
+
+```bash
+npm run dev:web
+# http://localhost:5173 — API proxy ile production’a gider
+```
+
+Yazıcı/okuyucu bu modda çalışmaz; tam test için Mac’te `npm run dev` veya kurulu `.app` kullanın.
 
 ## Release (e-imza ile aynı hatt)
 
