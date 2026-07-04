@@ -104,8 +104,7 @@ class EbarcodeDownloadApiTests(TestCase):
 
     @patch("apps.barcode.services.ebarcode_artifacts.stream_blob")
     @patch("apps.barcode.services.ebarcode_artifacts.resolve_download")
-    def test_download_streams_installer(self, resolve_download, stream_blob):
-        self.client.force_authenticate(user=self.user)
+    def test_download_streams_installer_without_auth(self, resolve_download, stream_blob):
         resolve_download.return_value = (
             "1.0.1-win-x64-venzaflow-ebarcode-1.0.1-setup-x64.exe",
             "sha256:abc123",
@@ -122,12 +121,7 @@ class EbarcodeDownloadApiTests(TestCase):
         response = self.client.get("/api/v1/barcode/ebarcode/releases/")
         self.assertEqual(response.status_code, 401)
 
-    def test_download_requires_authentication(self):
-        response = self.client.get("/api/v1/barcode/ebarcode/download/windows/")
-        self.assertEqual(response.status_code, 401)
-
     def test_download_unknown_platform_404(self):
-        self.client.force_authenticate(user=self.user)
         response = self.client.get("/api/v1/barcode/ebarcode/download/unknown-os/")
         self.assertEqual(response.status_code, 404)
 

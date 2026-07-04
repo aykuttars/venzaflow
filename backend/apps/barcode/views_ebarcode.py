@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.http import Http404, StreamingHttpResponse
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,11 +25,10 @@ class EbarcodeReleasesView(APIView):
 
 
 class EbarcodeDownloadView(APIView):
-    """Stream a released installer from the artifact registry (barcode module users only)."""
+    """Stream a released installer (public — browser downloads cannot send JWT)."""
 
-    permission_classes = [HasModule, HasViewPermission]
-    required_module = "barcode"
-    required_permission = "barcode.scan"
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def get(self, request, slug: str):
         if slug not in ebarcode_artifacts.PLATFORM_BY_SLUG:
