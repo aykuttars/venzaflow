@@ -54,6 +54,8 @@ Etiketler mevcut yazdırma kuyruğu (`PrintJob`) üzerinden XP-P328B / TSPL ile 
 
 Varsayılan şablonlar: `service_intake_shop` (servis nüshası), `service_intake_customer` (müşteri nüshası).
 
+**Şablon ataması (web):** Barkod → Yönetim → **Servis teslim etiketleri** bölümünden servis ve müşteri nüshası için ayrı etiket şablonu seçilir. Layout tasarımı Barkod → **Etiket şablonları** sekmesinde yapılır (`ticket.*` bağlama alanları). Atama yapılmazsa sistem varsayılan şablonları kullanılır; her teslim almada **her iki nüsha** basılır.
+
 ## Demo tenant 4500
 
 ```text

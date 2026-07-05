@@ -372,6 +372,7 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "barcode.print",
         "barcode.labels",
         "barcode.generate",
+        "customers.read",
         "service.read",
         "service.write",
     ]
@@ -384,6 +385,7 @@ def seed_hardware_retail_tenant(*, payment_currency=None) -> Tenant:
         "barcode.print",
         "barcode.labels",
         "barcode.generate",
+        "customers.read",
         "service.read",
         "service.write",
     ]

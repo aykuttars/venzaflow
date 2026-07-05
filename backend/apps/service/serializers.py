@@ -96,6 +96,8 @@ class ServiceTicketSerializer(serializers.ModelSerializer):
 
 class ServiceTicketCreateSerializer(serializers.ModelSerializer):
     print_intake = serializers.BooleanField(default=True, write_only=True)
+    customer_name = serializers.CharField(required=False, allow_blank=True, default="")
+    customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
 
     class Meta:
         model = ServiceTicket

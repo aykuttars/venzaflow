@@ -40,6 +40,7 @@ export type MessageKey =
   | 'dashboard.settings.port'
   | 'dashboard.settings.portDefault'
   | 'dashboard.settings.autoPoll'
+  | 'dashboard.settings.autoPollHint'
   | 'dashboard.settings.pollInterval'
   | 'dashboard.settings.save'
   | 'dashboard.settings.testLabel'
@@ -67,15 +68,26 @@ export type MessageKey =
   | 'service.tab.intake'
   | 'service.tab.lookup'
   | 'service.intake.hint'
+  | 'service.intake.quick'
+  | 'service.intake.existing'
   | 'service.intake.submit'
+  | 'service.field.intakeMode'
+  | 'service.field.customerSearch'
+  | 'service.field.customerSearchPlaceholder'
+  | 'service.field.customerSearchMin'
+  | 'service.field.customerSearching'
+  | 'service.field.clearCustomer'
   | 'service.lookup.hint'
   | 'service.lookup.placeholder'
+  | 'service.lookup.searching'
+  | 'service.lookup.minChars'
   | 'service.lookup.notFound'
   | 'service.lookup.reprint'
   | 'service.deliver.title'
   | 'service.deliver.submit'
   | 'service.deliver.already'
   | 'service.field.customerName'
+  | 'service.field.customerLastName'
   | 'service.field.phone'
   | 'service.field.brand'
   | 'service.field.model'
@@ -85,6 +97,19 @@ export type MessageKey =
   | 'service.field.estimated'
   | 'service.field.finalPrice'
   | 'service.field.payment'
+  | 'service.field.diagnosis'
+  | 'service.actions.diagnosis'
+  | 'service.actions.startDiagnosis'
+  | 'service.actions.approve'
+  | 'service.actions.reject'
+  | 'service.actions.markReady'
+  | 'service.actions.saveDiagnosis'
+  | 'service.log.transition'
+  | 'service.log.transitionError'
+  | 'service.log.diagnosisSaved'
+  | 'service.log.diagnosisError'
+  | 'service.log.approved'
+  | 'service.log.approveError'
   | 'service.payment.cash'
   | 'service.payment.card'
   | 'service.payment.iban'
@@ -157,6 +182,8 @@ const tr: Record<MessageKey, string> = {
   'dashboard.settings.port': 'Seri / port',
   'dashboard.settings.portDefault': 'Varsayılan sistem yazıcısı',
   'dashboard.settings.autoPoll': 'Otomatik kuyruk kontrolü',
+  'dashboard.settings.autoPollHint':
+    'Açıkken yazdırma kuyruğu arka planda kontrol edilir; yeni işler otomatik yazıcıya gönderilir.',
   'dashboard.settings.pollInterval': 'Kontrol aralığı (sn)',
   'dashboard.settings.save': 'Kaydet',
   'dashboard.settings.testLabel': 'Test etiketi',
@@ -185,15 +212,26 @@ const tr: Record<MessageKey, string> = {
   'service.tab.intake': 'Teslim al',
   'service.tab.lookup': 'Ara / Teslim et',
   'service.intake.hint': 'Cihaz teslim alma — kayıt oluşturulunca servis ve müşteri etiketleri yazdırma kuyruğuna eklenir.',
+  'service.intake.quick': 'Hızlı (ad + telefon)',
+  'service.intake.existing': 'Kayıtlı müşteri',
   'service.intake.submit': 'Kaydet ve etiket yazdır',
-  'service.lookup.hint': 'Kayıt numarası (SR-…) veya telefon okutun / yazın.',
-  'service.lookup.placeholder': 'Kayıt no veya telefon…',
+  'service.field.intakeMode': 'Müşteri girişi',
+  'service.field.customerSearch': 'Müşteri ara',
+  'service.field.customerSearchPlaceholder': 'Ad, telefon veya e-posta…',
+  'service.field.customerSearchMin': 'Aramak için en az {count} karakter yazın',
+  'service.field.customerSearching': 'Müşteriler aranıyor…',
+  'service.field.clearCustomer': 'Seçimi temizle',
+  'service.lookup.hint': 'Kayıt no (SR-…), telefon, ad veya ad soyad ile arayın; listeden seçin.',
+  'service.lookup.placeholder': 'Kayıt no, telefon veya müşteri adı…',
+  'service.lookup.searching': 'Kayıtlar aranıyor…',
+  'service.lookup.minChars': 'Aramak için en az {count} karakter yazın',
   'service.lookup.notFound': 'Kayıt bulunamadı — «{code}»',
   'service.lookup.reprint': 'Teslim etiketlerini yeniden yazdır',
   'service.deliver.title': 'Teslim ve tahsilat',
   'service.deliver.submit': 'Teslim et',
   'service.deliver.already': 'Bu kayıt zaten teslim edilmiş.',
   'service.field.customerName': 'Müşteri adı',
+  'service.field.customerLastName': 'Müşteri soyadı',
   'service.field.phone': 'Telefon',
   'service.field.brand': 'Marka',
   'service.field.model': 'Model',
@@ -203,6 +241,19 @@ const tr: Record<MessageKey, string> = {
   'service.field.estimated': 'Tahmini ücret',
   'service.field.finalPrice': 'Tahsil edilen tutar (₺)',
   'service.field.payment': 'Ödeme yöntemi',
+  'service.field.diagnosis': 'Teşhis',
+  'service.actions.diagnosis': 'Teşhis gir',
+  'service.actions.startDiagnosis': 'Teşhise başla',
+  'service.actions.approve': 'Müşteri onayladı',
+  'service.actions.reject': 'Red / iptal',
+  'service.actions.markReady': 'Tamir bitti',
+  'service.actions.saveDiagnosis': 'Teşhisi kaydet',
+  'service.log.transition': 'Durum güncellendi: {number}',
+  'service.log.transitionError': 'Durum hatası: {error}',
+  'service.log.diagnosisSaved': 'Teşhis kaydedildi: {number}',
+  'service.log.diagnosisError': 'Teşhis hatası: {error}',
+  'service.log.approved': 'Onaylandı: {number}',
+  'service.log.approveError': 'Onay hatası: {error}',
   'service.payment.cash': 'Nakit',
   'service.payment.card': 'Kart',
   'service.payment.iban': 'IBAN / Havale',
@@ -277,6 +328,8 @@ const en: Record<MessageKey, string> = {
   'dashboard.settings.port': 'Serial / port',
   'dashboard.settings.portDefault': 'Default system printer',
   'dashboard.settings.autoPoll': 'Automatic queue polling',
+  'dashboard.settings.autoPollHint':
+    'When enabled, the print queue is checked in the background and new jobs are sent to the printer.',
   'dashboard.settings.pollInterval': 'Poll interval (sec)',
   'dashboard.settings.save': 'Save',
   'dashboard.settings.testLabel': 'Test label',
@@ -305,15 +358,26 @@ const en: Record<MessageKey, string> = {
   'service.tab.intake': 'Intake',
   'service.tab.lookup': 'Lookup / Deliver',
   'service.intake.hint': 'Device intake — shop and customer labels are queued for printing after save.',
+  'service.intake.quick': 'Quick (name + phone)',
+  'service.intake.existing': 'Existing customer',
   'service.intake.submit': 'Save & print labels',
-  'service.lookup.hint': 'Scan or enter ticket number (SR-…) or phone.',
-  'service.lookup.placeholder': 'Ticket # or phone…',
+  'service.field.intakeMode': 'Customer entry',
+  'service.field.customerSearch': 'Search customer',
+  'service.field.customerSearchPlaceholder': 'Name, phone or email…',
+  'service.field.customerSearchMin': 'Type at least {count} characters to search',
+  'service.field.customerSearching': 'Searching customers…',
+  'service.field.clearCustomer': 'Clear selection',
+  'service.lookup.hint': 'Search by ticket # (SR-…), phone, or customer name; pick from the list.',
+  'service.lookup.placeholder': 'Ticket #, phone or customer name…',
+  'service.lookup.searching': 'Searching tickets…',
+  'service.lookup.minChars': 'Type at least {count} characters to search',
   'service.lookup.notFound': 'Ticket not found — «{code}»',
   'service.lookup.reprint': 'Reprint intake labels',
   'service.deliver.title': 'Pickup & payment',
   'service.deliver.submit': 'Deliver',
   'service.deliver.already': 'This ticket is already delivered.',
-  'service.field.customerName': 'Customer name',
+  'service.field.customerName': 'First name',
+  'service.field.customerLastName': 'Last name',
   'service.field.phone': 'Phone',
   'service.field.brand': 'Brand',
   'service.field.model': 'Model',
@@ -323,6 +387,19 @@ const en: Record<MessageKey, string> = {
   'service.field.estimated': 'Estimated price',
   'service.field.finalPrice': 'Amount collected (₺)',
   'service.field.payment': 'Payment method',
+  'service.field.diagnosis': 'Diagnosis',
+  'service.actions.diagnosis': 'Enter diagnosis',
+  'service.actions.startDiagnosis': 'Start diagnosis',
+  'service.actions.approve': 'Customer approved',
+  'service.actions.reject': 'Reject / cancel',
+  'service.actions.markReady': 'Repair complete',
+  'service.actions.saveDiagnosis': 'Save diagnosis',
+  'service.log.transition': 'Status updated: {number}',
+  'service.log.transitionError': 'Status error: {error}',
+  'service.log.diagnosisSaved': 'Diagnosis saved: {number}',
+  'service.log.diagnosisError': 'Diagnosis error: {error}',
+  'service.log.approved': 'Approved: {number}',
+  'service.log.approveError': 'Approval error: {error}',
   'service.payment.cash': 'Cash',
   'service.payment.card': 'Card',
   'service.payment.iban': 'Bank transfer',

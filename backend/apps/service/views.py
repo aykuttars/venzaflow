@@ -3,9 +3,7 @@ from __future__ import annotations
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from apps.accounts.permissions import HasModule, HasViewPermission
 from apps.common.viewsets import TenantScopedViewSet
 from apps.service.models import ServiceTicket, ServiceTicketStatus
 from apps.service.serializers import (
@@ -17,6 +15,7 @@ from apps.service.serializers import (
     ServiceTicketTransitionSerializer,
 )
 from apps.service.services.intake_print import enqueue_intake_labels
+from apps.service.services.lookup import lookup_service_tickets
 from apps.service.services.transitions import TransitionError, approve_quote, deliver_ticket, transition_ticket
 
 
@@ -38,6 +37,7 @@ class ServiceTicketViewSet(TenantScopedViewSet):
         "deliver": "service.write",
         "print_intake": "service.write",
         "dashboard": "service.read",
+        "lookup": "service.read",
     }
     search_fields = ("ticket_number", "customer_name", "customer_phone", "device_serial")
     ordering_fields = ("received_at", "status", "ticket_number")
@@ -158,23 +158,16 @@ class ServiceTicketViewSet(TenantScopedViewSet):
             }
         )
 
-
-class ServiceTicketLookupView(APIView):
-    permission_classes = [HasModule, HasViewPermission]
-    required_module = "service"
-    required_permission = "service.read"
-
-    def get(self, request):
+    @action(detail=False, methods=["get"], url_path="lookup")
+    def lookup(self, request):
         q = (request.query_params.get("q") or "").strip()
         if not q:
             return Response({"detail": "q is required."}, status=status.HTTP_400_BAD_REQUEST)
-        tenant_id = request.user.tenant_id
-        qs = ServiceTicket.objects.filter(tenant_id=tenant_id)
-        ticket = qs.filter(ticket_number__iexact=q).first()
-        if not ticket and q.isdigit():
-            ticket = qs.filter(pk=int(q)).first()
-        if not ticket:
-            ticket = qs.filter(customer_phone__icontains=q).order_by("-received_at").first()
-        if not ticket:
-            return Response({"detail": "Not found.", "found": False}, status=status.HTTP_404_NOT_FOUND)
-        return Response({"found": True, "ticket": ServiceTicketLookupSerializer(ticket).data})
+        tickets = lookup_service_tickets(request.user.tenant_id, q)
+        if not tickets:
+            return Response({"found": False, "tickets": [], "count": 0})
+        data = ServiceTicketLookupSerializer(tickets, many=True).data
+        payload = {"found": True, "tickets": data, "count": len(data)}
+        if len(data) == 1:
+            payload["ticket"] = data[0]
+        return Response(payload)

@@ -128,6 +128,29 @@ const DEPARTMENTS = ['admin', 'sales', 'warehouse'] as const;
         </section>
 
         <section>
+          <h3>{{ 'barcode.management.serviceIntake' | translate }}</h3>
+          <p class="hint">{{ 'barcode.management.serviceIntakeHint' | translate }}</p>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ 'barcode.management.serviceShopTemplate' | translate }}</mat-label>
+            <mat-select formControlName="service_intake_shop_template">
+              <mat-option [value]="null">{{ 'barcode.management.serviceTemplateDefault' | translate }}</mat-option>
+              @for (t of templates(); track t.id) {
+              <mat-option [value]="t.id">{{ t.name }} ({{ t.width_mm }}×{{ t.height_mm }} mm)</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ 'barcode.management.serviceCustomerTemplate' | translate }}</mat-label>
+            <mat-select formControlName="service_intake_customer_template">
+              <mat-option [value]="null">{{ 'barcode.management.serviceTemplateDefault' | translate }}</mat-option>
+              @for (t of templates(); track t.id) {
+              <mat-option [value]="t.id">{{ t.name }} ({{ t.width_mm }}×{{ t.height_mm }} mm)</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </section>
+
+        <section>
           <h3>{{ 'barcode.management.logo' | translate }}</h3>
           @if (settings()?.label_logo_url) {
           <img [src]="settings()!.label_logo_url!" alt="logo" class="logo-preview" />
@@ -240,6 +263,8 @@ export class BarcodeManagementComponent implements OnInit {
     default_copies: [1],
     default_transfer_qty: [1],
     default_label_template: this.fb.control<number | null>(null),
+    service_intake_shop_template: this.fb.control<number | null>(null),
+    service_intake_customer_template: this.fb.control<number | null>(null),
     flag_sales_stock_deduction: [true],
     flag_warehouse_vitrin: [true],
     flag_retail_labeling: [true],
@@ -262,6 +287,8 @@ export class BarcodeManagementComponent implements OnInit {
         default_copies: s.default_copies,
         default_transfer_qty: s.default_transfer_qty,
         default_label_template: s.default_label_template ?? null,
+        service_intake_shop_template: s.service_intake_shop_template ?? null,
+        service_intake_customer_template: s.service_intake_customer_template ?? null,
         flag_sales_stock_deduction: !!flags['sales_stock_deduction'],
         flag_warehouse_vitrin: !!flags['warehouse_vitrin'],
         flag_retail_labeling: !!flags['retail_labeling'],
@@ -302,6 +329,8 @@ export class BarcodeManagementComponent implements OnInit {
       default_copies: v.default_copies!,
       default_transfer_qty: v.default_transfer_qty!,
       default_label_template: v.default_label_template ?? null,
+      service_intake_shop_template: v.service_intake_shop_template ?? null,
+      service_intake_customer_template: v.service_intake_customer_template ?? null,
       operation_flags: {
         sales_stock_deduction: !!v.flag_sales_stock_deduction,
         warehouse_vitrin: !!v.flag_warehouse_vitrin,

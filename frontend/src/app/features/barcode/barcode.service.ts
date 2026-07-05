@@ -59,6 +59,8 @@ export interface BarcodeSettings {
   default_copies: number;
   default_transfer_qty: number;
   default_label_template?: number | null;
+  service_intake_shop_template?: number | null;
+  service_intake_customer_template?: number | null;
   printer_model: string;
   printer_profile_json: Record<string, unknown>;
   label_logo_url?: string | null;

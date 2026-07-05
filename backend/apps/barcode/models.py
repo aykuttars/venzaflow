@@ -59,6 +59,20 @@ class BarcodeSettings(models.Model):
         blank=True,
         related_name="tenant_defaults",
     )
+    service_intake_shop_template = models.ForeignKey(
+        "LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="service_intake_shop_defaults",
+    )
+    service_intake_customer_template = models.ForeignKey(
+        "LabelTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="service_intake_customer_defaults",
+    )
     operation_flags = models.JSONField(default=dict)
     stock_deduction_mode = models.CharField(
         max_length=32,

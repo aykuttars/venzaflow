@@ -138,7 +138,10 @@ const STATUS_FILTERS: Array<ServiceTicketStatus | ''> = [
             [allowNull]="true"
           />
           } @else {
-          <mat-form-field appearance="outline"><mat-label>{{ 'service.customerName' | translate }}</mat-label><input matInput formControlName="customer_name" /></mat-form-field>
+          <div class="row">
+            <mat-form-field appearance="outline"><mat-label>{{ 'service.customerFirstName' | translate }}</mat-label><input matInput formControlName="customer_first_name" /></mat-form-field>
+            <mat-form-field appearance="outline"><mat-label>{{ 'service.customerLastName' | translate }}</mat-label><input matInput formControlName="customer_last_name" /></mat-form-field>
+          </div>
           <mat-form-field appearance="outline"><mat-label>{{ 'service.phone' | translate }}</mat-label><input matInput formControlName="customer_phone" required /></mat-form-field>
           }
           <div class="row">
@@ -286,7 +289,8 @@ export class ServiceComponent implements OnInit {
   intakeForm = this.fb.group({
     mode: ['quick'],
     customer: this.fb.control<number | null>(null),
-    customer_name: ['', Validators.required],
+    customer_first_name: ['', Validators.required],
+    customer_last_name: [''],
     customer_phone: ['', phoneRequiredValidator()],
     device_brand: [''],
     device_model: [''],
@@ -307,16 +311,16 @@ export class ServiceComponent implements OnInit {
   ngOnInit(): void {
     this.reload();
     this.intakeForm.get('mode')?.valueChanges.subscribe((mode) => {
-      const name = this.intakeForm.get('customer_name');
+      const firstName = this.intakeForm.get('customer_first_name');
       const phone = this.intakeForm.get('customer_phone');
       if (mode === 'existing') {
-        name?.clearValidators();
+        firstName?.clearValidators();
         phone?.clearValidators();
       } else {
-        name?.setValidators([Validators.required]);
+        firstName?.setValidators([Validators.required]);
         phone?.setValidators([phoneRequiredValidator()]);
       }
-      name?.updateValueAndValidity();
+      firstName?.updateValueAndValidity();
       phone?.updateValueAndValidity();
     });
   }
@@ -340,7 +344,8 @@ export class ServiceComponent implements OnInit {
     this.intakeForm.reset({
       mode: 'quick',
       customer: null,
-      customer_name: '',
+      customer_first_name: '',
+      customer_last_name: '',
       customer_phone: '',
       device_brand: '',
       device_model: '',
@@ -366,7 +371,10 @@ export class ServiceComponent implements OnInit {
     if (v.mode === 'existing' && v.customer) {
       payload['customer'] = v.customer;
     } else {
-      payload['customer_name'] = v.customer_name;
+      payload['customer_name'] = [v.customer_first_name, v.customer_last_name]
+        .map((s) => (s || '').trim())
+        .filter(Boolean)
+        .join(' ');
       payload['customer_phone'] = v.customer_phone;
     }
     this.svc.create(payload).subscribe({

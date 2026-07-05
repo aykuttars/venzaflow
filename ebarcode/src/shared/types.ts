@@ -59,6 +59,7 @@ export interface ServiceTicketRow {
   customer_phone: string
   device_summary: string
   status: string
+  diagnosis?: string
   estimated_price: string | null
   final_price: string | null
   received_at: string
@@ -66,7 +67,18 @@ export interface ServiceTicketRow {
 
 export interface ServiceTicketLookupResult {
   found: boolean
+  tickets?: ServiceTicketRow[]
   ticket?: ServiceTicketRow
+  count?: number
+}
+
+export interface CustomerRow {
+  id: number
+  first_name: string
+  last_name: string
+  full_name: string
+  phone: string
+  email: string
 }
 
 export interface PrintJobRow {
@@ -83,6 +95,7 @@ export interface LabelTemplateRow {
   name: string
   width_mm: string
   height_mm: string
+  default_key?: string
 }
 
 export const SESSION_EXPIRED_MESSAGE = 'Oturum süresi doldu. Lütfen tekrar giriş yapın.'

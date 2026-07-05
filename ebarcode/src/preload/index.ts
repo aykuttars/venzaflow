@@ -34,8 +34,9 @@ const api = {
   },
   service: {
     createTicket: (payload: {
-      customer_name: string
-      customer_phone: string
+      customer?: number
+      customer_name?: string
+      customer_phone?: string
       device_brand?: string
       device_model?: string
       device_serial?: string
@@ -43,11 +44,22 @@ const api = {
       print_intake?: boolean
     }) => invoke(IPC.SERVICE_CREATE_TICKET, payload),
     lookup: (q: string) => invoke(IPC.SERVICE_LOOKUP, q),
+    transition: (id: number, payload: { status: string; note?: string }) =>
+      invoke(IPC.SERVICE_TRANSITION, { id, ...payload }),
+    submitDiagnosis: (
+      id: number,
+      payload: { diagnosis: string; estimated_price: string; note?: string }
+    ) => invoke(IPC.SERVICE_SUBMIT_DIAGNOSIS, { id, ...payload }),
+    approveQuote: (id: number, note?: string) =>
+      invoke(IPC.SERVICE_APPROVE_QUOTE, { id, note }),
     deliver: (
       id: number,
       payload: { final_price: string; payment_method: string; note?: string }
     ) => invoke(IPC.SERVICE_DELIVER, { id, ...payload }),
     printIntake: (id: number) => invoke(IPC.SERVICE_PRINT_INTAKE, id)
+  },
+  customers: {
+    search: (q: string) => invoke(IPC.CUSTOMERS_SEARCH, q)
   },
   printer: {
     listPorts: () => invoke<string[]>(IPC.PRINTER_LIST_PORTS),

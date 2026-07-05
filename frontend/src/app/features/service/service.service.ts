@@ -60,6 +60,19 @@ export interface ServiceDashboard {
 
 export interface ServiceTicketLookup {
   found: boolean;
+  count?: number;
+  tickets?: Pick<
+    ServiceTicket,
+    | 'id'
+    | 'ticket_number'
+    | 'customer_name'
+    | 'customer_phone'
+    | 'device_summary'
+    | 'status'
+    | 'estimated_price'
+    | 'final_price'
+    | 'received_at'
+  >[];
   ticket?: Pick<
     ServiceTicket,
     | 'id'

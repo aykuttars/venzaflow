@@ -18,6 +18,8 @@ class BarcodeSettingsSerializer(serializers.ModelSerializer):
             "ean_prefix",
             "auto_generate_on_create",
             "default_label_template",
+            "service_intake_shop_template",
+            "service_intake_customer_template",
             "operation_flags",
             "stock_deduction_mode",
             "print_mode",

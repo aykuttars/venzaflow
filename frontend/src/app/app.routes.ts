@@ -94,11 +94,29 @@ export const APP_ROUTES: Routes = [
       {
         path: 'inventory',
         loadComponent: () =>
-          import('./features/inventory/inventory.component').then(
-            (m) => m.InventoryComponent
+          import('./features/inventory/inventory-shell.component').then(
+            (m) => m.InventoryShellComponent
           ),
         canActivate: [roleGuard],
         data: { module: 'inventory', permission: 'inventory.read' },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/inventory/inventory.component').then(
+                (m) => m.InventoryComponent
+              ),
+          },
+          {
+            path: 'barcode',
+            loadComponent: () =>
+              import('./features/barcode/barcode.component').then(
+                (m) => m.BarcodeComponent
+              ),
+            canActivate: [roleGuard],
+            data: { module: 'barcode', permission: 'barcode.scan', embedded: true },
+          },
+        ],
       },
       {
         path: 'barcode',

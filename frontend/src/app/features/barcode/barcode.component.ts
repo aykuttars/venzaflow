@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../core/auth.service';
@@ -53,13 +54,22 @@ import { LabelTemplateThumbComponent } from './label-template-thumb.component';
     LabelTemplateThumbComponent,
   ],
   template: `
-    <div class="page">
+    <div class="page" [class.page--embedded]="embedded">
+      @if (!embedded) {
       <app-page-header moduleSlug="barcode" icon="qr_code_scanner">
         <button mat-stroked-button type="button" (click)="openDownloadDialog()">
           <mat-icon>download</mat-icon>
           {{ 'ebarcodeDownload.button' | translate }}
         </button>
       </app-page-header>
+      } @else {
+      <div class="embedded-actions">
+        <button mat-stroked-button type="button" (click)="openDownloadDialog()">
+          <mat-icon>download</mat-icon>
+          {{ 'ebarcodeDownload.button' | translate }}
+        </button>
+      </div>
+      }
 
       <mat-tab-group (selectedIndexChange)="onTab($event)">
         <mat-tab [label]="'barcode.tabScan' | translate">
@@ -270,6 +280,14 @@ import { LabelTemplateThumbComponent } from './label-template-thumb.component';
         color: #666;
         font-size: 14px;
       }
+      .page--embedded {
+        padding-top: 0;
+      }
+      .embedded-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+      }
       .templates-tab { display: flex; flex-direction: column; gap: 20px; }
       .templates-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: space-between; }
       .templates-title { margin: 0; font-size: 18px; font-weight: 600; }
@@ -308,9 +326,13 @@ import { LabelTemplateThumbComponent } from './label-template-thumb.component';
 export class BarcodeComponent implements OnInit {
   private barcode = inject(BarcodeService);
   private auth = inject(AuthService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private fb = inject(FormBuilder);
   private snack = inject(MatSnackBar);
   private dialog = inject(MatDialog);
+
+  embedded = false;
 
   templates = signal<LabelTemplate[]>([]);
   editingTemplate = signal<LabelTemplate | null>(null);
@@ -328,6 +350,15 @@ export class BarcodeComponent implements OnInit {
   canTransfer = () => this.auth.hasPermission('inventory.write');
 
   ngOnInit(): void {
+    this.embedded = !!this.route.snapshot.data['embedded'];
+    if (
+      !this.embedded &&
+      this.auth.nestedUnder('barcode', 'inventory') &&
+      this.router.url.startsWith('/barcode')
+    ) {
+      void this.router.navigate(['/inventory', 'barcode'], { replaceUrl: true });
+      return;
+    }
     this.reloadTemplates();
     this.reloadJobs();
     this.barcode.getSettings().subscribe({

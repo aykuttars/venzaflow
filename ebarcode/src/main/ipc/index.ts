@@ -117,8 +117,9 @@ export function registerServiceIpc(): void {
     async (
       _e,
       payload: {
-        customer_name: string
-        customer_phone: string
+        customer?: number
+        customer_name?: string
+        customer_phone?: string
         device_brand?: string
         device_model?: string
         device_serial?: string
@@ -165,6 +166,61 @@ export function registerServiceIpc(): void {
   ipcMain.handle(IPC.SERVICE_PRINT_INTAKE, async (_e, id: number) => {
     try {
       return ok(await apiClient.printServiceIntake(id))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(
+    IPC.SERVICE_TRANSITION,
+    async (_e, payload: { id: number; status: string; note?: string }) => {
+      try {
+        return ok(
+          await apiClient.transitionServiceTicket(payload.id, {
+            status: payload.status,
+            note: payload.note
+          })
+        )
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.SERVICE_SUBMIT_DIAGNOSIS,
+    async (
+      _e,
+      payload: { id: number; diagnosis: string; estimated_price: string; note?: string }
+    ) => {
+      try {
+        return ok(
+          await apiClient.submitServiceDiagnosis(payload.id, {
+            diagnosis: payload.diagnosis,
+            estimated_price: payload.estimated_price,
+            note: payload.note
+          })
+        )
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.SERVICE_APPROVE_QUOTE,
+    async (_e, payload: { id: number; note?: string }) => {
+      try {
+        return ok(await apiClient.approveServiceQuote(payload.id, payload.note))
+      } catch (error) {
+        return fail(error)
+      }
+    }
+  )
+
+  ipcMain.handle(IPC.CUSTOMERS_SEARCH, async (_e, q: string) => {
+    try {
+      return ok(await apiClient.searchCustomers(q))
     } catch (error) {
       return fail(error)
     }

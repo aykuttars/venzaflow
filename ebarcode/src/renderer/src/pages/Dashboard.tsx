@@ -6,7 +6,7 @@ import { useI18n } from '../i18n/I18nProvider'
 import BluetoothSetup from './BluetoothSetup'
 import ServiceTab from './ServiceTab'
 
-type Tab = 'scan' | 'service' | 'print' | 'settings'
+type Tab = 'service' | 'scan' | 'print' | 'settings'
 
 interface DashboardPageProps {
   onLogout: () => void
@@ -15,7 +15,7 @@ interface DashboardPageProps {
 export default function DashboardPage({ onLogout }: DashboardPageProps): React.JSX.Element {
   const navigate = useNavigate()
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('scan')
+  const [tab, setTab] = useState<Tab>('service')
   const [sessionEmail, setSessionEmail] = useState('')
   const [scanBuffer, setScanBuffer] = useState('')
   const [lookup, setLookup] = useState<BarcodeLookupResult | null>(null)
@@ -228,11 +228,11 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
       </div>
 
       <div className="tabs">
-        <button type="button" className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>
-          {t('dashboard.tab.scan')}
-        </button>
         <button type="button" className={tab === 'service' ? 'active' : ''} onClick={() => setTab('service')}>
           {t('dashboard.tab.service')}
+        </button>
+        <button type="button" className={tab === 'scan' ? 'active' : ''} onClick={() => setTab('scan')}>
+          {t('dashboard.tab.scan')}
         </button>
         <button type="button" className={tab === 'print' ? 'active' : ''} onClick={() => setTab('print')}>
           {t('dashboard.tab.print', { count: jobs.length })}
@@ -381,20 +381,27 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
                 ))}
               </select>
             </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.autoPoll}
-                onChange={(e) => setSettings({ ...settings, autoPoll: e.target.checked })}
-              />{' '}
-              {t('dashboard.settings.autoPoll')}
-            </label>
-            <label>
+            <div className="field-toggle">
+              <div className="field-toggle__copy">
+                <span className="field-toggle__label">{t('dashboard.settings.autoPoll')}</span>
+                <span className="field-toggle__hint">{t('dashboard.settings.autoPollHint')}</span>
+              </div>
+              <label className="switch" aria-label={t('dashboard.settings.autoPoll')}>
+                <input
+                  type="checkbox"
+                  checked={settings.autoPoll}
+                  onChange={(e) => setSettings({ ...settings, autoPoll: e.target.checked })}
+                />
+                <span className="switch__track" aria-hidden="true" />
+              </label>
+            </div>
+            <label className={settings.autoPoll ? '' : 'field-disabled'}>
               {t('dashboard.settings.pollInterval')}
               <input
                 type="number"
                 min={5}
                 max={120}
+                disabled={!settings.autoPoll}
                 value={settings.pollIntervalSec}
                 onChange={(e) => setSettings({ ...settings, pollIntervalSec: Number(e.target.value) })}
               />

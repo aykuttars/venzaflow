@@ -18,8 +18,13 @@ export const IPC = {
 
   SERVICE_CREATE_TICKET: 'service:create-ticket',
   SERVICE_LOOKUP: 'service:lookup',
+  SERVICE_TRANSITION: 'service:transition',
+  SERVICE_SUBMIT_DIAGNOSIS: 'service:submit-diagnosis',
+  SERVICE_APPROVE_QUOTE: 'service:approve-quote',
   SERVICE_DELIVER: 'service:deliver',
   SERVICE_PRINT_INTAKE: 'service:print-intake',
+
+  CUSTOMERS_SEARCH: 'customers:search',
 
   PRINTER_LIST_PORTS: 'printer:list-ports',
   PRINTER_GET_SETTINGS: 'printer:get-settings',

@@ -5,6 +5,7 @@ import type {
   LoginCredentials,
   PrintJobRow,
   ServiceTicketLookupResult,
+  CustomerRow,
   SessionSummary
 } from '../../shared/types'
 import { SESSION_EXPIRED_MESSAGE } from '../../shared/types'
@@ -28,6 +29,13 @@ async function parseError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as Record<string, unknown>
     if (typeof body.detail === 'string') return body.detail
+    const fieldMessages = Object.entries(body)
+      .filter(([, value]) => value != null)
+      .map(([field, value]) => {
+        const msg = Array.isArray(value) ? value.join(', ') : String(value)
+        return `${field}: ${msg}`
+      })
+    if (fieldMessages.length) return fieldMessages.join(' · ')
     return 'İşlem başarısız oldu.'
   } catch {
     return `HTTP ${response.status}`
@@ -211,8 +219,9 @@ class ApiClient {
   }
 
   createServiceTicket(payload: {
-    customer_name: string
-    customer_phone: string
+    customer?: number
+    customer_name?: string
+    customer_phone?: string
     device_brand?: string
     device_model?: string
     device_serial?: string
@@ -225,16 +234,55 @@ class ApiClient {
     })
   }
 
+  searchCustomers(q: string): Promise<CustomerRow[]> {
+    const query = q.trim()
+    if (query.length < 2) return Promise.resolve([])
+    return this.request<{ results?: CustomerRow[] } | CustomerRow[]>(
+      `/customers/?search=${encodeURIComponent(query)}&limit=20`
+    ).then((res) => (Array.isArray(res) ? res : (res.results ?? [])))
+  }
+
   async lookupServiceTicket(q: string): Promise<ServiceTicketLookupResult> {
     try {
-      return await this.request(`/service/tickets/lookup/?q=${encodeURIComponent(q)}`)
+      const result = await this.request<ServiceTicketLookupResult>(
+        `/service/tickets/lookup/?q=${encodeURIComponent(q)}`
+      )
+      const tickets = result.tickets ?? (result.ticket ? [result.ticket] : [])
+      return { ...result, tickets, count: tickets.length, found: tickets.length > 0 }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
-        return { found: false }
+      if (msg.toLowerCase().includes('not found') || msg.includes('404') || msg.includes('bulunamad')) {
+        return { found: false, tickets: [], count: 0 }
       }
       throw e
     }
+  }
+
+  transitionServiceTicket(
+    id: number,
+    payload: { status: string; note?: string }
+  ): Promise<ServiceTicketLookupResult['ticket']> {
+    return this.request(`/service/tickets/${id}/transition/`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  }
+
+  submitServiceDiagnosis(
+    id: number,
+    payload: { diagnosis: string; estimated_price: string; note?: string }
+  ): Promise<ServiceTicketLookupResult['ticket']> {
+    return this.request(`/service/tickets/${id}/submit-diagnosis/`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  }
+
+  approveServiceQuote(id: number, note = ''): Promise<ServiceTicketLookupResult['ticket']> {
+    return this.request(`/service/tickets/${id}/approve-quote/`, {
+      method: 'POST',
+      body: JSON.stringify({ note })
+    })
   }
 
   deliverServiceTicket(

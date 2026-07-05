@@ -51,20 +51,15 @@ interface InventoryDashboard {
     MatSnackBarModule,
     MatTabsModule,
     TranslateModule,
-    RouterLink,
-    PageHeaderComponent,
     SearchSelectComponent,
   ],
   template: `
-    <div class="page">
-      <app-page-header moduleSlug="inventory" icon="warehouse">
-        @if (hasBarcode()) {
-        <a mat-stroked-button routerLink="/barcode"><mat-icon>qr_code_scanner</mat-icon> Barkod</a>
-        }
+    <div class="inventory-page">
+      <div class="inventory-page__actions">
         @if (canWrite() && tab() > 0) {
         <button mat-flat-button color="primary" (click)="onAdd()"><mat-icon>add</mat-icon> {{ 'common.new' | translate }}</button>
         }
-      </app-page-header>
+      </div>
 
       <mat-tab-group (selectedIndexChange)="onTabChange($event)">
         <mat-tab [label]="'inventory.overview' | translate">
@@ -298,6 +293,12 @@ interface InventoryDashboard {
   styles: [
     CRUD_DIALOG_STYLES,
     `
+      .inventory-page__actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 8px;
+        min-height: 36px;
+      }
       .card-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

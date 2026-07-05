@@ -4,7 +4,6 @@
  */
 import type { EbarcodeApi } from '../../../preload'
 import { barcodeLookupCandidates } from '../../../shared/scanNormalize'
-import type { ServiceTicketLookupResult } from '../../../shared/types'
 
 const SESSION_KEY = 'ebarcode.webDev.session'
 
@@ -192,7 +191,16 @@ export function installBrowserApiShim(): void {
       }
     },
     service: {
-      createTicket: async (payload) => {
+      createTicket: async (payload: {
+        customer?: number
+        customer_name?: string
+        customer_phone?: string
+        device_brand?: string
+        device_model?: string
+        device_serial?: string
+        complaint: string
+        print_intake?: boolean
+      }) => {
         const s = loadSession()
         if (!s) throw new Error('Oturum yok')
         return apiRequest(
@@ -207,18 +215,17 @@ export function installBrowserApiShim(): void {
       lookup: async (q: string) => {
         const s = loadSession()
         if (!s) throw new Error('Oturum yok')
-        try {
-          return await apiRequest<ServiceTicketLookupResult>(
-            `/service/tickets/lookup/?q=${encodeURIComponent(q)}`,
-            {},
-            s.accessToken
-          )
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err)
-          if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
-            return { found: false }
-          }
-          throw err
+        const result = await apiRequest<{
+          found: boolean
+          tickets?: import('../../../shared/types').ServiceTicketRow[]
+          ticket?: import('../../../shared/types').ServiceTicketRow
+        }>(`/service/tickets/lookup/?q=${encodeURIComponent(q)}`, {}, s.accessToken)
+        const tickets = result.tickets ?? (result.ticket ? [result.ticket] : [])
+        return {
+          ...result,
+          tickets,
+          count: tickets.length,
+          found: result.found && tickets.length > 0
         }
       },
       deliver: async (id, payload) => {
@@ -230,10 +237,51 @@ export function installBrowserApiShim(): void {
           s.accessToken
         )
       },
+      transition: async (id, payload) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(
+          `/service/tickets/${id}/transition/`,
+          { method: 'POST', body: JSON.stringify(payload) },
+          s.accessToken
+        )
+      },
+      submitDiagnosis: async (id, payload) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(
+          `/service/tickets/${id}/submit-diagnosis/`,
+          { method: 'POST', body: JSON.stringify(payload) },
+          s.accessToken
+        )
+      },
+      approveQuote: async (id, note) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        return apiRequest(
+          `/service/tickets/${id}/approve-quote/`,
+          { method: 'POST', body: JSON.stringify({ note: note ?? '' }) },
+          s.accessToken
+        )
+      },
       printIntake: async (id) => {
         const s = loadSession()
         if (!s) throw new Error('Oturum yok')
         return apiRequest(`/service/tickets/${id}/print-intake/`, { method: 'POST' }, s.accessToken)
+      }
+    },
+    customers: {
+      search: async (q: string) => {
+        const s = loadSession()
+        if (!s) throw new Error('Oturum yok')
+        const query = q.trim()
+        if (query.length < 2) return []
+        const res = await apiRequest<{ results?: import('../../../shared/types').CustomerRow[] } | import('../../../shared/types').CustomerRow[]>(
+          `/customers/?search=${encodeURIComponent(query)}&limit=20`,
+          {},
+          s.accessToken
+        )
+        return Array.isArray(res) ? res : (res.results ?? [])
       }
     },
     printer: {
