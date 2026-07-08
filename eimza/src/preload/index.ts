@@ -53,6 +53,7 @@ const api = {
     listTasks: (documentType: DocumentType) =>
       invoke<SignTask[]>(IPC.SIGN_LIST_TASKS, documentType),
     prepare: (taskId: string) => invoke<SignPrepareResponse>(IPC.SIGN_PREPARE, taskId),
+    getTaskPreview: (taskId: string) => invoke<string>(IPC.SIGN_PREVIEW, taskId),
     execute: (documentType: DocumentType, taskId: string, pin: string) =>
       invoke<SignCompleteResponse>(IPC.SIGN_EXECUTE, { documentType, taskId, pin }),
     complete: (taskId: string, pin: string) =>

@@ -405,6 +405,18 @@ class ApiClient {
     return items.map(normalizeSignTask)
   }
 
+  async getTaskPreviewHtml(taskId: string): Promise<string> {
+    const response = await this.fetchWithAuth(
+      `${getBaseUrl()}/api/v1/sign/tasks/${taskId}/preview/`
+    )
+
+    if (!response.ok) {
+      throw new Error(await parseError(response))
+    }
+
+    return response.text()
+  }
+
   async prepareSignTask(
     taskId: string,
     certificateDerBase64: string

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DocumentList from '../components/DocumentList'
 import PinDialog from '../components/PinDialog'
+import SignPreviewDialog from '../components/SignPreviewDialog'
 import { APP_DISPLAY_NAME } from '@shared/brand'
 import type { SelectedCertificate, SignTask, SessionSummary } from '@shared/types'
 import { formatSessionDisplayName } from '@shared/types'
@@ -10,6 +11,7 @@ import {
   getCertificateHolderName
 } from '@shared/certificateUtils'
 import { SESSION_EXPIRED_MESSAGE } from '@shared/types'
+import { cleanupModalOverlays } from '../utils/cleanupModalOverlays'
 
 type TabKey = 'erecete' | 'earsiv' | 'efatura'
 
@@ -43,6 +45,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
   const [sessionInfo, setSessionInfo] = useState<SessionSummary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewDialog, setPreviewDialog] = useState<{ taskId: string; title: string } | null>(null)
   const [pinDialog, setPinDialog] = useState<{ taskId: string; title: string } | null>(null)
   const [signing, setSigning] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
@@ -65,6 +68,8 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
   }
 
   async function handleSessionExpired(): Promise<void> {
+    closePreviewDialog()
+    closePinDialog()
     await window.api.pkcs11.logout()
     await window.api.auth.logout()
     onLogout()
@@ -102,7 +107,27 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
 
   function handleSignRequest(task: SignTask): void {
     setSuccess(null)
-    setPinDialog({ taskId: task.id, title: task.title })
+    setSigning(false)
+    setPreviewDialog({ taskId: task.id, title: task.title })
+  }
+
+  function closePreviewDialog(): void {
+    setPreviewDialog(null)
+    cleanupModalOverlays()
+  }
+
+  function handlePreviewConfirm(): void {
+    if (!previewDialog) return
+    const next = previewDialog
+    setPreviewDialog(null)
+    cleanupModalOverlays()
+    setPinDialog(next)
+  }
+
+  function closePinDialog(): void {
+    setPinDialog(null)
+    setSigning(false)
+    cleanupModalOverlays()
   }
 
   async function handlePinSubmit(pin: string): Promise<void> {
@@ -133,6 +158,8 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
   }
 
   async function handleLogout(): Promise<void> {
+    closePreviewDialog()
+    closePinDialog()
     await window.api.pkcs11.logout()
     await window.api.auth.logout()
     onLogout()
@@ -209,11 +236,22 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
         <DocumentList tasks={tasks} loading={loading} onSign={handleSignRequest} />
       </section>
 
+      {previewDialog && (
+        <SignPreviewDialog
+          key={`preview-${previewDialog.taskId}`}
+          taskId={previewDialog.taskId}
+          title={previewDialog.title}
+          onCancel={closePreviewDialog}
+          onConfirm={handlePreviewConfirm}
+        />
+      )}
+
       {pinDialog && (
         <PinDialog
+          key={pinDialog.taskId}
           title={pinDialog.title}
           loading={signing}
-          onCancel={() => setPinDialog(null)}
+          onCancel={closePinDialog}
           onSubmit={handlePinSubmit}
         />
       )}

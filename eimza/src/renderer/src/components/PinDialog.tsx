@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { cleanupModalOverlays } from '../utils/cleanupModalOverlays'
 
 interface PinDialogProps {
   title: string
@@ -12,43 +14,60 @@ export default function PinDialog({
   loading = false,
   onCancel,
   onSubmit
-}: PinDialogProps): React.JSX.Element {
+}: PinDialogProps): React.JSX.Element | null {
   const [pin, setPin] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  return (
-    <div className="modal-backdrop">
+  useEffect(() => {
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 0)
+    return () => {
+      window.clearTimeout(focusTimer)
+      cleanupModalOverlays()
+    }
+  }, [])
+
+  function handleCancel(): void {
+    cleanupModalOverlays()
+    onCancel()
+  }
+
+  return createPortal(
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
       <div className="modal">
-        <h3>PIN Girin</h3>
+        <h3 id="pin-dialog-title">PIN Girin</h3>
         <p>
           <strong>{title}</strong> belgesini imzalamak için e-imza PIN&apos;inizi girin.
         </p>
         <input
+          ref={inputRef}
           type="password"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="E-imza PIN"
-          autoFocus
           maxLength={16}
+          autoComplete="off"
+          disabled={loading}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && pin) {
+            if (e.key === 'Enter' && pin && !loading) {
               void onSubmit(pin)
             }
           }}
         />
         <div className="modal-actions">
-          <button type="button" className="btn ghost" onClick={onCancel} disabled={loading}>
+          <button type="button" className="btn ghost" onClick={handleCancel} disabled={loading}>
             İptal
           </button>
           <button
             type="button"
             className="btn primary"
-            disabled={!pin || loading}
+            disabled={!pin.trim() || loading}
             onClick={() => void onSubmit(pin)}
           >
             {loading ? 'İmzalanıyor...' : 'İmzala'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

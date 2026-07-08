@@ -19,5 +19,6 @@ export const IPC = {
   SIGN_LIST_TASKS: 'sign:list-tasks',
   SIGN_PREPARE: 'sign:prepare',
   SIGN_EXECUTE: 'sign:execute',
-  SIGN_COMPLETE: 'sign:complete'
+  SIGN_COMPLETE: 'sign:complete',
+  SIGN_PREVIEW: 'sign:preview'
 } as const

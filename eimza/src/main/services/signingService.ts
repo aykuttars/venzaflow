@@ -11,6 +11,10 @@ export async function listTasks(documentType: DocumentType): Promise<SignTask[]>
   return apiClient.listSignTasks(documentType)
 }
 
+export async function getTaskPreview(taskId: string): Promise<string> {
+  return apiClient.getTaskPreviewHtml(taskId)
+}
+
 export async function prepareTask(taskId: string): Promise<SignPrepareResponse> {
   const certDer = pkcs11Service.getSelectedCertificateDer()
   if (!certDer) {

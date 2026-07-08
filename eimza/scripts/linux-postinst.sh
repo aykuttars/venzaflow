@@ -2,7 +2,17 @@
 set -euo pipefail
 
 WRAPPER="/usr/bin/venzaflow-eimza"
-INSTALL_DIR="/opt/Venzaflow-e-imza"
+BRAND_DIR="/opt/Venzaflow"
+INSTALL_DIR="${BRAND_DIR}/eimza"
+PACKAGE_DIR="/opt/eimza"
+LEGACY_DIR="/opt/Venzaflow-e-imza"
+
+if [[ -d "$LEGACY_DIR" && ! -d "$PACKAGE_DIR" ]]; then
+  mv "$LEGACY_DIR" "$PACKAGE_DIR"
+fi
+
+mkdir -p "$BRAND_DIR"
+ln -sfn "$PACKAGE_DIR" "$INSTALL_DIR"
 
 cat > "$WRAPPER" << 'EOF'
 #!/bin/sh
@@ -18,7 +28,7 @@ if [ -z "${DISPLAY:-}" ]; then
 fi
 export GDK_BACKEND=x11
 
-APP="/opt/Venzaflow-e-imza/eimza"
+APP="/opt/Venzaflow/eimza/eimza"
 ARGS="--ozone-platform=x11 --disable-gpu --no-sandbox"
 
 # Launched from a terminal: detach so closing the terminal does not kill the GUI.

@@ -5,6 +5,7 @@ import {
   ereceteAdapter,
   efaturaAdapter,
   executeSignFlow,
+  getTaskPreview,
   listTasks,
   prepareTask,
   signAndComplete
@@ -31,6 +32,14 @@ export function registerSigningIpc(): void {
   ipcMain.handle(IPC.SIGN_PREPARE, async (_event, taskId: string) => {
     try {
       return ok(await prepareTask(taskId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle(IPC.SIGN_PREVIEW, async (_event, taskId: string) => {
+    try {
+      return ok(await getTaskPreview(taskId))
     } catch (error) {
       return fail(error)
     }

@@ -5,6 +5,7 @@ import CertificateSelectPage from './pages/CertificateSelect'
 import DashboardPage from './pages/Dashboard'
 import ConnectionBanner from './components/ConnectionBanner'
 import { APP_DISPLAY_NAME } from '@shared/brand'
+import { cleanupModalOverlays } from './utils/cleanupModalOverlays'
 import './styles/app.css'
 
 function App(): React.JSX.Element {
@@ -12,6 +13,18 @@ function App(): React.JSX.Element {
   const [bootError, setBootError] = useState<string | null>(null)
   const [authenticated, setAuthenticated] = useState(false)
   const [hasCertificate, setHasCertificate] = useState(false)
+
+  function handleLogout(): void {
+    cleanupModalOverlays()
+    setAuthenticated(false)
+    setHasCertificate(false)
+  }
+
+  useEffect(() => {
+    if (!authenticated) {
+      cleanupModalOverlays()
+    }
+  }, [authenticated])
 
   useEffect(() => {
     async function bootstrap(): Promise<void> {
@@ -79,10 +92,7 @@ function App(): React.JSX.Element {
                 onSelected={() => {
                   setHasCertificate(true)
                 }}
-                onLogout={() => {
-                  setAuthenticated(false)
-                  setHasCertificate(false)
-                }}
+                onLogout={handleLogout}
               />
             )
           }
@@ -95,12 +105,7 @@ function App(): React.JSX.Element {
             ) : !hasCertificate ? (
               <Navigate to="/certificate" replace />
             ) : (
-              <DashboardPage
-                onLogout={() => {
-                  setAuthenticated(false)
-                  setHasCertificate(false)
-                }}
-              />
+              <DashboardPage onLogout={handleLogout} />
             )
           }
         />
