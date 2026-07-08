@@ -11,7 +11,7 @@
     "service": "Service",
     "employees": "Employees",
     "customers": "Customers",
-    "patients": "Patients",
+    "patients": "Patient Care",
     "oral": "Oral",
     "appointments": "Appointments",
     "billing": "Billing",
@@ -124,7 +124,7 @@
     "products": "Products",
     "inventory": "Inventory",
     "customers": "Customers",
-    "patients": "Patients",
+    "patients": "Patient Care",
     "oral": "Oral",
     "appointments": "Appointments",
     "billing": "Billing",
@@ -273,7 +273,7 @@
     "title": "Dashboard",
     "dailySales": "Daily sales",
     "customers": "Customers",
-    "patients": "Patients",
+    "patients": "Registered patients",
     "openInvoices": "Open invoices",
     "recentPayments": "Recent payments",
     "criticalStock": "Critical stock",
@@ -760,7 +760,7 @@
     "queueSigning": "Queue for signing",
     "viewDetail": "Details",
     "customersModuleRequired": "Customers module is required to select a customer.",
-    "partyModuleRequired": "Customers or Patients module is required to select a person."
+    "partyModuleRequired": "Customers or Patient Care module is required to select a person."
   },
   "accounting": {
     "title": "Accounting",

@@ -60,7 +60,7 @@ MODULE_LABELS = {
     "products": "Products",
     "inventory": "Inventory",
     "customers": "Customers",
-    "patients": "Patients",
+    "patients": "Patient Care",
     "oral": "Oral / Dental",
     "appointments": "Appointments",
     "billing": "Billing",
