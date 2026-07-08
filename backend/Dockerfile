@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DEFAULT_TIMEOUT=300 \
     PIP_INDEX_URL=https://pypi.org/simple
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl libpq-dev gcc gettext \
+        ca-certificates curl libpq-dev gcc gettext poppler-utils \
         libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libcairo2 libffi-dev shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

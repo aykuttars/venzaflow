@@ -33,6 +33,20 @@ class TariffParserTests(TestCase):
         fill = next(i for i in items if i.code == "2-4")
         self.assertEqual(fill.price_incl_vat, Decimal("3375.00"))
 
+    def test_parse_normalizes_page_header_in_section_name(self):
+        messy = """
+ 2026 YILI
+                      DİŞHEKİMLERİNİN UYGULAYACAKLARI AĞIZ DİŞ SAĞLIĞI MUAYENE VE TEDAVİ ÜCRET TARİFESİ
+                                           (Bu tarife bütün il ve ilçeler için geçerlidir.)
+
+
+  3                                               PEDODONTİ                               KDV Hariç   KDV Dahil %10
+ 3-1   Çocuk Dişhekimi Muayenesi                                                            1.500,00      1.650,00
+"""
+        items = parse_tariff_text(messy)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].section_name, "PEDODONTİ")
+
 
 class TariffFloorPriceTests(TestCase):
     @classmethod

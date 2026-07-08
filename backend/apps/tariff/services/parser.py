@@ -15,6 +15,23 @@ ITEM_RE = re.compile(
     r"^\s*(\d+-\d+)\s+(.+?)\s+([\d.,]+)\s+([\d.,]+)\s*$",
     re.MULTILINE,
 )
+SECTION_LINE_RE = re.compile(r"^\s*\d+\s+(.+)$")
+
+
+def _normalize_section_name(raw: str) -> str:
+    """Strip repeated PDF page headers; keep the human section title only."""
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    for line in reversed(lines):
+        if line.startswith("2026"):
+            continue
+        if "DİŞHEKİMLERİNİN UYGULAYACAKLARI" in line:
+            continue
+        if "Bu tarife bütün il" in line:
+            continue
+        match = SECTION_LINE_RE.match(line)
+        title = match.group(1).strip() if match else line
+        return re.sub(r"\s+", " ", title)[:128]
+    return re.sub(r"\s+", " ", raw.strip())[:128]
 
 
 @dataclass(frozen=True)
@@ -80,6 +97,7 @@ def parse_tariff_text(text: str) -> list[ParsedTariffItem]:
         end = section_starts[idx + 1][0] if idx + 1 < len(section_starts) else len(text)
         block = text[start:end]
         section_no = int(section_no_str)
+        section_name = _normalize_section_name(section_name)
         for item_match in ITEM_RE.finditer(block):
             code, name, excl, incl = item_match.groups()
             name = re.sub(r"\s+", " ", name.strip())
