@@ -152,8 +152,69 @@ def pick_tag_for_platform(tags: list[str], platform: Platform, *, version: str |
     return max(matches, key=_semver_key)
 
 
-def pick_latest_tag_for_platform(tags: list[str], platform: Platform) -> str | None:
+def _published_at_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _resolve_latest_platform_artifact(
+    client: requests.Session,
+    tags: list[str],
+    platform: Platform,
+) -> tuple[str, dict[str, Any], requests.Response] | None:
+    """Latest semver release, else CI build with the newest registry publish time."""
+    release_version = _latest_release_version(tags)
+    if release_version:
+        tag = pick_tag_for_platform(tags, platform, version=release_version)
+        if tag:
+            manifest, response = resolve_manifest(client, tag)
+            return tag, manifest, response
+
+    matches = [tag for tag in tags if platform.pattern.search(tag)]
+    if not matches:
+        return None
+
+    best_tag: str | None = None
+    best_manifest: dict[str, Any] | None = None
+    best_response: requests.Response | None = None
+    best_at: datetime | None = None
+    for tag in matches:
+        manifest, response = resolve_manifest(client, tag)
+        at = _published_at_datetime(published_at_from_manifest(manifest, response))
+        if at is None:
+            continue
+        if best_at is None or at > best_at:
+            best_at = at
+            best_tag = tag
+            best_manifest = manifest
+            best_response = response
+
+    if best_tag is not None and best_manifest is not None and best_response is not None:
+        return best_tag, best_manifest, best_response
+
+    tag = max(matches, key=_run_sort_key)
+    manifest, response = resolve_manifest(client, tag)
+    return tag, manifest, response
+
+
+def pick_latest_tag_for_platform(
+    tags: list[str],
+    platform: Platform,
+    *,
+    client: requests.Session | None = None,
+) -> str | None:
     """Latest semver release for the platform, else newest CI build."""
+    if client is not None:
+        resolved = _resolve_latest_platform_artifact(client, tags, platform)
+        return resolved[0] if resolved else None
+
     release_version = _latest_release_version(tags)
     if release_version:
         tag = pick_tag_for_platform(tags, platform, version=release_version)
@@ -165,13 +226,20 @@ def pick_latest_tag_for_platform(tags: list[str], platform: Platform) -> str | N
     return max(matches, key=_run_sort_key)
 
 
-def resolve_catalog(tags: list[str]) -> tuple[str | None, str]:
+def resolve_catalog(tags: list[str], *, client: requests.Session | None = None) -> tuple[str | None, str]:
     """Return (display version, status: ok | preview | unavailable)."""
     release_version = _latest_release_version(tags)
     if release_version:
         return release_version, "ok"
 
-    platform_tags = [pick_latest_tag_for_platform(tags, platform) for platform in PLATFORMS]
+    if client is None:
+        platform_tags = [pick_latest_tag_for_platform(tags, platform) for platform in PLATFORMS]
+    else:
+        platform_tags = []
+        for platform in PLATFORMS:
+            resolved = _resolve_latest_platform_artifact(client, tags, platform)
+            if resolved:
+                platform_tags.append(resolved[0])
     platform_tags = [tag for tag in platform_tags if tag]
     if not platform_tags:
         return None, "unavailable"
@@ -257,10 +325,10 @@ def resolve_download(platform_slug: str) -> tuple[str, str, str]:
         raise ArtifactRegistryError("Unknown platform.")
     with requests.Session() as client:
         tags = fetch_tags(session=client)
-        tag = pick_latest_tag_for_platform(tags, platform)
-        if not tag:
+        resolved = _resolve_latest_platform_artifact(client, tags, platform)
+        if not resolved:
             raise ArtifactRegistryError("No installer for this platform.")
-        manifest, _response = resolve_manifest(client, tag)
+        tag, manifest, _response = resolved
         digest = layer_digest(manifest)
         return tag, digest, filename_from_tag(tag)
 
@@ -285,7 +353,7 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
             "platforms": [],
         }
 
-    cache_key = "signing:eimza:releases:v3"
+    cache_key = "signing:eimza:releases:v4"
     cached = cache.get(cache_key)
     if cached is not None:
         payload = dict(cached)
@@ -295,7 +363,7 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
 
     with requests.Session() as client:
         tags = fetch_tags(session=client)
-        version, status = resolve_catalog(tags)
+        version, status = resolve_catalog(tags, client=client)
         if status == "unavailable":
             payload = {
                 "configured": True,
@@ -308,10 +376,10 @@ def build_releases_payload(*, download_url_builder) -> dict[str, Any]:
 
         platforms: list[dict[str, Any]] = []
         for platform in PLATFORMS:
-            tag = pick_latest_tag_for_platform(tags, platform)
-            if not tag:
+            resolved = _resolve_latest_platform_artifact(client, tags, platform)
+            if not resolved:
                 continue
-            manifest, response = resolve_manifest(client, tag)
+            tag, manifest, response = resolved
             platforms.append(
                 {
                     "slug": platform.slug,

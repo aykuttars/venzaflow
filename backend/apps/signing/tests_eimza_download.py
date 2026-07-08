@@ -3,7 +3,10 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
+from django.core.cache import cache
 from rest_framework.test import APIClient
+
+from apps.signing.services import eimza_artifacts
 
 
 TAGS_RESPONSE = {
@@ -45,6 +48,7 @@ def _manifest_response():
 class EimzaDownloadApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        cache.clear()
 
     @patch("apps.signing.services.eimza_artifacts.resolve_manifest")
     @patch("apps.signing.services.eimza_artifacts.fetch_tags")
@@ -105,3 +109,70 @@ class EimzaDownloadApiTests(TestCase):
         self.assertEqual(body["status"], "preview")
         self.assertEqual(body["version"], "1.0.0")
         self.assertEqual(len(body["platforms"]), 2)
+
+    @patch("apps.signing.services.eimza_artifacts.resolve_manifest")
+    @patch("apps.signing.services.eimza_artifacts.fetch_tags")
+    def test_releases_prefers_newer_ci_build_over_higher_run_number(self, fetch_tags, resolve_manifest):
+        fetch_tags.return_value = [
+            "develop-44-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe",
+            "develop-3-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe",
+        ]
+
+        def manifest_for_tag(_client, tag):
+            if "develop-3-" in tag:
+                created = "2026-07-08T17:23:29Z"
+            else:
+                created = "2026-07-04T12:52:29Z"
+            response = Mock()
+            response.headers = {}
+            return (
+                {
+                    "layers": [{"mediaType": "application/octet-stream", "digest": f"sha256:{tag}"}],
+                    "annotations": {"org.opencontainers.image.created": created},
+                },
+                response,
+            )
+
+        resolve_manifest.side_effect = manifest_for_tag
+        response = self.client.get("/api/v1/sign/eimza/releases/")
+        self.assertEqual(response.status_code, 200)
+        windows = next(item for item in response.json()["platforms"] if item["slug"] == "windows")
+        self.assertIn("develop-3-win-x64", windows["tag"])
+        self.assertEqual(windows["published_at"], "2026-07-08T17:23:29Z")
+
+
+@override_settings(
+    ARTIFACT_REGISTRY_URL="https://artifacts.example.test",
+    ARTIFACT_REGISTRY_REPO="venzaflow/eimza",
+    ARTIFACT_REGISTRY_USER="registry-user",
+    ARTIFACT_REGISTRY_PASSWORD="registry-pass",
+    ARTIFACT_REGISTRY_CACHE_TTL=300,
+)
+class EimzaArtifactPickerTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def test_pick_latest_ci_build_by_publish_date(self):
+        platform = eimza_artifacts.PLATFORM_BY_SLUG["windows"]
+        tags = [
+            "develop-44-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe",
+            "develop-3-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe",
+        ]
+        client = Mock()
+
+        def manifest_for_tag(_client, tag):
+            if "develop-3-" in tag:
+                created = "2026-07-08T17:23:29Z"
+            else:
+                created = "2026-07-04T12:52:29Z"
+            response = Mock()
+            response.headers = {}
+            return (
+                {"annotations": {"org.opencontainers.image.created": created}, "layers": []},
+                response,
+            )
+
+        with patch("apps.signing.services.eimza_artifacts.resolve_manifest", side_effect=manifest_for_tag):
+            tag = eimza_artifacts.pick_latest_tag_for_platform(tags, platform, client=client)
+
+        self.assertEqual(tag, "develop-3-win-x64-venzaflow-eimza-1.0.0-setup-x64.exe")
