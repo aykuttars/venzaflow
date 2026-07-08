@@ -78,7 +78,7 @@ class PlatformBillingTests(TestCase):
             defaults={"is_active": True},
         )
         PlatformBillingSettings.objects.get_or_create(pk=1)
-        for slug in ALL_MODULES[:3]:
+        for slug in ["products", "inventory", "customers"]:
             ModulePrice.objects.get_or_create(
                 module_slug=slug,
                 defaults={"price_per_user_monthly": Decimal("100.00")},
@@ -91,7 +91,7 @@ class PlatformBillingTests(TestCase):
             payment_currency=self.try_cur,
             billing_period=Tenant.BillingPeriod.MONTHLY,
         )
-        set_module_subscriptions(self.tenant, list(ALL_MODULES[:3]))
+        set_module_subscriptions(self.tenant, ["products", "inventory", "customers"])
         ExchangeRate.objects.create(
             currency=self.try_cur,
             rate_to_try=Decimal("1"),

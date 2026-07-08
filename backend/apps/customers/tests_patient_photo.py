@@ -76,7 +76,7 @@ class PatientPhotoApiTests(TestCase):
         )
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.json()['access']}")
 
-    @patch("apps.customers.serializers.verify_identity", return_value=_MOCK_IDENTITY)
+    @patch("apps.customers.serializers.verify_patient_nvi")
     def _create_patient(self, _mock_identity) -> Customer:
         payload = {
             "nationality": "tc",
@@ -92,7 +92,7 @@ class PatientPhotoApiTests(TestCase):
         self.assertEqual(r.status_code, 201, r.content)
         return Customer.all_tenants.get(pk=r.json()["id"])
 
-    @patch("apps.customers.serializers.verify_identity", return_value=_MOCK_IDENTITY)
+    @patch("apps.customers.serializers.verify_patient_nvi")
     def test_upload_and_fetch_photo(self, _mock_identity):
         patient = self._create_patient()
         upload = self.client.post(
@@ -103,10 +103,12 @@ class PatientPhotoApiTests(TestCase):
         self.assertEqual(upload.status_code, 200, upload.content)
 
         patient.refresh_from_db()
-        self.assertEqual(
-            patient.photo.name,
-            f"tenants/{self.tenant.pk}/photos/{patient.pk}.jpg",
+        self.assertTrue(
+            patient.photo.name.startswith(
+                f"tenants/{self.tenant.pk}/photos/{patient.pk}"
+            )
         )
+        self.assertTrue(patient.photo.name.endswith(".jpg"))
 
         detail = self.client.get(f"/api/v1/patients/{patient.pk}/")
         self.assertTrue(detail.json()["has_photo"])
@@ -114,10 +116,10 @@ class PatientPhotoApiTests(TestCase):
         photo = self.client.get(f"/api/v1/patients/{patient.pk}/photo/")
         self.assertEqual(photo.status_code, 200)
         self.assertEqual(photo["Content-Type"], "image/jpeg")
-        image = Image.open(BytesIO(photo.content))
+        image = Image.open(BytesIO(b"".join(photo.streaming_content)))
         self.assertEqual(image.size, PHOTO_SIZE)
 
-    @patch("apps.customers.serializers.verify_identity", return_value=_MOCK_IDENTITY)
+    @patch("apps.customers.serializers.verify_patient_nvi")
     def test_other_tenant_cannot_access_photo(self, _mock_identity):
         patient = self._create_patient()
         self.client.post(

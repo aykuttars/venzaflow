@@ -5,15 +5,14 @@ import math
 from decimal import Decimal
 from typing import Any
 
-import barcode
 import qrcode
-from barcode.writer import ImageWriter
 from PIL import Image, ImageDraw, ImageFont
 
 from apps.barcode.models import BarcodeSettings
 from apps.barcode.services.bindings import resolve_binding
 from apps.barcode.services.product_fields import product_field_map
 from apps.barcode.services.qr_payload import build_qr_payload
+from apps.barcode.vendor_barcode import import_image_writer, import_vendor_barcode
 from apps.products.models import Product
 
 
@@ -115,10 +114,12 @@ def _render_barcode_image(value: str, symbology: str, width_px: int, height_px: 
     if not value:
         value = "0000000000000"
     try:
+        vendor_barcode = import_vendor_barcode()
+        image_writer = import_image_writer()
         if symbology == "EAN13" and len(value) == 13 and value.isdigit():
-            code = barcode.get("ean13", value, writer=ImageWriter())
+            code = vendor_barcode.get("ean13", value, writer=image_writer())
         else:
-            code = barcode.get("code128", value, writer=ImageWriter())
+            code = vendor_barcode.get("code128", value, writer=image_writer())
         buf = io.BytesIO()
         code.write(
             buf,

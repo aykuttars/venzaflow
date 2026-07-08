@@ -165,5 +165,8 @@ class CustomerPatientApiTests(TestCase):
         )
         self.assertEqual(r.status_code, 400, r.content)
         body = r.json()
-        self.assertEqual(body["nvi_step"], "address_residence")
-        self.assertIn("NVI", body["detail"])
+        self.assertEqual(body["nvi_step"], ["address_residence"])
+        detail = body["detail"]
+        if isinstance(detail, list):
+            detail = " ".join(str(item) for item in detail)
+        self.assertIn("NVI", detail)

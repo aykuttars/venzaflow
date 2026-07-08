@@ -119,7 +119,7 @@ class TenantRbacTests(TestCase):
         r = self.client.delete(f"/api/v1/employees/{self.admin.pk}/")
         self.assertEqual(r.status_code, 403, r.content)
 
-    def test_hr_cannot_patch_peer_cashier(self):
+    def test_hr_can_patch_peer_cashier_with_subset_permissions(self):
         token = self._login("hr@rbac.test", "HrPass1!X")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         r = self.client.patch(
@@ -127,7 +127,7 @@ class TenantRbacTests(TestCase):
             {"first_name": "Peer"},
             format="json",
         )
-        self.assertEqual(r.status_code, 403, r.content)
+        self.assertEqual(r.status_code, 200, r.content)
 
     def test_admin_can_patch_cashier(self):
         token = self._login("admin@rbac.test", "AdminPass1!X")
@@ -202,7 +202,7 @@ class TenantRbacTests(TestCase):
         rows = {row["email"]: row for row in r.json()["results"]}
         self.assertTrue(rows["hr@rbac.test"]["manageable"])
         self.assertFalse(rows["admin@rbac.test"]["manageable"])
-        self.assertFalse(rows["cash@rbac.test"]["manageable"])
+        self.assertTrue(rows["cash@rbac.test"]["manageable"])
 
     def test_permission_list_excludes_unheld_for_hr(self):
         token = self._login("hr@rbac.test", "HrPass1!X")

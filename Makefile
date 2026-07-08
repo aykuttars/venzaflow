@@ -1,4 +1,4 @@
-.PHONY: up migrate seed test smoke
+.PHONY: up migrate seed test test-docker smoke smoke-tenants
 
 up:
 	docker compose -f docker/docker-compose.yml --env-file .env up --build -d
@@ -18,10 +18,19 @@ seed:
 	cd backend && DJANGO_SETTINGS_MODULE=config.settings.dev python manage.py seed_demo
 
 test:
-	cd backend && DJANGO_SETTINGS_MODULE=config.settings.dev python manage.py test
+	cd backend && DJANGO_SETTINGS_MODULE=config.settings.dev bash scripts/run_tests.sh
+
+test-docker:
+	docker run --rm --entrypoint bash --env-file .env -v "$$(pwd)/backend:/app" -w /app \
+		-e DJANGO_SETTINGS_MODULE=config.settings.dev \
+		venzaflow-api$${ENVIRONMENT:+_$${ENVIRONMENT}}:$${TAG:-latest} \
+		-c "bash scripts/run_tests.sh"
 
 smoke:
 	./docker/scripts/smoke-test.sh
+
+smoke-tenants:
+	cd backend && python scripts/smoke_tenant_modules.py
 
 REGISTRY ?= 10.0.0.3:5000
 TAG ?= latest

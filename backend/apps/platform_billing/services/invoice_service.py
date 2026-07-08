@@ -54,9 +54,9 @@ def billing_period_dates(tenant: Tenant, *, reference: date | None = None) -> tu
     """
     ref = reference or timezone.localdate()
     anchor_month, anchor_day = _registration_anchor(tenant)
-    period_start_candidate = _safe_anchor_date(ref.year, anchor_month, anchor_day)
 
     if tenant.billing_period == Tenant.BillingPeriod.YEARLY:
+        period_start_candidate = _safe_anchor_date(ref.year, anchor_month, anchor_day)
         if ref < period_start_candidate:
             start = _add_years(period_start_candidate, -1)
         else:
@@ -64,6 +64,7 @@ def billing_period_dates(tenant: Tenant, *, reference: date | None = None) -> tu
         end = _add_years(start, 1) - timedelta(days=1)
         return start, end
 
+    period_start_candidate = _safe_anchor_date(ref.year, ref.month, anchor_day)
     if ref < period_start_candidate:
         start = _add_months(period_start_candidate, -1)
     else:

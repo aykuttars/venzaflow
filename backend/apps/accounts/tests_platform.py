@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Department, Permission
-from apps.common.permission_codes import ALL_MODULES, PERMISSION_CODENAMES
+from apps.common.permission_codes import ALL_MODULES, NON_BILLABLE_MODULES, PERMISSION_CODENAMES
 from apps.tenants.models import Tenant
 
 User = get_user_model()
@@ -95,7 +95,7 @@ class PlatformAdminTests(TestCase):
                 "name": "New Clinic",
                 "default_language": "tr",
                 "is_active": True,
-                "enabled_modules": ["products", "dashboard"],
+                "subscribed_modules": ["products"],
                 "module_labels": {"customers": "Hastalar"},
                 "initial_admin_email": "owner@8001.com",
                 "initial_admin_password": "OwnerPass1!X",
@@ -104,7 +104,8 @@ class PlatformAdminTests(TestCase):
         )
         self.assertEqual(r.status_code, 201, r.content)
         tenant = Tenant.objects.get(customer_code="8001")
-        self.assertEqual(tenant.enabled_modules, ["products", "dashboard"])
+        self.assertIn("products", tenant.enabled_modules)
+        self.assertIn("dashboard", tenant.enabled_modules)
         self.assertEqual(tenant.module_labels.get("customers"), "Hastalar")
         admin = User.all_tenants.get(tenant=tenant, email="owner@8001.com")
         self.assertEqual(admin.department.key, "admin")
@@ -125,7 +126,7 @@ class PlatformAdminTests(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         r = self.client.patch(
             f"/api/v1/platform/tenants/{self.tenant.pk}/",
-            {"enabled_modules": ALL_MODULES},
+            {"subscribed_modules": [m for m in ALL_MODULES if m not in NON_BILLABLE_MODULES]},
             format="json",
         )
         self.assertEqual(r.status_code, 200, r.content)

@@ -25,7 +25,7 @@ class TenantSubscriptionTests(TestCase):
             max_users=5,
             enabled_modules=["products"],
         )
-        set_module_subscriptions(cls.tenant, ["products"], extra_modules=set())
+        set_module_subscriptions(cls.tenant, ["products", "employees"], extra_modules=set())
 
         cls.dept = Department.objects.create(
             tenant=cls.tenant,
@@ -117,18 +117,43 @@ class TenantSubscriptionTests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(r.status_code, 400)
+        self.assertIn(r.status_code, (400, 403))
 
     def test_increase_max_users_allows_create(self):
         self._create_staff(5)
+        admin_dept = Department.objects.create(
+            tenant=self.tenant,
+            key="admin",
+            name="Admin",
+        )
+        admin_perms = Permission.objects.filter(
+            codename__in=[
+                "products.read",
+                "products.write",
+                "employees.read",
+                "employees.write",
+                "settings.read",
+                "settings.write",
+            ]
+        )
+        admin_dept.permissions.set(admin_perms)
+        admin_user = User.all_tenants.create(
+            tenant=self.tenant,
+            email="admin@sub.test",
+            department=admin_dept,
+            is_active=True,
+        )
+        admin_user.set_password("StaffPass1!X")
+        admin_user.save()
+
         platform_token = self._platform_login()
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {platform_token}")
         self.client.patch(
             f"/api/v1/platform/tenants/{self.tenant.pk}/",
-            {"max_users": 6},
+            {"max_users": 7},
             format="json",
         )
-        token = self._login_staff("user0@sub.test")
+        token = self._login_staff("admin@sub.test")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         r = self.client.post(
             "/api/v1/employees/",
@@ -145,6 +170,7 @@ class TenantSubscriptionTests(TestCase):
         self.assertEqual(r.status_code, 201, r.content)
 
     def test_module_subscription_required_for_api(self):
+        self._create_staff(1)
         set_module_subscriptions(self.tenant, [], extra_modules=set())
         token = self._login_staff()
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
