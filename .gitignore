@@ -26,6 +26,7 @@ backend/media/
 backend/db.sqlite3
 backend/.env
 backend/local_settings.py
+backend/uvicorn.conf.py
 
 # OpenAPI: regenerable intermediate schema (TS types in frontend are committed)
 backend/openapi-schema.yml
