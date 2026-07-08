@@ -42,23 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CI minutes: only Windows x64 for now. Re-enable mac/linux rows when ready.
         include:
-          - label: macOS arm64
-            platform: mac
-            arch: arm64
-            runner: macos-latest
-            min_os_version: "11.0.0"
-            min_os_label: "macOS 11 (Big Sur)+"
-            artifact: release/*.dmg
-
-          - label: macOS x64
-            platform: mac
-            arch: x64
-            runner: macos-latest
-            min_os_version: "11.0.0"
-            min_os_label: "macOS 11 (Big Sur)+"
-            artifact: release/*.dmg
-
           - label: Windows x64
             platform: win
             arch: x64
@@ -66,32 +51,48 @@ jobs:
             min_os_version: "10.0"
             min_os_label: "Windows 10+"
 
-          - label: Windows arm64
-            platform: win
-            arch: arm64
-            runner: windows-11-arm
-            min_os_version: "10.0"
-            min_os_label: "Windows 10+"
+          # - label: macOS arm64
+          #   platform: mac
+          #   arch: arm64
+          #   runner: macos-latest
+          #   min_os_version: "11.0.0"
+          #   min_os_label: "macOS 11 (Big Sur)+"
+          #   artifact: release/*.dmg
 
-          - label: Linux x64
-            platform: linux
-            arch: x64
-            runner: ubuntu-22.04
-            min_os_version: "22.04"
-            min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
-            artifact: |
-              release/*.AppImage
-              release/*.deb
+          # - label: macOS x64
+          #   platform: mac
+          #   arch: x64
+          #   runner: macos-latest
+          #   min_os_version: "11.0.0"
+          #   min_os_label: "macOS 11 (Big Sur)+"
+          #   artifact: release/*.dmg
 
-          - label: Linux arm64
-            platform: linux
-            arch: arm64
-            runner: ubuntu-22.04-arm
-            min_os_version: "22.04"
-            min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
-            artifact: |
-              release/*.AppImage
-              release/*.deb
+          # - label: Windows arm64
+          #   platform: win
+          #   arch: arm64
+          #   runner: windows-11-arm
+          #   min_os_version: "10.0"
+          #   min_os_label: "Windows 10+"
+
+          # - label: Linux x64
+          #   platform: linux
+          #   arch: x64
+          #   runner: ubuntu-22.04
+          #   min_os_version: "22.04"
+          #   min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
+          #   artifact: |
+          #     release/*.AppImage
+          #     release/*.deb
+
+          # - label: Linux arm64
+          #   platform: linux
+          #   arch: arm64
+          #   runner: ubuntu-22.04-arm
+          #   min_os_version: "22.04"
+          #   min_os_label: "Ubuntu 22.04+ (glibc 2.35+)"
+          #   artifact: |
+          #     release/*.AppImage
+          #     release/*.deb
 
     steps:
       - uses: actions/checkout@v4
