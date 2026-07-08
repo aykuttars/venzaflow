@@ -35,16 +35,33 @@ class ProcedureCatalogViewSet(TenantScopedViewSet):
     }
     search_fields = ("name", "code")
     ordering_fields = ("sort_order", "name", "default_price")
-    filterset_fields = ("category", "is_frequent", "is_active")
+    filterset_fields = ("category", "is_frequent", "is_active", "is_tdb")
 
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action in ("update", "partial_update", "destroy", "retrieve"):
             return ProcedureCatalog.all_tenants.filter(tenant_id=self.request.user.tenant_id)
+        include_tdb = self.request.query_params.get("include_tdb") == "1"
         show_inactive = self.request.query_params.get("include_inactive") == "1"
+        base = ProcedureCatalog.all_tenants.filter(tenant_id=self.request.user.tenant_id)
+        if not include_tdb:
+            base = base.filter(is_tdb=False)
         if show_inactive and self.action == "list":
-            return ProcedureCatalog.all_tenants.filter(tenant_id=self.request.user.tenant_id)
+            return base
+        if self.action == "list" and include_tdb:
+            return base.filter(is_active=True)
+        if self.action == "list":
+            return base.filter(is_active=True, is_tdb=False)
         return qs
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.is_tdb:
+            return Response(
+                {"detail": "TDB prosedürleri silinemez."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=["post"], url_path="reseed")
     def reseed(self, request):

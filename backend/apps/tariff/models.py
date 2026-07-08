@@ -51,3 +51,36 @@ class DentalTariffItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} {self.name}"
+
+
+class TenantTariffItemPrice(models.Model):
+    """Per-tenant clinic price override for a TDB reference tariff item (floor = reference)."""
+
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="tariff_item_prices",
+    )
+    tariff_item = models.ForeignKey(
+        DentalTariffItem,
+        on_delete=models.CASCADE,
+        related_name="tenant_prices",
+    )
+    clinic_price_excl_vat = models.DecimalField(max_digits=12, decimal_places=2)
+    clinic_price_incl_vat = models.DecimalField(max_digits=12, decimal_places=2)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "tenant_tariff_item_price"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "tariff_item"],
+                name="tenant_tariff_item_price_unique",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "tariff_item"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_id} {self.tariff_item.code} incl={self.clinic_price_incl_vat}"

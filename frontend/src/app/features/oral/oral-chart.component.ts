@@ -234,7 +234,7 @@ export class OralChartComponent implements OnInit {
   ngOnInit(): void {
     if (this.route.snapshot.data['embedded']) this.embedded = true;
     this.searchControl.valueChanges.pipe(debounceTime(200), distinctUntilChanged()).subscribe();
-    this.oral.listProcedures().subscribe((p) => this.procedures.set(p.results));
+    this.oral.listProcedures({ include_tdb: true }).subscribe((p) => this.procedures.set(p.results));
 
     if (this.inputPatientId != null) {
       this.setPatient(this.inputPatientId);

@@ -7,11 +7,13 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Department, Permission
 from apps.oral.models import ProcedureCatalog
+from apps.tariff.models import DentalTariff, DentalTariffItem, TenantTariffItemPrice
+from apps.tariff.services.parser import parse_tariff_text
+from apps.tariff.services.tenant_prices import ensure_tenant_tariff_prices
+from apps.tariff.services.vat import excl_from_incl, incl_from_excl, sync_vat_pair
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
-from apps.tariff.models import DentalTariff, DentalTariffItem
-from apps.tariff.services.parser import parse_tariff_text
-from apps.tariff.services.validation import list_procedure_violations
+from apps.oral.services.tariff_procedure_sync import sync_tdb_procedures_for_tenant
 
 SAMPLE_TEXT = """
  1                                   TEŞHİS VE TEDAVİ PLANLAMASI                           KDV Hariç   KDV Dahil %10
@@ -46,6 +48,24 @@ class TariffParserTests(TestCase):
         items = parse_tariff_text(messy)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0].section_name, "PEDODONTİ")
+
+
+class VatSyncTests(TestCase):
+    def test_incl_from_excl_10_percent(self):
+        self.assertEqual(incl_from_excl(Decimal("1000.00"), Decimal("10")), Decimal("1100.00"))
+
+    def test_excl_from_incl_10_percent(self):
+        self.assertEqual(excl_from_incl(Decimal("1100.00"), Decimal("10")), Decimal("1000.00"))
+
+    def test_sync_vat_pair_from_incl(self):
+        excl, incl = sync_vat_pair(
+            changed="incl",
+            excl=Decimal("0"),
+            incl=Decimal("3375.00"),
+            rate_percent=Decimal("10"),
+        )
+        self.assertEqual(incl, Decimal("3375.00"))
+        self.assertEqual(excl, Decimal("3068.18"))
 
 
 class TariffFloorPriceTests(TestCase):
@@ -132,6 +152,60 @@ class TariffFloorPriceTests(TestCase):
         )
         self.assertEqual(r.status_code, 201, r.content)
 
+    def test_tenant_tariff_list_includes_clinic_prices(self):
+        ensure_tenant_tariff_prices(self.tenant.pk, tariff=self.tariff)
+        token = self._login()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        r = self.client.get("/api/v1/tariff/items/")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["count"], 1)
+        row = body["results"][0]
+        self.assertEqual(row["code"], "2-4")
+        self.assertEqual(Decimal(str(row["reference_incl"])), Decimal("3375.00"))
+        self.assertEqual(Decimal(str(row["clinic_incl"])), Decimal("3375.00"))
+
+    def test_clinic_price_patch_rejects_below_floor(self):
+        ensure_tenant_tariff_prices(self.tenant.pk, tariff=self.tariff)
+        token = self._login()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        r = self.client.patch(
+            f"/api/v1/tariff/items/{self.item.pk}/clinic-price/",
+            {
+                "changed": "incl",
+                "clinic_price_excl_vat": "1000.00",
+                "clinic_price_incl_vat": "1000.00",
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_clinic_price_patch_accepts_above_floor(self):
+        ensure_tenant_tariff_prices(self.tenant.pk, tariff=self.tariff)
+        token = self._login()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        r = self.client.patch(
+            f"/api/v1/tariff/items/{self.item.pk}/clinic-price/",
+            {
+                "changed": "incl",
+                "clinic_price_excl_vat": "4000.00",
+                "clinic_price_incl_vat": "4400.00",
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(Decimal(str(r.json()["clinic_incl"])), Decimal("4400.00"))
+        row = TenantTariffItemPrice.objects.get(tenant=self.tenant, tariff_item=self.item)
+        self.assertEqual(row.clinic_price_incl_vat, Decimal("4400.00"))
+
+    def test_sync_tdb_procedures(self):
+        ensure_tenant_tariff_prices(self.tenant.pk, tariff=self.tariff)
+        stats = sync_tdb_procedures_for_tenant(self.tenant.pk)
+        self.assertEqual(stats["synced"], 1)
+        proc = ProcedureCatalog.objects.get(tenant=self.tenant, code="2-4")
+        self.assertTrue(proc.is_tdb)
+        self.assertEqual(proc.default_price, Decimal("3375.00"))
+
     def test_violations_endpoint(self):
         ProcedureCatalog.objects.create(
             tenant=self.tenant,
@@ -146,16 +220,3 @@ class TariffFloorPriceTests(TestCase):
         r = self.client.get("/api/v1/tariff/violations/")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["count"], 1)
-
-    def test_list_procedure_violations_service(self):
-        ProcedureCatalog.objects.create(
-            tenant=self.tenant,
-            code="BAD2",
-            name="Below floor 2",
-            category="treatment",
-            default_price=Decimal("500.00"),
-            tariff_item=self.item,
-        )
-        violations = list_procedure_violations(self.tenant.pk)
-        self.assertEqual(len(violations), 1)
-        self.assertEqual(violations[0]["tariff_code"], "2-4")

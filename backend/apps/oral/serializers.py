@@ -16,13 +16,7 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True, default="")
     tariff_code = serializers.CharField(source="tariff_item.code", read_only=True, default="")
     tariff_item_name = serializers.CharField(source="tariff_item.name", read_only=True, default="")
-    floor_price = serializers.DecimalField(
-        source="tariff_item.price_incl_vat",
-        max_digits=12,
-        decimal_places=2,
-        read_only=True,
-        allow_null=True,
-    )
+    floor_price = serializers.SerializerMethodField()
 
     class Meta:
         model = ProcedureCatalog
@@ -38,12 +32,26 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
             "tariff_code",
             "tariff_item_name",
             "floor_price",
+            "is_tdb",
             "is_active",
             "sort_order",
             "is_frequent",
             "default_tooth_condition",
         )
-        read_only_fields = ("id", "product_name", "tariff_code", "tariff_item_name", "floor_price")
+        read_only_fields = (
+            "id",
+            "product_name",
+            "tariff_code",
+            "tariff_item_name",
+            "floor_price",
+            "is_tdb",
+        )
+
+    def get_floor_price(self, obj):
+        from apps.tariff.services.validation import floor_price_for_procedure
+
+        floor = floor_price_for_procedure(obj)
+        return str(floor) if floor is not None else None
 
     def validate_default_price(self, value):
         if value < Decimal("0"):
@@ -51,6 +59,8 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        if self.instance and self.instance.is_tdb:
+            raise serializers.ValidationError("TDB prosedürleri tarife rehberinden yönetilir.")
         tariff_item = attrs.get("tariff_item")
         if tariff_item is None and self.instance is not None:
             tariff_item = self.instance.tariff_item
@@ -58,7 +68,10 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
         if price is None and self.instance is not None:
             price = self.instance.default_price
         if price is not None:
-            validate_price_not_below_floor(price, tariff_item, field_name="default_price")
+            tenant_id = self.context["request"].user.tenant_id if self.context.get("request") else None
+            validate_price_not_below_floor(
+                price, tariff_item, field_name="default_price", tenant_id=tenant_id
+            )
         return attrs
 
     def validate_tariff_item(self, value):
@@ -162,6 +175,9 @@ class OralTreatmentSerializer(serializers.ModelSerializer):
                 unit_price,
                 procedure.tariff_item,
                 field_name="unit_price",
+                tenant_id=self.context["request"].user.tenant_id
+                if self.context.get("request")
+                else None,
             )
         return attrs
 
@@ -209,7 +225,12 @@ class OralTreatmentBulkCreateSerializer(serializers.Serializer):
         price = procedure.default_price
         if procedure.product_id:
             price = procedure.product.unit_price
-        validate_price_not_below_floor(price, procedure.tariff_item, field_name="unit_price")
+        validate_price_not_below_floor(
+            price,
+            procedure.tariff_item,
+            field_name="unit_price",
+            tenant_id=tenant_id,
+        )
 
         created = []
         for tooth in tooth_numbers:

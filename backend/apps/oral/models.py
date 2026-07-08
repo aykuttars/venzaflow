@@ -34,6 +34,10 @@ class ProcedureCatalog(TenantOwnedModel):
         blank=True,
         related_name="procedures",
     )
+    is_tdb = models.BooleanField(
+        default=False,
+        help_text="True when synced from platform TDB tariff catalog.",
+    )
 
     class Meta:
         db_table = "oral_procedure_catalog"

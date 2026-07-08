@@ -6,6 +6,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { OralChartComponent } from './oral-chart.component';
 import { OralProceduresComponent } from './oral-procedures.component';
+import { OralTariffListComponent } from './oral-tariff-list.component';
 
 @Component({
   selector: 'app-oral-page',
@@ -17,18 +18,24 @@ import { OralProceduresComponent } from './oral-procedures.component';
     PageHeaderComponent,
     OralChartComponent,
     OralProceduresComponent,
+    OralTariffListComponent,
   ],
   template: `
     <div class="page">
       <app-page-header moduleSlug="oral" icon="medical_services" />
       <mat-tab-group [selectedIndex]="tab()" (selectedIndexChange)="tab.set($event)">
-        <mat-tab [label]="'oral.tabChart' | translate">
+        <mat-tab [label]="'oral.tabTariff' | translate">
           @if (tab() === 0) {
+          <app-oral-tariff-list />
+          }
+        </mat-tab>
+        <mat-tab [label]="'oral.tabChart' | translate">
+          @if (tab() === 1) {
           <app-oral-chart [shellMode]="true" />
           }
         </mat-tab>
-        <mat-tab [label]="'oral.tabProcedures' | translate">
-          @if (tab() === 1) {
+        <mat-tab [label]="'oral.tabCustomProcedures' | translate">
+          @if (tab() === 2) {
           <app-oral-procedures />
           }
         </mat-tab>

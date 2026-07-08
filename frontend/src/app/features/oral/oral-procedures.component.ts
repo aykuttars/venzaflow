@@ -16,7 +16,7 @@ import { debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { API_BASE } from '../../core/api';
 import { AuthService } from '../../core/auth.service';
 import { ProcedureCatalog } from '../../core/oral.service';
-import { DentalTariffItem, TariffService, TariffViolation } from '../../core/tariff.service';
+import { TariffService, TariffViolation, TenantTariffItem } from '../../core/tariff.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
@@ -41,6 +41,7 @@ const CATEGORIES = ['diagnosis', 'planning', 'treatment'] as const;
   ],
   template: `
     <div style="margin-top:16px">
+      <p style="font-size:13px;opacity:0.75;margin:0 0 12px">{{ 'oral.customProceduresHint' | translate }}</p>
       @if (violations().length) {
       <div style="padding:12px 16px;border-radius:8px;background:#fff3e0;margin-bottom:12px;border:1px solid #ffcc80">
         <strong>{{ 'oral.tariffViolationsTitle' | translate }}</strong>
@@ -136,12 +137,12 @@ const CATEGORIES = ['diagnosis', 'planning', 'treatment'] as const;
           <mat-hint>{{ 'oral.tariffSearchHint' | translate }}</mat-hint>
           <mat-autocomplete #tariffAuto="matAutocomplete" (optionSelected)="onTariffSelected($event.option.value)">
             @for (item of tariffOptions(); track item.id) {
-            <mat-option [value]="item">{{ item.code }} — {{ item.name }} ({{ formatPrice(item.price_incl_vat) }} ₺)</mat-option>
+            <mat-option [value]="item">{{ item.code }} — {{ item.name }} ({{ formatPrice(item.clinic_incl || item.reference_incl) }} ₺)</mat-option>
             }
           </mat-autocomplete>
         </mat-form-field>
         @if (selectedTariffItem()) {
-        <p style="font-size:13px;margin:0">{{ 'oral.floorPrice' | translate }}: <strong>{{ formatPrice(selectedTariffItem()!.price_incl_vat) }} ₺</strong></p>
+        <p style="font-size:13px;margin:0">{{ 'oral.floorPrice' | translate }}: <strong>{{ formatPrice(selectedTariffItem()!.reference_incl) }} ₺</strong></p>
         }
         <mat-form-field appearance="outline">
           <mat-label>{{ 'oral.defaultPrice' | translate }}</mat-label>
@@ -187,8 +188,8 @@ export class OralProceduresComponent implements OnInit {
   editing = signal(false);
   violations = signal<TariffViolation[]>([]);
   tariffYear = signal<number | null>(null);
-  tariffOptions = signal<DentalTariffItem[]>([]);
-  selectedTariffItem = signal<DentalTariffItem | null>(null);
+  tariffOptions = signal<TenantTariffItem[]>([]);
+  selectedTariffItem = signal<TenantTariffItem | null>(null);
   categories = CATEGORIES;
   searchControl = this.fb.control('', { nonNullable: true });
   tariffSearchControl = this.fb.control('', { nonNullable: true });
@@ -218,7 +219,7 @@ export class OralProceduresComponent implements OnInit {
         distinctUntilChanged(),
         switchMap((q) => {
           const term = typeof q === 'string' ? q.trim() : '';
-          if (term.length < 2) return of({ results: [] as DentalTariffItem[] });
+          if (term.length < 2) return of({ results: [] as TenantTariffItem[], count: 0 });
           return this.tariffService.searchItems(term);
         })
       )
@@ -239,9 +240,10 @@ export class OralProceduresComponent implements OnInit {
     });
   }
 
-  onTariffSelected(item: DentalTariffItem): void {
+  onTariffSelected(item: TenantTariffItem): void {
     this.selectedTariffItem.set(item);
-    this.form.patchValue({ tariff_item: item.id, default_price: item.price_incl_vat });
+    const incl = item.clinic_incl || item.reference_incl;
+    this.form.patchValue({ tariff_item: item.id, default_price: incl });
     this.tariffSearchControl.setValue(`${item.code} — ${item.name}`, { emitEvent: false });
   }
 

@@ -81,6 +81,10 @@ class Command(BaseCommand):
             DentalTariff.objects.exclude(pk=tariff.pk).update(is_active=False)
             tariff.is_active = True
             tariff.save(update_fields=["is_active", "updated_at"])
+            from apps.tariff.services.tenant_year_sync import sync_active_tariff_to_all_tenants
+
+            sync_stats = sync_active_tariff_to_all_tenants(tariff=tariff)
+            self.stdout.write(self.style.SUCCESS(f"Tenant sync: {sync_stats}"))
 
         self.stdout.write(
             self.style.SUCCESS(

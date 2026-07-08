@@ -84,6 +84,16 @@ def ensure_platform_billing_master() -> dict[str, Currency]:
         valid_from=date(2020, 1, 1),
         defaults={"is_active": True},
     )
+    dental_tax, _ = TaxType.objects.get_or_create(
+        code="KDV10",
+        defaults={"name": "KDV %10 (Diş Hekimliği)", "description": "TDB rehber tarife KDV oranı"},
+    )
+    TaxRate.objects.get_or_create(
+        tax_type=dental_tax,
+        rate_percent=Decimal("10"),
+        valid_from=date(2020, 1, 1),
+        defaults={"is_active": True},
+    )
     PlatformBillingSettings.get_solo()
     for slug in BILLABLE_MODULES:
         ModulePrice.objects.get_or_create(

@@ -87,11 +87,13 @@ export class OralService {
     category?: string;
     search?: string;
     is_frequent?: boolean;
+    include_tdb?: boolean;
   } = {}): Observable<Page<ProcedureCatalog>> {
-    let p = new HttpParams().set('limit', '200');
+    let p = new HttpParams().set('limit', '500');
     if (params.category) p = p.set('category', params.category);
     if (params.search) p = p.set('search', params.search);
     if (params.is_frequent) p = p.set('is_frequent', 'true');
+    if (params.include_tdb) p = p.set('include_tdb', '1');
     return this.http.get<Page<ProcedureCatalog>>(`${API_BASE}/oral/procedures/`, { params: p });
   }
 

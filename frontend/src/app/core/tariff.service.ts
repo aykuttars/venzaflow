@@ -11,14 +11,30 @@ export interface DentalTariff {
   is_active: boolean;
 }
 
-export interface DentalTariffItem {
+export interface TariffSection {
+  section_no: number;
+  section_name: string;
+}
+
+export interface TenantTariffItem {
   id: number;
   section_no: number;
   section_name: string;
   code: string;
   name: string;
-  price_excl_vat: string;
-  price_incl_vat: string;
+  reference_excl: string;
+  reference_incl: string;
+  floor_incl: string;
+  clinic_excl: string;
+  clinic_incl: string;
+  is_customizable: boolean;
+}
+
+export interface TariffItemPage {
+  count: number;
+  page: number;
+  page_size: number;
+  results: TenantTariffItem[];
 }
 
 export interface TariffViolation {
@@ -36,17 +52,53 @@ export interface TariffViolation {
 export class TariffService {
   private http = inject(HttpClient);
 
-  getActive(): Observable<{ configured: boolean; tariff: DentalTariff | null }> {
-    return this.http.get<{ configured: boolean; tariff: DentalTariff | null }>(`${API_BASE}/tariff/`);
+  getActive(): Observable<{
+    configured: boolean;
+    tariff: DentalTariff | null;
+    sections: TariffSection[];
+  }> {
+    return this.http.get<{
+      configured: boolean;
+      tariff: DentalTariff | null;
+      sections: TariffSection[];
+    }>(`${API_BASE}/tariff/`);
   }
 
-  searchItems(q: string, section?: number): Observable<{ count: number; results: DentalTariffItem[] }> {
+  listItems(opts: {
+    q?: string;
+    section?: number;
+    page?: number;
+    page_size?: number;
+  } = {}): Observable<TariffItemPage> {
     let params = new HttpParams();
-    if (q) params = params.set('q', q);
-    if (section != null) params = params.set('section', String(section));
-    return this.http.get<{ count: number; results: DentalTariffItem[] }>(`${API_BASE}/tariff/items/`, {
-      params,
-    });
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.section != null) params = params.set('section', String(opts.section));
+    if (opts.page != null) params = params.set('page', String(opts.page));
+    if (opts.page_size != null) params = params.set('page_size', String(opts.page_size));
+    return this.http.get<TariffItemPage>(`${API_BASE}/tariff/items/`, { params });
+  }
+
+  /** Legacy autocomplete helper */
+  searchItems(q: string, section?: number): Observable<{ count: number; results: TenantTariffItem[] }> {
+    return this.listItems({ q, section, page: 1, page_size: 50 });
+  }
+
+  updateClinicPrice(
+    itemId: number,
+    body: {
+      changed: 'excl' | 'incl';
+      clinic_price_excl_vat: string;
+      clinic_price_incl_vat: string;
+    }
+  ): Observable<TenantTariffItem> {
+    return this.http.patch<TenantTariffItem>(`${API_BASE}/tariff/items/${itemId}/clinic-price/`, body);
+  }
+
+  syncProcedures(): Observable<{ synced: number; created: number; updated: number }> {
+    return this.http.post<{ synced: number; created: number; updated: number }>(
+      `${API_BASE}/tariff/sync-procedures/`,
+      {}
+    );
   }
 
   getViolations(): Observable<{ tariff_year: number | null; count: number; violations: TariffViolation[] }> {

@@ -7,6 +7,7 @@ from rest_framework import serializers
 
 from apps.oral.models import ProcedureCatalog
 from apps.tariff.models import DentalTariff, DentalTariffItem
+from apps.tariff.services.tenant_prices import effective_clinic_prices, effective_floor_incl
 
 
 def get_active_tariff() -> DentalTariff | None:
@@ -19,10 +20,11 @@ def floor_price_for_item(tariff_item: DentalTariffItem | None) -> Decimal | None
     return tariff_item.price_incl_vat
 
 
-def floor_price_for_procedure(procedure: ProcedureCatalog) -> Decimal | None:
+def floor_price_for_procedure(procedure: ProcedureCatalog, tenant_id: int | None = None) -> Decimal | None:
     if not procedure.tariff_item_id:
         return None
-    return procedure.tariff_item.price_incl_vat
+    tid = tenant_id or procedure.tenant_id
+    return effective_floor_incl(tid, procedure.tariff_item)
 
 
 def validate_price_not_below_floor(
@@ -30,8 +32,9 @@ def validate_price_not_below_floor(
     tariff_item: DentalTariffItem | None,
     *,
     field_name: str = "default_price",
+    tenant_id: int | None = None,
 ) -> None:
-    floor = floor_price_for_item(tariff_item)
+    floor = effective_floor_incl(tenant_id, tariff_item) if tenant_id else floor_price_for_item(tariff_item)
     if floor is None:
         return
     if price < floor:
@@ -58,14 +61,18 @@ def list_procedure_violations(tenant_id: int) -> list[dict]:
         .order_by("sort_order", "name")
     )
     for proc in qs:
-        floor = proc.tariff_item.price_incl_vat
-        if proc.default_price < floor:
+        floor = effective_floor_incl(tenant_id, proc.tariff_item)
+        if floor is None:
+            continue
+        _, incl = effective_clinic_prices(tenant_id, proc.tariff_item)
+        check_price = incl if proc.is_tdb else proc.default_price
+        if check_price < floor:
             violations.append(
                 {
                     "procedure_id": proc.id,
                     "procedure_code": proc.code,
                     "procedure_name": proc.name,
-                    "current_price": str(proc.default_price),
+                    "current_price": str(check_price),
                     "floor_price": str(floor),
                     "tariff_code": proc.tariff_item.code,
                     "tariff_item_name": proc.tariff_item.name,
