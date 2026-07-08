@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
@@ -23,6 +24,8 @@ from apps.signing.services.document_builder import build_payload
 from apps.signing.services.integration_config import supplier_dict
 from apps.signing.services.invoice_sync import mark_linked_invoice_sent, mark_linked_prescription_submitted
 from apps.signing.services.medula_xades import inject_enveloping_signature, prepare_enveloping_xades
+from apps.common.document_preview.types import PreviewNotAvailable
+from apps.signing.services.preview import render_sign_task_preview
 from apps.signing.services.task_factory import sync_tasks
 from apps.signing.services.ubl import build_invoice_ubl
 from apps.signing.services.verifier import SignatureVerificationError, verify_signature
@@ -39,6 +42,7 @@ class SignTaskViewSet(TenantScopedViewSet):
     action_permission_map = {
         "list": "signing.read",
         "retrieve": "signing.read",
+        "preview": "signing.read",
         "create": "signing.write",
         "prepare": "signing.write",
         "complete": "signing.write",
@@ -73,6 +77,15 @@ class SignTaskViewSet(TenantScopedViewSet):
         )
         out = SignTaskSerializer(task)
         return Response(out.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="preview")
+    def preview(self, request, pk=None):
+        task: SignTask = self.get_object()
+        try:
+            html = render_sign_task_preview(task)
+        except PreviewNotAvailable as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     def _is_xades(self, task: SignTask) -> bool:
         """e-Fatura/e-Arşiv tasks backed by a real Invoice are signed as XAdES."""

@@ -1,5 +1,6 @@
 appId: com.venzaflow.ebarcode
-productName: Venzaflow-e-barcode
+companyName: Venzaflow
+productName: ebarcode
 copyright: Copyright © 2026 Aykut Arslantas
 directories:
   buildResources: build
@@ -13,13 +14,15 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!.github/**'
 win:
-  executableName: Venzaflow-e-barcode
+  executableName: ebarcode
   target:
     - nsis
   artifactName: venzaflow-ebarcode-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
+  menuCategory: Venzaflow
   artifactName: venzaflow-ebarcode-${version}-setup-${arch}.${ext}
   shortcutName: Venzaflow e-barcode
   uninstallDisplayName: Venzaflow e-barcode
@@ -33,10 +36,19 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   target:
     - dmg
+    - pkg
   artifactName: venzaflow-ebarcode-${version}-mac-${arch}.${ext}
+  extendInfo:
+    CFBundleDisplayName: Venzaflow e-barcode
+    CFBundleName: ebarcode
   notarize: false
 dmg:
   artifactName: venzaflow-ebarcode-${version}-mac-${arch}.${ext}
+  title: Venzaflow e-barcode ${version}
+pkg:
+  installLocation: /Applications/Venzaflow
+  allowAnywhere: false
+  isRelocatable: false
 linux:
   target:
     - AppImage
@@ -50,7 +62,7 @@ linux:
   desktop:
     entry:
       Name: Venzaflow e-barcode
-      StartupWMClass: Venzaflow-e-barcode
+      StartupWMClass: ebarcode
 appImage:
   artifactName: venzaflow-ebarcode-${version}-linux-${arch}.${ext}
 deb:

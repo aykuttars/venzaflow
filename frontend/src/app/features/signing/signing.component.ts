@@ -12,6 +12,7 @@ import { API_BASE } from '../../core/api';
 import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { EimzaDownloadDialogComponent } from './eimza-download-dialog.component';
+import { openDocumentPreview } from '../../shared/document-preview-dialog.component';
 
 type DocumentType = 'erecete' | 'earsiv' | 'efatura';
 
@@ -84,6 +85,7 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
             <th>{{ 'signing.signer' | translate }}</th>
             <th>{{ 'signing.signedAt' | translate }}</th>
             <th>{{ 'signing.reference' | translate }}</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -109,11 +111,16 @@ const TABS: DocumentType[] = ['erecete', 'earsiv', 'efatura'];
             </td>
             <td>{{ t.signed_at ? (t.signed_at | date: 'short') : '—' }}</td>
             <td>{{ t.external_reference || '—' }}</td>
+            <td>
+              <button mat-icon-button type="button" (click)="openPreview(t)" [attr.aria-label]="'documentPreview.button' | translate">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
           </tr>
           }
           @if (tasks().length === 0) {
           <tr>
-            <td colspan="5" style="text-align:center;padding:24px">
+            <td colspan="6" style="text-align:center;padding:24px">
               {{ loading() ? ('common.loading' | translate) : ('common.noRecords' | translate) }}
             </td>
           </tr>
@@ -238,5 +245,12 @@ export class SigningComponent implements OnInit {
           this.loading.set(false);
         },
       });
+  }
+
+  openPreview(task: SignTask): void {
+    openDocumentPreview(this.dialog, {
+      title: task.title,
+      path: `sign/tasks/${task.id}/preview/`,
+    });
   }
 }

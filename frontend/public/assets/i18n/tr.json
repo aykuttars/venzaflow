@@ -156,6 +156,10 @@
       "failed": "Başarısız"
     }
   },
+  "documentPreview": {
+    "button": "Önizle",
+    "loading": "Belge yükleniyor…"
+  },
   "eimzaDownload": {
     "title": "Venzaflow e-imza uygulamasını indir",
     "subtitle": "İşletim sisteminize uygun kurulum dosyasını seçin.",

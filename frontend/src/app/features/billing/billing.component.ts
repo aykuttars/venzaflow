@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
@@ -23,6 +24,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { RouterLink } from '@angular/router';
 import { TenantInvoice } from '../../core/oral.service';
 import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-utils';
+import { openDocumentPreview } from '../../shared/document-preview-dialog.component';
 
 @Component({
   selector: 'app-billing',
@@ -59,7 +61,8 @@ import { normalizeDateInput, normalizeDateTimeInput } from '../../shared/date-ut
                 <td>{{ i.number }}</td><td>{{ i.customer_name }}</td><td>{{ i.issued_at }}</td><td>{{ ('billing.' + i.status) | translate }}</td><td>{{ i.total }}</td>
                 @if (canWrite()) {
                 <td style="text-align:right">
-                  <button mat-icon-button (click)="viewInvoice(i)" [attr.aria-label]="'billing.viewDetail' | translate"><mat-icon>visibility</mat-icon></button>
+                  <button mat-icon-button (click)="openInvoicePreview(i)" [attr.aria-label]="'documentPreview.button' | translate"><mat-icon>visibility</mat-icon></button>
+                  <button mat-icon-button (click)="viewInvoice(i)" [attr.aria-label]="'billing.viewDetail' | translate"><mat-icon>receipt_long</mat-icon></button>
                   <button mat-icon-button (click)="openInvoice(i)" [attr.aria-label]="'common.edit' | translate"><mat-icon>edit</mat-icon></button>
                   <button mat-icon-button (click)="removeInvoice(i)" [attr.aria-label]="'common.delete' | translate"><mat-icon>delete</mat-icon></button>
                 </td>
@@ -182,6 +185,7 @@ export class BillingComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   private confirmDialog = inject(ConfirmDialogService);
+  private dialog = inject(MatDialog);
   protected auth = inject(AuthService);
   private partiesApi = inject(PartyListService);
   tab = signal(0);
@@ -344,6 +348,18 @@ export class BillingComponent implements OnInit {
         error: (e) => this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', { duration: 2500 }),
       });
     }
+  }
+
+  openInvoicePreview(invoice: { id: number; number: string; e_document_type?: string }): void {
+    const docType =
+      invoice.e_document_type === 'earsiv' || invoice.e_document_type === 'efatura'
+        ? invoice.e_document_type
+        : 'efatura';
+    openDocumentPreview(this.dialog, {
+      title: invoice.number,
+      path: `billing/invoices/${invoice.id}/preview/`,
+      queryParams: { document_type: docType },
+    });
   }
 
   removeInvoice(i: any): void {

@@ -20,6 +20,7 @@ from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
 from apps.oral.models import OralTreatment, ProcedureCatalog
 from apps.prescriptions.models import DrugCatalog, Prescription, PrescriptionLine
+from apps.products.models import Category, Product
 from apps.signing.models import SignTask
 from apps.signing.services.task_factory import sync_erecete_tasks, sync_sign_task_for_invoice, sync_sign_task_for_prescription
 from apps.tenants.models import Tenant
@@ -138,6 +139,16 @@ class SigningApiTests(TestCase):
         items = self._results(r)
         self.assertGreaterEqual(len(items), 1)
         self.assertEqual(items[0]["document_type"], "efatura")
+
+    def test_sign_task_preview_returns_html(self):
+        list_r = self.client.get("/api/v1/sign/tasks/?document_type=efatura")
+        task_id = self._results(list_r)[0]["id"]
+        r = self.client.get(f"/api/v1/sign/tasks/{task_id}/preview/")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIn("text/html", r["Content-Type"])
+        body = r.content.decode("utf-8")
+        self.assertIn("INV-001", body)
+        self.assertIn("Ali", body)
 
     def test_prepare_sign_complete_flow(self):
         list_r = self.client.get("/api/v1/sign/tasks/?document_type=efatura")

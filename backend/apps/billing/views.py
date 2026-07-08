@@ -2,13 +2,16 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.common.viewsets import TenantScopedViewSet
+from django.http import HttpResponse
+
 from apps.billing.models import Invoice, Payment
 from apps.billing.serializers import (
     CreateInvoiceFromOralTreatmentsSerializer,
     InvoiceSerializer,
     PaymentSerializer,
 )
+from apps.billing.services.preview import DOCUMENT_TYPE_LABELS, render_invoice_preview_html
+from apps.common.viewsets import TenantScopedViewSet
 
 
 class InvoiceViewSet(TenantScopedViewSet):
@@ -18,6 +21,7 @@ class InvoiceViewSet(TenantScopedViewSet):
     action_permission_map = {
         "list": "billing.read",
         "retrieve": "billing.read",
+        "preview": "billing.read",
         "create": "billing.write",
         "update": "billing.write",
         "partial_update": "billing.write",
@@ -34,6 +38,14 @@ class InvoiceViewSet(TenantScopedViewSet):
         ser.is_valid(raise_exception=True)
         invoice = ser.save()
         return Response(InvoiceSerializer(invoice).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="preview")
+    def preview(self, request, pk=None):
+        invoice = self.get_object()
+        doc_type = (request.query_params.get("document_type") or "efatura").strip().lower()
+        label = DOCUMENT_TYPE_LABELS.get(doc_type, "Fatura")
+        html = render_invoice_preview_html(invoice, document_type_label=label)
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
 
 
 class PaymentViewSet(TenantScopedViewSet):

@@ -155,6 +155,10 @@
       "failed": "Failed"
     }
   },
+  "documentPreview": {
+    "button": "Preview",
+    "loading": "Loading document…"
+  },
   "eimzaDownload": {
     "title": "Download Venzaflow e-signature app",
     "subtitle": "Choose the installer for your operating system.",

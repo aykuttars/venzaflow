@@ -2,7 +2,17 @@
 set -euo pipefail
 
 WRAPPER="/usr/bin/venzaflow-ebarcode"
-INSTALL_DIR="/opt/Venzaflow-e-barcode"
+BRAND_DIR="/opt/Venzaflow"
+INSTALL_DIR="${BRAND_DIR}/ebarcode"
+PACKAGE_DIR="/opt/ebarcode"
+LEGACY_DIR="/opt/Venzaflow-e-barcode"
+
+if [[ -d "$LEGACY_DIR" && ! -d "$PACKAGE_DIR" ]]; then
+  mv "$LEGACY_DIR" "$PACKAGE_DIR"
+fi
+
+mkdir -p "$BRAND_DIR"
+ln -sfn "$PACKAGE_DIR" "$INSTALL_DIR"
 
 cat > "$WRAPPER" << 'EOF'
 #!/bin/sh
@@ -17,7 +27,7 @@ if [ -z "${DISPLAY:-}" ]; then
 fi
 export GDK_BACKEND=x11
 
-APP="/opt/Venzaflow-e-barcode/ebarcode"
+APP="/opt/Venzaflow/ebarcode/ebarcode"
 ARGS="--ozone-platform=x11 --disable-gpu --no-sandbox"
 
 if [ -t 0 ] || [ -t 1 ]; then

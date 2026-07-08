@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
@@ -12,6 +13,7 @@ import { AuthService } from '../../core/auth.service';
 import { Prescription, PrescriptionService } from '../../core/prescription.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CRUD_DIALOG_STYLES } from '../../shared/crud-styles';
+import { openDocumentPreview } from '../../shared/document-preview-dialog.component';
 import { PrescriptionFormComponent } from '../prescriptions/prescription-form.component';
 
 @Component({
@@ -115,6 +117,7 @@ export class PatientPrescriptionsTabComponent implements OnInit {
   private snack = inject(MatSnackBar);
   private translate = inject(TranslateService);
   private confirm = inject(ConfirmDialogService);
+  private dialog = inject(MatDialog);
   protected auth = inject(AuthService);
 
   items = signal<Prescription[]>([]);
@@ -130,22 +133,10 @@ export class PatientPrescriptionsTabComponent implements OnInit {
   canReadSigning = () => this.auth.hasModule('signing') && this.auth.hasPermission('signing.read');
 
   openPreview(id: number): void {
-    this.rxApi.fetchPreviewHtml(id).subscribe({
-      next: (html) => {
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const tab = window.open(url, '_blank', 'noopener');
-        if (!tab) {
-          URL.revokeObjectURL(url);
-          this.snack.open(this.translate.instant('prescriptions.previewBlocked'), 'OK', {
-            duration: 3500,
-          });
-          return;
-        }
-        tab.addEventListener('beforeunload', () => URL.revokeObjectURL(url));
-      },
-      error: () =>
-        this.snack.open(this.translate.instant('common.error'), 'OK', { duration: 2500 }),
+    const rx = this.items().find((item) => item.id === id);
+    openDocumentPreview(this.dialog, {
+      title: rx?.prescription_no || `#${id}`,
+      path: `prescriptions/${id}/preview/`,
     });
   }
 
