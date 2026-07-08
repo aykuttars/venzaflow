@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Venzaflow e-barcode — masaüstü barkod & etiket köprüsü (XP-P328B TSPL)",
   "main": "./out/main/index.js",
-  "author": "Aykut Arslantas",
+  "author": "Venzaflow",
   "homepage": "https://venzaflow.aykut.in",
   "scripts": {
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",

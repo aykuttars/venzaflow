@@ -1,5 +1,4 @@
 appId: com.venzaflow.eimza
-companyName: Venzaflow
 # Spaceless slug → /opt/eimza; brand namespace via /opt/Venzaflow/eimza symlink.
 productName: eimza
 copyright: Copyright © 2026 Aykut Arslantas

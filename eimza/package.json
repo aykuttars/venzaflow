@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Venzaflow e-imza — masaüstü imza köprüsü",
   "main": "./out/main/index.js",
-  "author": "Aykut Arslantas",
+  "author": "Venzaflow",
   "homepage": "https://venzaflow.aykut.in",
   "scripts": {
     "format": "prettier --write .",
