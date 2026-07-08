@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from apps.oral.models import ProcedureCatalog
 from apps.tariff.models import DentalTariff, DentalTariffItem
-from apps.tariff.services.tenant_prices import effective_clinic_prices, effective_floor_incl
+from apps.tariff.services.tenant_prices import effective_clinic_incl, effective_floor_incl
 
 
 def get_active_tariff() -> DentalTariff | None:
@@ -64,7 +64,7 @@ def list_procedure_violations(tenant_id: int) -> list[dict]:
         floor = effective_floor_incl(tenant_id, proc.tariff_item)
         if floor is None:
             continue
-        _, incl = effective_clinic_prices(tenant_id, proc.tariff_item)
+        incl = effective_clinic_incl(tenant_id, proc.tariff_item)
         check_price = incl if proc.is_tdb else proc.default_price
         if check_price < floor:
             violations.append(

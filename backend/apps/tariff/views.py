@@ -13,11 +13,8 @@ from apps.tariff.serializers import (
     DentalTariffSerializer,
     TenantTariffItemListSerializer,
 )
-from apps.tariff.services.tenant_prices import (
-    ensure_tenant_tariff_prices,
-    validate_clinic_prices_not_below_reference,
-)
-from apps.tariff.services.vat import sync_vat_pair
+from apps.tariff.services.tenant_prices import save_tenant_clinic_price
+from apps.tariff.services.vat import dental_vat_rate_percent
 from apps.tariff.services.validation import get_active_tariff, list_procedure_violations
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -93,8 +90,6 @@ class TariffItemListView(APIView):
         if not tariff:
             return Response({"count": 0, "results": [], "page": 1, "page_size": 50})
 
-        ensure_tenant_tariff_prices(request.user.tenant_id, tariff=tariff)
-
         q = (request.query_params.get("q") or "").strip()
         section = request.query_params.get("section")
         try:
@@ -106,6 +101,15 @@ class TariffItemListView(APIView):
         except ValueError:
             page_size = 50
 
+        tenant_rows = {
+            row.tariff_item_id: row
+            for row in TenantTariffItemPrice.objects.filter(
+                tenant_id=request.user.tenant_id,
+                tariff_item__tariff=tariff,
+            )
+        }
+        bumped_item_ids = {tid for tid, row in tenant_rows.items() if row.floor_bumped}
+
         qs = tariff.items.all()
         if section:
             qs = qs.filter(section_no=int(section))
@@ -114,18 +118,25 @@ class TariffItemListView(APIView):
                 qs = qs.filter(code__iexact=q)
             else:
                 qs = qs.filter(name__icontains=q)
+        only_bumped = (request.query_params.get("only_bumped") or "").lower() in ("1", "true")
+        if only_bumped:
+            qs = qs.filter(pk__in=bumped_item_ids)
         qs = qs.order_by("section_no", "code")
         total = qs.count()
         offset = (page - 1) * page_size
         page_qs = qs[offset : offset + page_size]
         serializer = TenantTariffItemListSerializer(
-            page_qs, many=True, context={"request": request}
+            page_qs,
+            many=True,
+            context={"request": request, "rows_by_item": tenant_rows},
         )
         return Response(
             {
                 "count": total,
                 "page": page,
                 "page_size": page_size,
+                "vat_rate": dental_vat_rate_percent(),
+                "bumped_count": len(bumped_item_ids),
                 "results": serializer.data,
             }
         )
@@ -151,26 +162,24 @@ class TariffItemClinicPriceView(APIView):
 
         ser = ClinicPriceUpdateSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
-        changed = ser.validated_data["changed"]
-        excl = ser.validated_data["clinic_price_excl_vat"]
         incl = ser.validated_data["clinic_price_incl_vat"]
-        excl, incl = sync_vat_pair(changed=changed, excl=excl, incl=incl)
-        validate_clinic_prices_not_below_reference(item, excl, incl)
-
-        row, _ = TenantTariffItemPrice.objects.update_or_create(
-            tenant_id=request.user.tenant_id,
-            tariff_item=item,
-            defaults={
-                "clinic_price_excl_vat": excl,
-                "clinic_price_incl_vat": incl,
-            },
-        )
+        save_tenant_clinic_price(request.user.tenant_id, item, incl)
 
         from apps.oral.services.tariff_procedure_sync import sync_tdb_procedures_for_tenant
 
         sync_tdb_procedures_for_tenant(request.user.tenant_id)
 
-        list_ser = TenantTariffItemListSerializer(item, context={"request": request})
+        tenant_rows = {
+            row.tariff_item_id: row
+            for row in TenantTariffItemPrice.objects.filter(
+                tenant_id=request.user.tenant_id,
+                tariff_item=item,
+            )
+        }
+        list_ser = TenantTariffItemListSerializer(
+            item,
+            context={"request": request, "rows_by_item": tenant_rows},
+        )
         return Response(list_ser.data)
 
 
@@ -182,7 +191,6 @@ class TariffSyncProceduresView(APIView):
     def post(self, request):
         from apps.oral.services.tariff_procedure_sync import sync_tdb_procedures_for_tenant
 
-        ensure_tenant_tariff_prices(request.user.tenant_id)
         stats = sync_tdb_procedures_for_tenant(request.user.tenant_id)
         return Response(stats)
 

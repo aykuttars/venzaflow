@@ -69,7 +69,6 @@ class Command(BaseCommand):
                     section_name=item.section_name,
                     code=item.code,
                     name=item.name,
-                    price_excl_vat=item.price_excl_vat,
                     price_incl_vat=item.price_incl_vat,
                 )
                 for item in parsed

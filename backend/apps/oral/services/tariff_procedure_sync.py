@@ -3,7 +3,7 @@ from __future__ import annotations
 from apps.oral.models import ProcedureCatalog
 from apps.oral.services.procedure_product import ensure_procedure_product
 from apps.tariff.models import DentalTariffItem
-from apps.tariff.services.tenant_prices import effective_clinic_prices, ensure_tenant_tariff_prices
+from apps.tariff.services.tenant_prices import effective_clinic_incl
 from apps.tariff.services.validation import get_active_tariff
 
 
@@ -20,13 +20,11 @@ def sync_tdb_procedures_for_tenant(tenant_id: int) -> dict[str, int]:
     if not tariff:
         return {"synced": 0, "created": 0, "updated": 0}
 
-    ensure_tenant_tariff_prices(tenant_id, tariff=tariff)
-
     created = 0
     updated = 0
     items = list(tariff.items.all())
     for idx, item in enumerate(items):
-        excl, incl = effective_clinic_prices(tenant_id, item)
+        incl = effective_clinic_incl(tenant_id, item)
         category = section_to_category(item.section_no)
         obj, was_created = ProcedureCatalog.all_tenants.update_or_create(
             tenant_id=tenant_id,

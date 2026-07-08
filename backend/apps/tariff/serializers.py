@@ -5,7 +5,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.tariff.models import DentalTariff, DentalTariffItem, TenantTariffItemPrice
-from apps.tariff.services.tenant_prices import effective_clinic_prices
+from apps.tariff.services.tenant_prices import get_tenant_price_row
 
 
 class DentalTariffItemSerializer(serializers.ModelSerializer):
@@ -17,24 +17,23 @@ class DentalTariffItemSerializer(serializers.ModelSerializer):
             "section_name",
             "code",
             "name",
-            "price_excl_vat",
             "price_incl_vat",
         )
 
 
 class TenantTariffItemListSerializer(serializers.ModelSerializer):
-    reference_excl = serializers.DecimalField(
-        source="price_excl_vat", max_digits=12, decimal_places=2, read_only=True
-    )
+    """Only the canonical VAT-included prices are returned; the UI derives the
+    VAT-excluded amount from the tariff's vat_rate (exposed on the list payload)."""
+
     reference_incl = serializers.DecimalField(
         source="price_incl_vat", max_digits=12, decimal_places=2, read_only=True
     )
     floor_incl = serializers.DecimalField(
         source="price_incl_vat", max_digits=12, decimal_places=2, read_only=True
     )
-    clinic_excl = serializers.SerializerMethodField()
     clinic_incl = serializers.SerializerMethodField()
     is_customizable = serializers.SerializerMethodField()
+    floor_bumped = serializers.SerializerMethodField()
 
     class Meta:
         model = DentalTariffItem
@@ -44,33 +43,36 @@ class TenantTariffItemListSerializer(serializers.ModelSerializer):
             "section_name",
             "code",
             "name",
-            "reference_excl",
             "reference_incl",
             "floor_incl",
-            "clinic_excl",
             "clinic_incl",
             "is_customizable",
+            "floor_bumped",
         )
 
     def _tenant_id(self) -> int:
         request = self.context.get("request")
         return request.user.tenant_id if request else 0
 
-    def get_clinic_excl(self, obj: DentalTariffItem) -> Decimal:
-        excl, _ = effective_clinic_prices(self._tenant_id(), obj)
-        return excl
+    def _row(self, obj: DentalTariffItem):
+        rows = self.context.get("rows_by_item")
+        if rows is not None:
+            return rows.get(obj.id)
+        return get_tenant_price_row(self._tenant_id(), obj)
 
     def get_clinic_incl(self, obj: DentalTariffItem) -> Decimal:
-        _, incl = effective_clinic_prices(self._tenant_id(), obj)
-        return incl
+        row = self._row(obj)
+        return row.clinic_price_incl_vat if row else obj.price_incl_vat
 
     def get_is_customizable(self, obj: DentalTariffItem) -> bool:
         return True
 
+    def get_floor_bumped(self, obj: DentalTariffItem) -> bool:
+        row = self._row(obj)
+        return bool(row and row.floor_bumped)
+
 
 class ClinicPriceUpdateSerializer(serializers.Serializer):
-    changed = serializers.ChoiceField(choices=("excl", "incl"))
-    clinic_price_excl_vat = serializers.DecimalField(max_digits=12, decimal_places=2)
     clinic_price_incl_vat = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 

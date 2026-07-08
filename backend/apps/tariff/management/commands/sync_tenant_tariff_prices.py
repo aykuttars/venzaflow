@@ -2,23 +2,28 @@ from __future__ import annotations
 
 from django.core.management.base import BaseCommand
 
-from apps.tariff.services.tenant_prices import ensure_tenant_tariff_prices
+from apps.tariff.services.tenant_prices import enforce_override_floors, prune_redundant_overrides
 from apps.tariff.services.tenant_year_sync import oral_tenant_ids
 
 
 class Command(BaseCommand):
-    help = "Ensure tenant TDB tariff price rows exist at reference floor for active tariff."
+    help = "Enforce floor on existing tenant tariff overrides and prune redundant base-price rows."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--all-tenants",
             action="store_true",
-            help="Sync all oral-enabled tenants",
+            help="Process all oral-enabled tenants",
         )
         parser.add_argument(
             "--tenant-id",
             type=int,
             help="Single tenant id",
+        )
+        parser.add_argument(
+            "--prune-only",
+            action="store_true",
+            help="Only delete override rows that mirror the base tariff",
         )
 
     def handle(self, *args, **options):
@@ -31,5 +36,9 @@ class Command(BaseCommand):
             return
 
         for tenant_id in tenant_ids:
-            stats = ensure_tenant_tariff_prices(tenant_id)
-            self.stdout.write(self.style.SUCCESS(f"Tenant {tenant_id}: {stats}"))
+            if options["prune_only"]:
+                pruned = prune_redundant_overrides(tenant_id=tenant_id)
+                self.stdout.write(self.style.SUCCESS(f"Tenant {tenant_id}: pruned={pruned}"))
+            else:
+                stats = enforce_override_floors(tenant_id)
+                self.stdout.write(self.style.SUCCESS(f"Tenant {tenant_id}: {stats}"))

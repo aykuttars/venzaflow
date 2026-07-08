@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.tariff.models import DentalTariff, DentalTariffItem, TenantTariffItemPrice, TenantTariffItemPrice
+from apps.tariff.models import DentalTariff, DentalTariffItem, TenantTariffItemPrice
 
 
 class DentalTariffItemInline(admin.TabularInline):

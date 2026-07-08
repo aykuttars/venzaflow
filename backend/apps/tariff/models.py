@@ -32,8 +32,11 @@ class DentalTariffItem(models.Model):
     section_name = models.CharField(max_length=128)
     code = models.CharField(max_length=16)
     name = models.CharField(max_length=512)
-    price_excl_vat = models.DecimalField(max_digits=12, decimal_places=2)
-    price_incl_vat = models.DecimalField(max_digits=12, decimal_places=2)
+    price_incl_vat = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="TDB reference price, VAT included (canonical). VAT-excl is derived.",
+    )
 
     class Meta:
         db_table = "dental_tariff_item"
@@ -54,7 +57,7 @@ class DentalTariffItem(models.Model):
 
 
 class TenantTariffItemPrice(models.Model):
-    """Per-tenant clinic price override for a TDB reference tariff item (floor = reference)."""
+    """Tenant-specific price override. Row exists only when clinic price != base tariff."""
 
     tenant = models.ForeignKey(
         "tenants.Tenant",
@@ -66,8 +69,15 @@ class TenantTariffItemPrice(models.Model):
         on_delete=models.CASCADE,
         related_name="tenant_prices",
     )
-    clinic_price_excl_vat = models.DecimalField(max_digits=12, decimal_places=2)
-    clinic_price_incl_vat = models.DecimalField(max_digits=12, decimal_places=2)
+    clinic_price_incl_vat = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Clinic price, VAT included (canonical). VAT-excl is derived in UI.",
+    )
+    floor_bumped = models.BooleanField(
+        default=False,
+        help_text="True when a yearly tariff update raised this price to the new floor.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -84,3 +94,8 @@ class TenantTariffItemPrice(models.Model):
 
     def __str__(self) -> str:
         return f"{self.tenant_id} {self.tariff_item.code} incl={self.clinic_price_incl_vat}"
+
+
+# NOTE: VAT-excluded prices are intentionally NOT stored. Dental KDV is a fixed
+# system tax rate; the VAT-excluded amount is derived from the canonical
+# VAT-included price at display/invoice time to avoid two columns drifting apart.

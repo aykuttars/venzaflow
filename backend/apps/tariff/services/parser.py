@@ -40,7 +40,6 @@ class ParsedTariffItem:
     section_name: str
     code: str
     name: str
-    price_excl_vat: Decimal
     price_incl_vat: Decimal
 
 
@@ -99,15 +98,16 @@ def parse_tariff_text(text: str) -> list[ParsedTariffItem]:
         section_no = int(section_no_str)
         section_name = _normalize_section_name(section_name)
         for item_match in ITEM_RE.finditer(block):
-            code, name, excl, incl = item_match.groups()
+            code, name, _excl, incl = item_match.groups()
             name = re.sub(r"\s+", " ", name.strip())
+            # KDV-dahil (incl) is the canonical TDB price; the excl column is
+            # a rounded derivation and is deliberately not persisted.
             items.append(
                 ParsedTariffItem(
                     section_no=section_no,
                     section_name=section_name,
                     code=code.strip(),
                     name=name,
-                    price_excl_vat=_parse_decimal(excl),
                     price_incl_vat=_parse_decimal(incl),
                 )
             )
