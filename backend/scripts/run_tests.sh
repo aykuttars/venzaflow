@@ -35,6 +35,7 @@ LABELS=(
   apps.barcode.tests_ebarcode_download
   apps.barcode.tests_template_resolve
   apps.integrations.authority.tests_medula
+  apps.tariff.tests
 )
 
 python manage.py test "${LABELS[@]}" "$@"

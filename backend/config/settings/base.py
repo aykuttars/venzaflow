@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.prescriptions",
     "apps.barcode",
     "apps.service",
+    "apps.tariff",
 ]
 
 MIDDLEWARE = [

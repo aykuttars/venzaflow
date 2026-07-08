@@ -9,10 +9,20 @@ from apps.customers.models import Customer
 from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
 from apps.oral.services.procedure_product import ensure_procedure_product
 from apps.oral.validators import validate_fdi_tooth_numbers
+from apps.tariff.services.validation import validate_price_not_below_floor
 
 
 class ProcedureCatalogSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True, default="")
+    tariff_code = serializers.CharField(source="tariff_item.code", read_only=True, default="")
+    tariff_item_name = serializers.CharField(source="tariff_item.name", read_only=True, default="")
+    floor_price = serializers.DecimalField(
+        source="tariff_item.price_incl_vat",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = ProcedureCatalog
@@ -24,16 +34,38 @@ class ProcedureCatalogSerializer(serializers.ModelSerializer):
             "default_price",
             "product",
             "product_name",
+            "tariff_item",
+            "tariff_code",
+            "tariff_item_name",
+            "floor_price",
             "is_active",
             "sort_order",
             "is_frequent",
             "default_tooth_condition",
         )
-        read_only_fields = ("id", "product_name")
+        read_only_fields = ("id", "product_name", "tariff_code", "tariff_item_name", "floor_price")
 
     def validate_default_price(self, value):
         if value < Decimal("0"):
             raise serializers.ValidationError("Price must be zero or greater.")
+        return value
+
+    def validate(self, attrs):
+        tariff_item = attrs.get("tariff_item")
+        if tariff_item is None and self.instance is not None:
+            tariff_item = self.instance.tariff_item
+        price = attrs.get("default_price")
+        if price is None and self.instance is not None:
+            price = self.instance.default_price
+        if price is not None:
+            validate_price_not_below_floor(price, tariff_item, field_name="default_price")
+        return attrs
+
+    def validate_tariff_item(self, value):
+        if value is None:
+            return value
+        if not value.tariff.is_active:
+            raise serializers.ValidationError("Tariff item must belong to the active tariff year.")
         return value
 
     def create(self, validated_data):
@@ -122,6 +154,15 @@ class OralTreatmentSerializer(serializers.ModelSerializer):
             attrs["phase"] = procedure.category
         if "session_date" not in attrs and self.instance is None:
             attrs["session_date"] = timezone.localdate()
+        unit_price = attrs.get("unit_price")
+        if unit_price is None and self.instance is not None:
+            unit_price = self.instance.unit_price
+        if unit_price is not None and procedure is not None:
+            validate_price_not_below_floor(
+                unit_price,
+                procedure.tariff_item,
+                field_name="unit_price",
+            )
         return attrs
 
 
@@ -136,6 +177,11 @@ class OralTreatmentBulkCreateSerializer(serializers.Serializer):
     )
     session_date = serializers.DateField(required=False)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    surfaces = serializers.ListField(
+        child=serializers.CharField(max_length=16),
+        required=False,
+        default=list,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -158,10 +204,12 @@ class OralTreatmentBulkCreateSerializer(serializers.Serializer):
         status = validated_data.get("status", OralTreatment.Status.PLANNED)
         session_date = validated_data.get("session_date") or timezone.localdate()
         notes = validated_data.get("notes", "")
+        surfaces = validated_data.get("surfaces") or []
 
         price = procedure.default_price
         if procedure.product_id:
             price = procedure.product.unit_price
+        validate_price_not_below_floor(price, procedure.tariff_item, field_name="unit_price")
 
         created = []
         for tooth in tooth_numbers:
@@ -170,6 +218,7 @@ class OralTreatmentBulkCreateSerializer(serializers.Serializer):
                 patient=patient,
                 procedure=procedure,
                 tooth_numbers=[tooth],
+                surfaces=surfaces,
                 status=status,
                 phase=procedure.category,
                 unit_price=price,

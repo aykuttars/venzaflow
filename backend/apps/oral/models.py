@@ -27,6 +27,13 @@ class ProcedureCatalog(TenantOwnedModel):
     sort_order = models.PositiveIntegerField(default=0)
     is_frequent = models.BooleanField(default=False)
     default_tooth_condition = models.CharField(max_length=32, blank=True)
+    tariff_item = models.ForeignKey(
+        "tariff.DentalTariffItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="procedures",
+    )
 
     class Meta:
         db_table = "oral_procedure_catalog"
