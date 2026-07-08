@@ -10,7 +10,8 @@
     "test": "ng test --watch=false --browsers=ChromeHeadless",
     "lint": "ng lint",
     "gen:schema": "cd ../backend && python manage.py spectacular --file openapi-schema.yml",
-    "gen:api": "openapi-typescript ../backend/openapi-schema.yml -o src/app/shared/api-schema.d.ts"
+    "gen:api": "openapi-typescript ../backend/openapi-schema.yml -o src/app/shared/api-schema.d.ts",
+    "gen:jaw-gltf": "node scripts/generate-jaw-gltf.mjs"
   },
   "dependencies": {
     "@angular/animations": "^18.2.0",

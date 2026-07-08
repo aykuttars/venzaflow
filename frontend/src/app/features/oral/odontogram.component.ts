@@ -47,6 +47,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
@@ -70,6 +71,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
@@ -97,6 +99,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
@@ -120,6 +123,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
@@ -149,6 +153,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
@@ -172,6 +177,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
@@ -197,6 +203,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
@@ -220,6 +227,7 @@ export const PRIMARY_ROWS = [
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
               [highlightedSurfaces]="surfacesFor(tooth)"
+              [treatedSurfaces]="treatedSurfacesFor(tooth)"
               [surfaceSelectEnabled]="surfaceSelectEnabled"
               (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
@@ -344,6 +352,8 @@ export class OdontogramComponent {
   @Input() surfaceSelectEnabled = false;
   @Input() treatmentHints: Record<string, string> = {};
 
+  @Input() treatedSurfacesByTooth: Record<string, string[]> = {};
+
   toothSelect = output<number[]>();
   surfaceSelect = output<{ tooth: number; surface: string }>();
 
@@ -363,6 +373,10 @@ export class OdontogramComponent {
   surfacesFor(tooth: number): string[] {
     if (!this.selected.includes(tooth)) return [];
     return this.selectedSurfaces;
+  }
+
+  treatedSurfacesFor(tooth: number): string[] {
+    return this.treatedSurfacesByTooth[String(tooth)] || [];
   }
 
   /** Subtle arch curve like classic dental charts */

@@ -5,9 +5,11 @@ import {
   Input,
   OnChanges,
   OnDestroy,
+  SimpleChanges,
   ViewChild,
   output,
 } from '@angular/core';
+import { TranslateModule } from '@ngx-translate/core';
 
 import {
   PERMANENT_LOWER_LEFT,
@@ -15,40 +17,65 @@ import {
   PERMANENT_UPPER_LEFT,
   PERMANENT_UPPER_RIGHT,
 } from './odontogram.component';
+import {
+  JawBuildResult,
+  Tooth3DObjects,
+  applyToothVisuals,
+  buildJawScene,
+} from './oral-3d-jaw.builder';
 
-const CONDITION_COLORS: Record<string, number> = {
-  healthy: 0xfffef8,
-  caries: 0xffcdd2,
-  filled: 0xbbdefb,
-  root_canal: 0xffe0b2,
-  crown: 0xd1c4e9,
-  implant: 0xb2dfdb,
-  missing: 0xe0e0e0,
-  bridge: 0xc5cae9,
-  extraction_planned: 0xffccbc,
+const QUADRANTS = {
+  PERMANENT_UPPER_RIGHT,
+  PERMANENT_UPPER_LEFT,
+  PERMANENT_LOWER_RIGHT,
+  PERMANENT_LOWER_LEFT,
 };
 
-const ALL_TEETH = [
-  ...PERMANENT_UPPER_RIGHT,
-  ...PERMANENT_UPPER_LEFT,
-  ...PERMANENT_LOWER_RIGHT,
-  ...PERMANENT_LOWER_LEFT,
-];
+const GLTF_PATH = '/assets/3d/jaw-arch.gltf';
 
 @Component({
   selector: 'app-oral-3d-viewer',
   standalone: true,
+  imports: [TranslateModule],
   template: `
-    <div class="oral-3d">
+    <div class="oral-3d" [class.oral-3d--loading]="loading()">
       <canvas #canvas class="oral-3d__canvas"></canvas>
+      @if (loading()) {
+      <p class="oral-3d__status">{{ 'common.loading' | translate }}</p>
+      }
       <p class="oral-3d__hint">{{ hint }}</p>
     </div>
   `,
   styles: [
     `
-      .oral-3d { position: relative; width: 100%; min-height: 360px; border-radius: 12px; overflow: hidden; background: #1a1a2e; }
-      .oral-3d__canvas { width: 100%; height: 360px; display: block; }
-      .oral-3d__hint { position: absolute; left: 12px; bottom: 8px; margin: 0; font-size: 11px; color: rgba(255,255,255,0.65); }
+      .oral-3d {
+        position: relative;
+        width: 100%;
+        min-height: 420px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      }
+      .oral-3d__canvas { width: 100%; height: 420px; display: block; }
+      .oral-3d__hint {
+        position: absolute;
+        left: 12px;
+        bottom: 8px;
+        margin: 0;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.65);
+        pointer-events: none;
+      }
+      .oral-3d__status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+      }
     `,
   ],
 })
@@ -56,34 +83,56 @@ export class Oral3dViewerComponent implements AfterViewInit, OnDestroy, OnChange
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @Input() teethState: Record<string, { condition?: string }> = {};
   @Input() selected: number[] = [];
-  @Input() hint = 'Sürükleyerek döndürün · Dişe tıklayarak seçin';
+  @Input() selectedSurfaces: string[] = [];
+  @Input() treatedSurfacesByTooth: Record<string, string[]> = {};
+  @Input() surfaceSelectEnabled = false;
+  @Input() hint = 'Sürükleyerek döndürün · Dişe veya yüzeye tıklayın';
 
   toothSelect = output<number[]>();
+  surfaceSelect = output<{ tooth: number; surface: string }>();
 
+  private _loading = true;
   private renderer: any;
   private scene: any;
   private camera: any;
   private controls: any;
-  private toothMeshes = new Map<number, any>();
+  private jaw!: JawBuildResult;
+  private pickables: any[] = [];
   private animationId = 0;
   private raycaster: any;
   private pointer = { x: 0, y: 0 };
   private THREE: any;
+  private initialized = false;
+  private resizeHandler = () => this.onResize();
+
+  loading(): boolean {
+    return this._loading;
+  }
 
   async ngAfterViewInit(): Promise<void> {
+    this._loading = true;
     this.THREE = await import('three');
     const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
     this.initScene(OrbitControls);
-    this.buildTeeth();
+    await this.loadJaw();
+    this._loading = false;
+    this.initialized = true;
+    this.refreshAllVisuals();
     this.animate();
-    this.canvasRef.nativeElement.addEventListener('pointerdown', (e) => this.onPointer(e));
-    window.addEventListener('resize', this.onResize);
+    this.canvasRef.nativeElement.addEventListener('pointerdown', this.onPointer);
+    window.addEventListener('resize', this.resizeHandler);
   }
 
   ngOnDestroy(): void {
     cancelAnimationFrame(this.animationId);
-    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('resize', this.resizeHandler);
+    this.canvasRef?.nativeElement?.removeEventListener('pointerdown', this.onPointer);
     this.renderer?.dispose?.();
+  }
+
+  ngOnChanges(_changes: SimpleChanges): void {
+    if (!this.initialized || !this.jaw) return;
+    this.refreshAllVisuals();
   }
 
   private initScene(OrbitControls: any): void {
@@ -91,72 +140,111 @@ export class Oral3dViewerComponent implements AfterViewInit, OnDestroy, OnChange
     const THREE = this.THREE;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
-    this.camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / 360, 0.1, 100);
-    this.camera.position.set(0, 8, 22);
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setSize(canvas.clientWidth, 360);
+    this.camera = new THREE.PerspectiveCamera(42, canvas.clientWidth / 420, 0.1, 120);
+    this.camera.position.set(0, 3, 14);
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    this.renderer.setSize(canvas.clientWidth, 420);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    const light = new THREE.DirectionalLight(0xffffff, 1.1);
-    light.position.set(5, 12, 8);
-    this.scene.add(light);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    this.renderer.shadowMap.enabled = true;
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.15);
+    key.position.set(6, 14, 10);
+    key.castShadow = true;
+    this.scene.add(key);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.35);
+    fill.position.set(-8, 4, -6);
+    this.scene.add(fill);
+
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
+    this.controls.target.set(0, 0, -0.5);
+    this.controls.maxPolarAngle = Math.PI * 0.85;
+    this.controls.minDistance = 6;
+    this.controls.maxDistance = 28;
     this.raycaster = new THREE.Raycaster();
   }
 
-  private buildTeeth(): void {
-    const THREE = this.THREE;
-    const positions = this.layoutPositions();
-    for (const tooth of ALL_TEETH) {
-      const pos = positions.get(tooth)!;
-      const unit = tooth % 10;
-      const isMolar = unit >= 6;
-      const geo = new THREE.CylinderGeometry(isMolar ? 0.55 : 0.4, isMolar ? 0.45 : 0.32, 1.2, 12);
-      const condition = this.teethState[String(tooth)]?.condition || 'healthy';
-      const color = CONDITION_COLORS[condition] ?? CONDITION_COLORS['healthy'];
-      const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.55 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(pos.x, pos.y, pos.z);
-      mesh.rotation.x = pos.upper ? -0.25 : 0.25;
-      mesh.userData = { tooth };
-      this.scene.add(mesh);
-      this.toothMeshes.set(tooth, mesh);
+  private async loadJaw(): Promise<void> {
+    const gltfLoaded = await this.tryLoadGltf();
+    if (!gltfLoaded) {
+      this.jaw = buildJawScene(this.THREE, QUADRANTS, this.teethState);
+      this.scene.add(this.jaw.rootGroup);
+      this.pickables = this.jaw.pickables;
     }
-    this.refreshSelection();
   }
 
-  private layoutPositions(): Map<number, { x: number; y: number; z: number; upper: boolean }> {
-    const map = new Map<number, { x: number; y: number; z: number; upper: boolean }>();
-    const place = (teeth: number[], upper: boolean, sign: number) => {
-      teeth.forEach((t, i) => {
-        const arch = (i - (teeth.length - 1) / 2) * 0.95;
-        map.set(t, { x: sign * Math.abs(arch), y: upper ? 1.8 : -1.8, z: -Math.abs(arch) * 0.35, upper });
+  private async tryLoadGltf(): Promise<boolean> {
+    try {
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const loader = new GLTFLoader();
+      const gltf = await loader.loadAsync(GLTF_PATH);
+      const root = gltf.scene;
+      root.name = 'jaw_arch_gltf';
+      this.scene.add(root);
+
+      const teeth = new Map<number, Tooth3DObjects>();
+      const pickables: any[] = [];
+
+      root.traverse((obj: any) => {
+        if (!obj.name) return;
+        const toothMatch = /^tooth_(\d+)$/.exec(obj.name);
+        if (toothMatch) {
+          const fdi = Number(toothMatch[1]);
+          const crown =
+            obj.getObjectByName(`crown_${fdi}`) ||
+            obj.children.find((c: any) => c.name?.startsWith('crown_') || c.isMesh);
+          const surfaces = new Map<string, any>();
+          for (const code of ['M', 'D', 'B', 'L', 'O']) {
+            const s = obj.getObjectByName(`surface_${fdi}_${code}`);
+            if (s) {
+              s.userData = { ...s.userData, surface: code, isSurface: true, tooth: fdi };
+              surfaces.set(code, s);
+              pickables.push(s);
+            }
+          }
+          if (crown) {
+            crown.userData = { ...crown.userData, tooth: fdi, isCrown: true };
+            pickables.push(crown);
+          }
+          teeth.set(fdi, {
+            tooth: fdi,
+            group: obj,
+            crown: crown || obj,
+            surfaces,
+            rootMeshes: [],
+          });
+        }
       });
-    };
-    place(PERMANENT_UPPER_RIGHT, true, -1);
-    place(PERMANENT_UPPER_LEFT, true, 1);
-    place(PERMANENT_LOWER_RIGHT, false, -1);
-    place(PERMANENT_LOWER_LEFT, false, 1);
-    return map;
-  }
 
-  private refreshSelection(): void {
-    for (const [tooth, mesh] of this.toothMeshes) {
-      const selected = this.selected.includes(tooth);
-      mesh.scale.setScalar(selected ? 1.15 : 1);
-      (mesh.material as any).emissive?.setHex?.(selected ? 0x2244aa : 0x000000);
+      if (teeth.size === 0) {
+        this.scene.remove(root);
+        return false;
+      }
+
+      this.jaw = { rootGroup: root, teeth, pickables };
+      this.pickables = pickables;
+      return true;
+    } catch {
+      return false;
     }
   }
 
-  ngOnChanges(): void {
-    if (!this.toothMeshes.size || !this.THREE) return;
-    for (const [tooth, mesh] of this.toothMeshes) {
-      const condition = this.teethState[String(tooth)]?.condition || 'healthy';
-      const color = CONDITION_COLORS[condition] ?? CONDITION_COLORS['healthy'];
-      (mesh.material as any).color.setHex(color);
+  private refreshAllVisuals(): void {
+    if (!this.jaw?.teeth) return;
+    for (const [fdi, entry] of this.jaw.teeth) {
+      const condition = this.teethState[String(fdi)]?.condition || 'healthy';
+      const treated = this.treatedSurfacesByTooth[String(fdi)] || [];
+      const highlighted =
+        this.selected.includes(fdi) ? this.selectedSurfaces : [];
+      applyToothVisuals(this.THREE, entry, {
+        condition,
+        selected: this.selected.includes(fdi),
+        highlightedSurfaces: highlighted,
+        treatedSurfaces: treated,
+        surfaceSelectEnabled: this.surfaceSelectEnabled,
+      });
     }
-    this.refreshSelection();
   }
 
   private onPointer = (event: PointerEvent): void => {
@@ -165,10 +253,41 @@ export class Oral3dViewerComponent implements AfterViewInit, OnDestroy, OnChange
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hits = this.raycaster.intersectObjects([...this.toothMeshes.values()]);
+
+    const objects = this.pickables.length ? this.pickables : [];
+    const hits = this.raycaster.intersectObjects(objects, false);
     if (!hits.length) return;
-    const tooth = hits[0].object.userData.tooth as number;
-    const next = this.selected.includes(tooth) && this.selected.length === 1 ? [] : [tooth];
+
+    const hit = hits[0].object;
+    let tooth = hit.userData?.tooth as number | undefined;
+    if (!tooth) {
+      let p = hit.parent;
+      while (p && !tooth) {
+        const m = /^tooth_(\d+)$/.exec(p.name || '');
+        if (m) tooth = Number(m[1]);
+        p = p.parent;
+      }
+    }
+    if (!tooth) return;
+
+    if (hit.userData?.isSurface && hit.userData?.surface) {
+      if (this.surfaceSelectEnabled || this.selected.includes(tooth)) {
+        this.surfaceSelect.emit({ tooth, surface: hit.userData.surface });
+      }
+      if (!this.selected.includes(tooth)) {
+        this.toothSelect.emit([tooth]);
+      }
+      return;
+    }
+
+    const next =
+      event.shiftKey || event.ctrlKey || event.metaKey
+        ? this.selected.includes(tooth)
+          ? this.selected.filter((t) => t !== tooth)
+          : [...this.selected, tooth]
+        : this.selected.includes(tooth) && this.selected.length === 1
+          ? []
+          : [tooth];
     this.toothSelect.emit(next);
   };
 
@@ -180,8 +299,9 @@ export class Oral3dViewerComponent implements AfterViewInit, OnDestroy, OnChange
 
   private onResize = (): void => {
     const canvas = this.canvasRef.nativeElement;
-    this.camera.aspect = canvas.clientWidth / 360;
+    if (!canvas.clientWidth) return;
+    this.camera.aspect = canvas.clientWidth / 420;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(canvas.clientWidth, 360);
+    this.renderer.setSize(canvas.clientWidth, 420);
   };
 }

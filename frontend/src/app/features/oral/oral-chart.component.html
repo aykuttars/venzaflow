@@ -67,6 +67,7 @@
         [selectedSurfaces]="selectedSurfaces()"
         [surfaceSelectEnabled]="surfaceSelectEnabled()"
         [treatmentHints]="treatmentHints()"
+        [treatedSurfacesByTooth]="treatedSurfacesByTooth()"
         (toothSelect)="selectedTeeth.set($event)"
         (surfaceSelect)="onSurfacePick($event)"
       />
@@ -75,8 +76,12 @@
       <app-oral-3d-viewer
         [teethState]="chart()"
         [selected]="selectedTeeth()"
+        [selectedSurfaces]="selectedSurfaces()"
+        [treatedSurfacesByTooth]="treatedSurfacesByTooth()"
+        [surfaceSelectEnabled]="surfaceSelectEnabled()"
         [hint]="'oral.view3dHint' | translate"
         (toothSelect)="selectedTeeth.set($event)"
+        (surfaceSelect)="onSurfacePick($event)"
       />
       }
       }

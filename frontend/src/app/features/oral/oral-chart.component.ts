@@ -151,11 +151,28 @@ export class OralChartComponent implements OnInit {
     for (const t of this.treatments()) {
       for (const tooth of t.tooth_numbers) {
         const key = String(tooth);
-        const line = `${t.procedure_name} (${t.status})`;
+        const surf = (t.surfaces || []).length ? ` [${(t.surfaces || []).join(',')}]` : '';
+        const line = `${t.procedure_name} (${t.status})${surf}`;
         hints[key] = hints[key] ? `${hints[key]} · ${line}` : line;
       }
     }
     return hints;
+  });
+
+  /** Completed/in-progress treatment surfaces per tooth (for chart overlay). */
+  treatedSurfacesByTooth = computed(() => {
+    const map: Record<string, string[]> = {};
+    for (const t of this.treatments()) {
+      if (t.status === 'cancelled') continue;
+      for (const tooth of t.tooth_numbers) {
+        const key = String(tooth);
+        for (const s of t.surfaces || []) {
+          if (!map[key]) map[key] = [];
+          if (!map[key].includes(s)) map[key].push(s);
+        }
+      }
+    }
+    return map;
   });
 
   activeTooth = computed(() => this.selectedTeeth()[0] ?? null);

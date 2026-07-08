@@ -72,6 +72,7 @@ const SURFACE_FILL_OPACITY = 0.55;
         <path
           class="tooth-graphic__surface"
           [class.tooth-graphic__surface--active]="highlightedSurfaces.includes(s.code)"
+          [class.tooth-graphic__surface--treated]="treatedSurfaces.includes(s.code)"
           [attr.d]="s.path"
           (click)="onSurfaceClick(s.code, $event)"
         />
@@ -99,6 +100,7 @@ const SURFACE_FILL_OPACITY = 0.55;
       }
       .tooth-graphic__surface:hover { fill: rgba(25, 118, 210, 0.25); }
       .tooth-graphic__surface--active { fill: rgba(25, 118, 210, 0.55); stroke: #1565c0; stroke-width: 0.6; }
+      .tooth-graphic__surface--treated { fill: rgba(76, 175, 80, 0.45); stroke: #388e3c; stroke-width: 0.5; }
       .tooth-graphic__num { font-size: 9px; font-weight: 700; fill: rgba(0, 0, 0, 0.72); pointer-events: none; }
       .tooth-graphic--missing .tooth-graphic__num { fill: rgba(0, 0, 0, 0.45); }
     `,
@@ -110,6 +112,7 @@ export class ToothGraphicComponent {
   @Input() upper = true;
   @Input() primary = false;
   @Input() highlightedSurfaces: string[] = [];
+  @Input() treatedSurfaces: string[] = [];
   @Input() surfaceSelectEnabled = false;
 
   surfaceSelect = output<{ tooth: number; surface: string }>();
