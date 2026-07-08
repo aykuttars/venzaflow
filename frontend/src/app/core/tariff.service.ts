@@ -22,18 +22,19 @@ export interface TenantTariffItem {
   section_name: string;
   code: string;
   name: string;
-  reference_excl: string;
   reference_incl: string;
   floor_incl: string;
-  clinic_excl: string;
   clinic_incl: string;
   is_customizable: boolean;
+  floor_bumped: boolean;
 }
 
 export interface TariffItemPage {
   count: number;
   page: number;
   page_size: number;
+  vat_rate: string;
+  bumped_count: number;
   results: TenantTariffItem[];
 }
 
@@ -69,12 +70,14 @@ export class TariffService {
     section?: number;
     page?: number;
     page_size?: number;
+    only_bumped?: boolean;
   } = {}): Observable<TariffItemPage> {
     let params = new HttpParams();
     if (opts.q) params = params.set('q', opts.q);
     if (opts.section != null) params = params.set('section', String(opts.section));
     if (opts.page != null) params = params.set('page', String(opts.page));
     if (opts.page_size != null) params = params.set('page_size', String(opts.page_size));
+    if (opts.only_bumped) params = params.set('only_bumped', 'true');
     return this.http.get<TariffItemPage>(`${API_BASE}/tariff/items/`, { params });
   }
 
@@ -85,11 +88,7 @@ export class TariffService {
 
   updateClinicPrice(
     itemId: number,
-    body: {
-      changed: 'excl' | 'incl';
-      clinic_price_excl_vat: string;
-      clinic_price_incl_vat: string;
-    }
+    body: { clinic_price_incl_vat: string }
   ): Observable<TenantTariffItem> {
     return this.http.patch<TenantTariffItem>(`${API_BASE}/tariff/items/${itemId}/clinic-price/`, body);
   }
