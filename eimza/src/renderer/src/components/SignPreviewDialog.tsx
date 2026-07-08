@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cleanupModalOverlays } from '../utils/cleanupModalOverlays'
 
 interface SignPreviewDialogProps {
   taskId: string
@@ -40,19 +39,8 @@ export default function SignPreviewDialog({
     void loadPreview()
     return () => {
       active = false
-      cleanupModalOverlays()
     }
   }, [taskId])
-
-  function handleCancel(): void {
-    cleanupModalOverlays()
-    onCancel()
-  }
-
-  function handleConfirm(): void {
-    cleanupModalOverlays()
-    onConfirm()
-  }
 
   return createPortal(
     <div className="modal-backdrop modal-backdrop--wide" role="dialog" aria-modal="true">
@@ -81,13 +69,13 @@ export default function SignPreviewDialog({
         </p>
 
         <div className="modal-actions">
-          <button type="button" className="btn ghost" onClick={handleCancel} disabled={loading}>
+          <button type="button" className="btn ghost" onClick={onCancel}>
             İptal
           </button>
           <button
             type="button"
             className="btn primary"
-            onClick={handleConfirm}
+            onClick={onConfirm}
             disabled={loading || Boolean(error)}
           >
             Onayla ve İmzala

@@ -5,7 +5,6 @@ import CertificateSelectPage from './pages/CertificateSelect'
 import DashboardPage from './pages/Dashboard'
 import ConnectionBanner from './components/ConnectionBanner'
 import { APP_DISPLAY_NAME } from '@shared/brand'
-import { cleanupModalOverlays } from './utils/cleanupModalOverlays'
 import './styles/app.css'
 
 function App(): React.JSX.Element {
@@ -15,16 +14,9 @@ function App(): React.JSX.Element {
   const [hasCertificate, setHasCertificate] = useState(false)
 
   function handleLogout(): void {
-    cleanupModalOverlays()
     setAuthenticated(false)
     setHasCertificate(false)
   }
-
-  useEffect(() => {
-    if (!authenticated) {
-      cleanupModalOverlays()
-    }
-  }, [authenticated])
 
   useEffect(() => {
     async function bootstrap(): Promise<void> {

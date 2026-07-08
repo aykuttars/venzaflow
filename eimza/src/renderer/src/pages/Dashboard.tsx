@@ -11,7 +11,6 @@ import {
   getCertificateHolderName
 } from '@shared/certificateUtils'
 import { SESSION_EXPIRED_MESSAGE } from '@shared/types'
-import { cleanupModalOverlays } from '../utils/cleanupModalOverlays'
 
 type TabKey = 'erecete' | 'earsiv' | 'efatura'
 
@@ -113,21 +112,18 @@ export default function DashboardPage({ onLogout }: DashboardPageProps): React.J
 
   function closePreviewDialog(): void {
     setPreviewDialog(null)
-    cleanupModalOverlays()
   }
 
   function handlePreviewConfirm(): void {
     if (!previewDialog) return
     const next = previewDialog
     setPreviewDialog(null)
-    cleanupModalOverlays()
     setPinDialog(next)
   }
 
   function closePinDialog(): void {
     setPinDialog(null)
     setSigning(false)
-    cleanupModalOverlays()
   }
 
   async function handlePinSubmit(pin: string): Promise<void> {

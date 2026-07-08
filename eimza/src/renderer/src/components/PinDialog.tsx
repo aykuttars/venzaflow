@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cleanupModalOverlays } from '../utils/cleanupModalOverlays'
 
 interface PinDialogProps {
   title: string
@@ -22,14 +21,8 @@ export default function PinDialog({
     const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => {
       window.clearTimeout(focusTimer)
-      cleanupModalOverlays()
     }
   }, [])
-
-  function handleCancel(): void {
-    cleanupModalOverlays()
-    onCancel()
-  }
 
   return createPortal(
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pin-dialog-title">
@@ -54,7 +47,7 @@ export default function PinDialog({
           }}
         />
         <div className="modal-actions">
-          <button type="button" className="btn ghost" onClick={handleCancel} disabled={loading}>
+          <button type="button" className="btn ghost" onClick={onCancel} disabled={loading}>
             İptal
           </button>
           <button
