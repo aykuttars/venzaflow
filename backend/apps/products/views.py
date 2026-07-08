@@ -2,6 +2,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,6 +27,7 @@ from apps.products.serializers import (
     ProductListColumnConfigSerializer,
     ProductSerializer,
 )
+from apps.products.catalog import exclude_oral_procedure_products, is_oral_procedure_product
 from apps.products.ui_defaults import seed_ui_config_for_tenant
 
 
@@ -65,9 +67,23 @@ class ProductViewSet(TenantScopedViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        if self.action in ("list",):
+            qs = exclude_oral_procedure_products(qs)
         if "fields" in self.request.query_params.get("include", ""):
             qs = qs.prefetch_related("field_values__field_definition")
         return qs
+
+    def _reject_oral_procedure_product(self, product: Product) -> None:
+        if is_oral_procedure_product(product):
+            raise ValidationError("Oral prosedür ürünleri Oral modülünden yönetilir.")
+
+    def perform_update(self, serializer):
+        self._reject_oral_procedure_product(serializer.instance)
+        super().perform_update(serializer)
+
+    def perform_destroy(self, instance):
+        self._reject_oral_procedure_product(instance)
+        super().perform_destroy(instance)
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

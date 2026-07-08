@@ -11,7 +11,6 @@ from apps.common.viewsets import TenantScopedViewSet
 from apps.customers.models import Customer
 from apps.oral.chart_sync import sync_chart_from_treatment
 from apps.oral.models import OralTreatment, PatientOralChart, ProcedureCatalog
-from apps.oral.seed_data import reseed_oral_procedures
 from apps.oral.serializers import (
     OralTreatmentBulkCreateSerializer,
     OralTreatmentSerializer,
@@ -31,7 +30,6 @@ class ProcedureCatalogViewSet(TenantScopedViewSet):
         "update": "oral.write",
         "partial_update": "oral.write",
         "destroy": "oral.write",
-        "reseed": "oral.write",
     }
     search_fields = ("name", "code")
     ordering_fields = ("sort_order", "name", "default_price")
@@ -62,12 +60,6 @@ class ProcedureCatalogViewSet(TenantScopedViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
-
-    @action(detail=False, methods=["post"], url_path="reseed")
-    def reseed(self, request):
-        sync_names = request.query_params.get("sync_names") == "1"
-        stats = reseed_oral_procedures(request.user.tenant, sync_names=sync_names)
-        return Response(stats)
 
 
 class PatientOralChartView(APIView):

@@ -26,15 +26,31 @@ from apps.platform_billing.models import (
 from apps.products.models import Category, Product
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
-from apps.oral.seed_data import ensure_clinic_demo_patients, ensure_oral_procedures
+from apps.oral.seed_data import ensure_clinic_demo_patients
+from apps.oral.services.cleanup_legacy import cleanup_legacy_demo_procedures
+from apps.oral.services.tariff_procedure_sync import sync_tdb_procedures_for_tenant
+from apps.tariff.services.validation import get_active_tariff
 from apps.billing.seed_clinic_demo import ensure_clinic_billing_signing_demo
 from apps.prescriptions.seed_data import ensure_prescription_demo
 from apps.products.seed_hardware_retail import seed_hardware_retail_tenant
 
 User = get_user_model()
 
-# Clinic tenant: patients instead of customers (no CRM customers module).
-CLINIC_1000_MODULES = [m for m in ALL_MODULES if m != "customers"]
+# Demo dental clinic: patients + oral stack; no CRM customers, retail barcode, or service desk.
+CLINIC_1000_MODULES = [
+    "settings",
+    "employees",
+    "products",
+    "inventory",
+    "patients",
+    "oral",
+    "appointments",
+    "billing",
+    "accounting",
+    "dashboard",
+    "audit",
+    "signing",
+]
 
 
 def ensure_permissions() -> dict[str, Permission]:
@@ -243,8 +259,23 @@ class Command(BaseCommand):
         for tenant in (t1000, t3000):
             ensure_product_categories(tenant)
 
-        oral_procedures = ensure_oral_procedures(t1000)
-        ensure_clinic_demo_patients(t1000, oral_procedures)
+        legacy_stats = cleanup_legacy_demo_procedures(t1000.pk)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"tenant 1000 legacy oral cleanup: "
+                f"{legacy_stats['procedures_deleted']} procedure(s), "
+                f"{legacy_stats['products_deleted']} product(s)"
+            )
+        )
+        if get_active_tariff():
+            tdb_stats = sync_tdb_procedures_for_tenant(t1000.pk)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"tenant 1000 TDB sync: {tdb_stats['synced']} item(s), "
+                    f"+{tdb_stats['created']} created"
+                )
+            )
+        ensure_clinic_demo_patients(t1000)
         demo_stats = ensure_clinic_billing_signing_demo(t1000)
         self.stdout.write(
             self.style.SUCCESS(

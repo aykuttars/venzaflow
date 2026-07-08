@@ -147,16 +147,6 @@ class OralApiTests(TestCase):
         r = c.get(f"/api/v1/oral/charts/{self.patient.pk}/")
         self.assertIn(r.status_code, (403, 404))
 
-    def test_reseed_procedures(self):
-        before = ProcedureCatalog.all_tenants.filter(tenant=self.tenant).count()
-        r = self.client.post("/api/v1/oral/procedures/reseed/")
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertGreater(r.json()["created"], 0)
-        after = ProcedureCatalog.all_tenants.filter(tenant=self.tenant).count()
-        self.assertGreater(after, before)
-        r2 = self.client.post("/api/v1/oral/procedures/reseed/")
-        self.assertEqual(r2.json()["created"], 0)
-
     def test_create_procedure_links_product(self):
         set_module_subscriptions(self.tenant, ["patients", "oral", "products"], module_parents={"oral": "patients"})
         r = self.client.post(

@@ -4,6 +4,7 @@ import csv
 import io
 from decimal import Decimal, InvalidOperation
 
+from apps.products.catalog import exclude_oral_procedure_products
 from apps.products.models import Category, Product
 
 
@@ -11,7 +12,9 @@ def export_products_csv(tenant_id: int) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["sku", "barcode", "name", "category_slug", "unit_price", "cost_price", "is_active"])
-    for p in Product.objects.filter(tenant_id=tenant_id).select_related("category"):
+    for p in exclude_oral_procedure_products(
+        Product.objects.filter(tenant_id=tenant_id).select_related("category")
+    ):
         writer.writerow(
             [
                 p.sku,
@@ -85,7 +88,9 @@ def export_products_xlsx(tenant_id: int) -> bytes:
     ws = wb.active
     ws.title = "products"
     ws.append(["sku", "barcode", "name", "category_slug", "unit_price", "cost_price", "is_active"])
-    for p in Product.objects.filter(tenant_id=tenant_id).select_related("category"):
+    for p in exclude_oral_procedure_products(
+        Product.objects.filter(tenant_id=tenant_id).select_related("category")
+    ):
         ws.append(
             [
                 p.sku,

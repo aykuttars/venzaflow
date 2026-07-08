@@ -13,6 +13,7 @@ from apps.products.models import (
     ProductListColumnConfig,
 )
 from apps.products.ui_defaults import seed_ui_config_for_tenant
+from apps.oral.models import ProcedureCatalog
 from apps.tenants.models import Tenant
 from apps.tenants.subscription_service import set_module_subscriptions
 
@@ -27,7 +28,7 @@ class ProductsApiExtensionTests(TestCase):
 
         cls.tenant_a = Tenant.objects.create(customer_code="PRD-A", name="Products A", max_users=5)
         cls.tenant_b = Tenant.objects.create(customer_code="PRD-B", name="Products B", max_users=5)
-        set_module_subscriptions(cls.tenant_a, ["products", "inventory"], extra_modules=set())
+        set_module_subscriptions(cls.tenant_a, ["products", "inventory", "oral"], extra_modules=set())
         set_module_subscriptions(cls.tenant_b, ["products"], extra_modules=set())
 
         perms = Permission.objects.filter(
@@ -129,3 +130,37 @@ class ProductsApiExtensionTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("text/csv", r["Content-Type"])
         self.assertIn(b"BASE-SKU", r.content)
+
+    def test_oral_procedure_products_hidden_from_catalog(self):
+        oral_cat = Category.objects.create(
+            tenant=self.tenant_a, name="Oral Hizmetleri", slug="oral-hizmetleri"
+        )
+        oral_product = Product.objects.create(
+            tenant=self.tenant_a,
+            sku="oral-custom-x",
+            name="Özel İşlem",
+            category=oral_cat,
+            unit_price="999.00",
+        )
+        ProcedureCatalog.all_tenants.create(
+            tenant=self.tenant_a,
+            code="CUSTOM-X",
+            name="Özel İşlem",
+            default_price="999.00",
+            product=oral_product,
+            is_tdb=False,
+        )
+        client = self._client()
+        r = client.get("/api/v1/products/")
+        self.assertEqual(r.status_code, 200)
+        skus = {row["sku"] for row in r.json()["results"]}
+        self.assertIn("BASE-SKU", skus)
+        self.assertNotIn("oral-custom-x", skus)
+
+        r_patch = client.patch(
+            f"/api/v1/products/{oral_product.id}/",
+            {"unit_price": "1700.00"},
+            format="json",
+        )
+        self.assertEqual(r_patch.status_code, 400)
+        self.assertIn("Oral modülünden", str(r_patch.content))

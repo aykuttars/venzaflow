@@ -64,9 +64,6 @@ const CATEGORIES = ['diagnosis', 'planning', 'treatment'] as const;
           <input matInput [formControl]="searchControl" />
         </mat-form-field>
         @if (canWrite()) {
-        <button mat-stroked-button type="button" (click)="reseed()">
-          <mat-icon>cloud_download</mat-icon> {{ 'oral.reseedDefaults' | translate }}
-        </button>
         <button mat-flat-button color="primary" (click)="openForm()">
           <mat-icon>add</mat-icon> {{ 'common.new' | translate }}
         </button>
@@ -335,23 +332,6 @@ export class OralProceduresComponent implements OnInit {
           this.snack.open(this.translate.instant('common.deleted'), 'OK', { duration: 2000 });
         },
       });
-    });
-  }
-
-  reseed(): void {
-    this.http.post<{ created: number; updated: number }>(`${API_BASE}/oral/procedures/reseed/`, {}).subscribe({
-      next: (res) => {
-        this.reload();
-        this.snack.open(
-          `${this.translate.instant('oral.reseedDone')}: +${res.created}`,
-          'OK',
-          { duration: 3000 }
-        );
-      },
-      error: (e) =>
-        this.snack.open(e?.error?.detail || this.translate.instant('common.error'), 'OK', {
-          duration: 3000,
-        }),
     });
   }
 

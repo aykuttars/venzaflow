@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 
 from apps.customers.address_fixtures import SAMPLE_HOME_ADDRESS
 from apps.customers.models import Customer
-from apps.oral.models import OralTreatment, ProcedureCatalog
-from apps.oral.services.procedure_product import ensure_procedure_product
 from apps.tenants.models import Tenant
 
 DEFAULT_PROCEDURES: list[dict] = [
@@ -68,66 +65,11 @@ DEFAULT_PROCEDURES: list[dict] = [
     {"code": "POST-CORE", "name": "Post ve Core", "category": "treatment", "price": "1200", "condition": "root_canal"},
 ]
 
-
-def _row_defaults(row: dict, sort_order: int) -> dict:
-    return {
-        "name": row["name"],
-        "category": row["category"],
-        "default_price": Decimal(row["price"]),
-        "is_frequent": row.get("frequent", False),
-        "default_tooth_condition": row.get("condition", ""),
-        "sort_order": sort_order,
-        "is_active": True,
-    }
+LEGACY_DEMO_PROCEDURE_CODES = frozenset(row["code"] for row in DEFAULT_PROCEDURES)
 
 
-def reseed_oral_procedures(tenant: Tenant, *, sync_names: bool = False) -> dict[str, int]:
-    """Add missing default procedures; preserve tenant custom prices on existing rows."""
-    created = 0
-    updated = 0
-    index: dict[str, ProcedureCatalog] = {}
-
-    for i, row in enumerate(DEFAULT_PROCEDURES):
-        code = row["code"]
-        obj, was_created = ProcedureCatalog.all_tenants.get_or_create(
-            tenant=tenant,
-            code=code,
-            defaults=_row_defaults(row, i),
-        )
-        if was_created:
-            created += 1
-        elif sync_names:
-            sync_fields = {
-                "name": row["name"],
-                "category": row["category"],
-                "is_frequent": row.get("frequent", False),
-                "default_tooth_condition": row.get("condition", ""),
-                "sort_order": i,
-            }
-            changed = False
-            for field, value in sync_fields.items():
-                if getattr(obj, field) != value:
-                    setattr(obj, field, value)
-                    changed = True
-            if changed:
-                obj.save(update_fields=list(sync_fields.keys()))
-                updated += 1
-        ensure_procedure_product(obj)
-        index[code] = obj
-
-    return {"created": created, "updated": updated, "total": len(DEFAULT_PROCEDURES)}
-
-
-def ensure_oral_procedures(tenant: Tenant) -> dict[str, ProcedureCatalog]:
-    """Seed demo: ensure all defaults exist (prices preserved on existing codes)."""
-    reseed_oral_procedures(tenant, sync_names=False)
-    return {
-        row["code"]: ProcedureCatalog.all_tenants.get(tenant=tenant, code=row["code"])
-        for row in DEFAULT_PROCEDURES
-    }
-
-
-def ensure_clinic_demo_patients(tenant: Tenant, procedures: dict[str, ProcedureCatalog]) -> None:
+def ensure_clinic_demo_patients(tenant: Tenant) -> None:
+    """Seed demo patients only (treatments use TDB procedures after tariff sync)."""
     patients_data = [
         {
             "first_name": "Ragıp",
@@ -135,11 +77,6 @@ def ensure_clinic_demo_patients(tenant: Tenant, procedures: dict[str, ProcedureC
             "tckn": "11111111110",
             "email": "ragip.serbez@demo.local",
             "mobile_phone": "5321000001",
-            "treatments": [
-                ("WISDOM", [46], "completed"),
-                ("FILL", [36], "completed"),
-                ("IMP", [10], "planned"),
-            ],
         },
         {
             "first_name": "Elif",
@@ -147,11 +84,6 @@ def ensure_clinic_demo_patients(tenant: Tenant, procedures: dict[str, ProcedureC
             "tckn": "22222222220",
             "email": "elif.kaya@demo.local",
             "mobile_phone": "5321000002",
-            "treatments": [
-                ("RCT", [46], "in_progress"),
-                ("FILL", [46], "planned"),
-                ("SCALE", [11, 21], "planned"),
-            ],
         },
         {
             "first_name": "Mehmet",
@@ -159,15 +91,10 @@ def ensure_clinic_demo_patients(tenant: Tenant, procedures: dict[str, ProcedureC
             "tckn": "33333333330",
             "email": "mehmet.yildiz@demo.local",
             "mobile_phone": "5321000003",
-            "treatments": [
-                ("CROWN", [11], "completed"),
-                ("PLAN-IMP", [26], "planned"),
-            ],
         },
     ]
-    today = date.today()
     for pdata in patients_data:
-        patient, _ = Customer.all_tenants.update_or_create(
+        Customer.all_tenants.update_or_create(
             tenant=tenant,
             kind=Customer.Kind.PATIENT,
             tckn=pdata["tckn"],
@@ -183,30 +110,3 @@ def ensure_clinic_demo_patients(tenant: Tenant, procedures: dict[str, ProcedureC
                 "nvi_verified": True,
             },
         )
-        for code, teeth, status in pdata["treatments"]:
-            proc = procedures[code]
-            for tooth in teeth:
-                OralTreatment.all_tenants.update_or_create(
-                    tenant=tenant,
-                    patient=patient,
-                    procedure=proc,
-                    tooth_numbers=[tooth],
-                    session_date=today,
-                    defaults={
-                        "status": status,
-                        "phase": proc.category,
-                        "unit_price": proc.default_price,
-                        "performed_at": today if status == "completed" else None,
-                    },
-                )
-                if status == "completed" and proc.default_tooth_condition:
-                    from apps.oral.chart_sync import sync_chart_from_treatment
-
-                    t = OralTreatment.all_tenants.filter(
-                        tenant=tenant,
-                        patient=patient,
-                        procedure=proc,
-                        tooth_numbers=[tooth],
-                    ).first()
-                    if t:
-                        sync_chart_from_treatment(t)
