@@ -660,7 +660,23 @@
     "eDocAuto": "Otomatik",
     "eDocNone": "Gönderme",
     "invoiceCreated": "Fatura oluşturuldu",
-    "viewBilling": "Faturalamaya git"
+    "viewBilling": "Faturalamaya git",
+    "selectedSurfaces": "Seçili yüzeyler",
+    "view3dHint": "Sürükleyerek döndürün · Dişe tıklayarak seçin",
+    "tariffItem": "TDB tarife kalemi",
+    "tariffSearchHint": "Kod veya işlem adı (örn. 2-4, dolgu)",
+    "floorPrice": "Taban fiyat (KDV dahil)",
+    "tariffViolationsTitle": "Taban fiyat ihlalleri",
+    "tariffViolationsHint": "{{year}} tarifesinin altında fiyatlandırılmış {{count}} işlem var. Güncellemeniz gerekir.",
+    "activeTariffYear": "Aktif tarife: {{year}}"
+  },
+  "help": {
+    "title": "Yardım",
+    "quickStart": "Hızlı başlangıç",
+    "advancedStock": "Gelişmiş stok",
+    "barcodeGuide": "Barkod rehberi",
+    "salesStock": "Satış / stok düşümü",
+    "faq": "SSS"
   },
   "prescriptions": {
     "title": "Reçeteler",

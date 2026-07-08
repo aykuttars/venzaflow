@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { ModuleLabelService } from '../../core/module-label.service';
@@ -16,11 +17,14 @@ import { PageHeaderComponent } from '../../shared/page-header.component';
     RouterLink,
     RouterLinkActive,
     PageHeaderComponent,
+    MatButtonModule,
     TranslateModule,
   ],
   template: `
     <div class="page">
-      <app-page-header moduleSlug="inventory" icon="warehouse" />
+      <app-page-header moduleSlug="inventory" icon="warehouse">
+        <a mat-stroked-button routerLink="/help/stok-hizli-baslangic" style="margin-left:auto">{{ 'help.title' | translate }}</a>
+      </app-page-header>
       @if (hasNestedChildren) {
       <nav class="module-host__tabs">
         <a routerLink="/inventory" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">

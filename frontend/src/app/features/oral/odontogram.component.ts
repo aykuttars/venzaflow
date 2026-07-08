@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, output } from '@angular/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { ToothGraphicComponent } from './tooth-graphic.component';
@@ -27,9 +28,9 @@ export const PRIMARY_ROWS = [
 @Component({
   selector: 'app-odontogram',
   standalone: true,
-  imports: [CommonModule, TranslateModule, ToothGraphicComponent],
+  imports: [CommonModule, TranslateModule, MatTooltipModule, ToothGraphicComponent],
   template: `
-    <div class="odontogram">
+    <div class="odontogram" [class]="toolCursorClass">
       @if (showPrimary) {
       <div class="odontogram__arch odontogram__arch--primary-upper">
         <div class="odontogram__quadrant odontogram__quadrant--right">
@@ -45,6 +46,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
               [primary]="true"
             />
@@ -65,6 +69,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
               [primary]="true"
             />
@@ -89,6 +96,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
             />
           </button>
@@ -109,6 +119,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="true"
             />
           </button>
@@ -135,6 +148,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
             />
           </button>
@@ -155,6 +171,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
             />
           </button>
@@ -177,6 +196,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
               [primary]="true"
             />
@@ -197,6 +219,9 @@ export const PRIMARY_ROWS = [
             <app-tooth-graphic
               [tooth]="tooth"
               [condition]="conditionFor(tooth)"
+              [highlightedSurfaces]="surfacesFor(tooth)"
+              [surfaceSelectEnabled]="surfaceSelectEnabled"
+              (surfaceSelect)="surfaceSelect.emit($event)"
               [upper]="false"
               [primary]="true"
             />
@@ -300,6 +325,12 @@ export const PRIMARY_ROWS = [
         .odontogram { padding: 10px 4px; overflow-x: auto; }
         .odontogram__arch { min-width: 640px; }
       }
+      .odontogram.cursor-fill .tooth-btn { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%231976d2' d='M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z'/%3E%3C/svg%3E") 12 22, crosshair; }
+      .odontogram.cursor-extract .tooth-btn { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23d32f2f' d='M7 2v2H5v2h2v2H5v2h2v2H5v2h14v-2h-2v-2h2v-2h-2v-2h2V6h-2V4h-2V2H7z'/%3E%3C/svg%3E") 4 4, not-allowed; }
+      .odontogram.cursor-root-canal .tooth-btn { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23ff9800' d='M12 2a10 10 0 100 20 10 10 0 000-20zm0 4v8l4 2'/%3E%3C/svg%3E") 12 12, pointer; }
+      .odontogram.cursor-crown .tooth-btn { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%237e57c2' d='M5 16l3-8 4 4 4-6 3 10H5z'/%3E%3C/svg%3E") 12 12, pointer; }
+      .odontogram.cursor-exam .tooth-btn { cursor: help; }
+      .odontogram.cursor-plan .tooth-btn { cursor: cell; }
     `,
   ],
 })
@@ -308,8 +339,13 @@ export class OdontogramComponent {
   @Input() selected: number[] = [];
   @Input() highlight: number | null = null;
   @Input() showPrimary = true;
+  @Input() toolCursorClass = '';
+  @Input() selectedSurfaces: string[] = [];
+  @Input() surfaceSelectEnabled = false;
+  @Input() treatmentHints: Record<string, string> = {};
 
   toothSelect = output<number[]>();
+  surfaceSelect = output<{ tooth: number; surface: string }>();
 
   permanentUpperRight = PERMANENT_UPPER_RIGHT;
   permanentUpperLeft = PERMANENT_UPPER_LEFT;
@@ -322,6 +358,11 @@ export class OdontogramComponent {
 
   conditionFor(tooth: number): string {
     return this.teethState[String(tooth)]?.condition || 'healthy';
+  }
+
+  surfacesFor(tooth: number): string[] {
+    if (!this.selected.includes(tooth)) return [];
+    return this.selectedSurfaces;
   }
 
   /** Subtle arch curve like classic dental charts */

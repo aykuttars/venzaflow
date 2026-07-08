@@ -27,6 +27,8 @@ import { ConfirmDialogService } from '../../shared/confirm-dialog.service';
 import { CrudService } from '../../shared/crud.service';
 import { PageHeaderComponent } from '../../shared/page-header.component';
 import { OdontogramComponent } from './odontogram.component';
+import { Oral3dViewerComponent } from './oral-3d-viewer.component';
+import { cursorClassForProcedure, TOOTH_SURFACES, ToothSurface } from './tooth-surfaces';
 
 @Component({
   selector: 'app-oral-chart',
@@ -54,6 +56,7 @@ import { OdontogramComponent } from './odontogram.component';
     PageHeaderComponent,
     AuthImageComponent,
     OdontogramComponent,
+    Oral3dViewerComponent,
   ],
   templateUrl: './oral-chart.component.html',
   styles: [
@@ -130,8 +133,30 @@ export class OralChartComponent implements OnInit {
   unbilledTreatments = signal<OralTreatment[]>([]);
   selectedForInvoice = signal<Set<number>>(new Set());
   lastInvoiceId = signal<number | null>(null);
+  chartViewMode = signal<'2d' | '3d'>('2d');
+  selectedSurfaces = signal<string[]>([]);
+  activeToolProcedure = signal<ProcedureCatalog | null>(null);
+  surfaceSelectEnabled = signal(false);
 
   patientPhotoUrl = patientPhotoUrl;
+
+  toolCursorClass = computed(() => {
+    const p = this.activeToolProcedure();
+    if (!p) return '';
+    return cursorClassForProcedure(p.category, p.default_tooth_condition);
+  });
+
+  treatmentHints = computed(() => {
+    const hints: Record<string, string> = {};
+    for (const t of this.treatments()) {
+      for (const tooth of t.tooth_numbers) {
+        const key = String(tooth);
+        const line = `${t.procedure_name} (${t.status})`;
+        hints[key] = hints[key] ? `${hints[key]} · ${line}` : line;
+      }
+    }
+    return hints;
+  });
 
   activeTooth = computed(() => this.selectedTeeth()[0] ?? null);
 
@@ -304,6 +329,8 @@ export class OralChartComponent implements OnInit {
   }
 
   applyProcedure(proc: ProcedureCatalog, status: OralTreatment['status'] = 'planned'): void {
+    this.activeToolProcedure.set(proc);
+    this.surfaceSelectEnabled.set(proc.category === 'treatment');
     const id = this.patientId();
     const tooth = this.activeTooth();
     if (!id || !tooth) {
@@ -319,6 +346,7 @@ export class OralChartComponent implements OnInit {
         patient: id,
         procedure: proc.id,
         tooth_numbers: [tooth],
+        surfaces: this.selectedSurfaces(),
         status: resolvedStatus,
       })
       .subscribe({
@@ -334,6 +362,7 @@ export class OralChartComponent implements OnInit {
   }
 
   applyProcedureAsCompleted(proc: ProcedureCatalog): void {
+    this.activeToolProcedure.set(proc);
     const id = this.patientId();
     const tooth = this.activeTooth();
     if (!id || !tooth) {
@@ -345,6 +374,7 @@ export class OralChartComponent implements OnInit {
         patient: id,
         procedure: proc.id,
         tooth_numbers: [tooth],
+        surfaces: this.selectedSurfaces(),
         status: 'completed',
       })
       .subscribe({
@@ -411,4 +441,25 @@ export class OralChartComponent implements OnInit {
   isTreatmentCategory(): boolean {
     return this.categoryTab() === 2;
   }
+
+  toggleSurface(code: string): void {
+    const set = new Set(this.selectedSurfaces());
+    if (set.has(code)) set.delete(code);
+    else set.add(code);
+    this.selectedSurfaces.set([...set]);
+  }
+
+  onSurfacePick(event: { tooth: number; surface: string }): void {
+    if (this.activeTooth() !== event.tooth) {
+      this.selectedTeeth.set([event.tooth]);
+    }
+    this.toggleSurface(event.surface);
+  }
+
+  hoverProcedure(proc: ProcedureCatalog | null): void {
+    this.activeToolProcedure.set(proc);
+    this.surfaceSelectEnabled.set(!!proc && proc.category === 'treatment');
+  }
+
+  toothSurfaces = TOOTH_SURFACES;
 }

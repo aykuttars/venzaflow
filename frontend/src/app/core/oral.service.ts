@@ -13,6 +13,10 @@ export interface ProcedureCatalog {
   default_price: string;
   product?: number | null;
   product_name?: string;
+  tariff_item?: number | null;
+  tariff_code?: string;
+  tariff_item_name?: string;
+  floor_price?: string | null;
   is_active?: boolean;
   sort_order?: number;
   is_frequent: boolean;
@@ -25,6 +29,7 @@ export interface OralTreatment {
   procedure: number;
   procedure_name: string;
   tooth_numbers: number[];
+  surfaces?: string[];
   status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
   phase: string;
   unit_price: string;
@@ -101,6 +106,7 @@ export class OralService {
     patient: number;
     procedure: number;
     tooth_numbers: number[];
+    surfaces?: string[];
     status?: string;
     notes?: string;
   }): Observable<OralTreatment[]> {

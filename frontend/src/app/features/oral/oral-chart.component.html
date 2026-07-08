@@ -47,18 +47,54 @@
 
   <div class="oral-stack">
     <mat-card style="padding:16px">
-      <h3 style="margin:0 0 12px">{{ 'oral.odontogram' | translate }}</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 style="margin:0">{{ 'oral.odontogram' | translate }}</h3>
+        <div style="display:flex;gap:8px">
+          <button mat-stroked-button type="button" [color]="chartViewMode() === '2d' ? 'primary' : undefined" (click)="chartViewMode.set('2d')">
+            2D
+          </button>
+          <button mat-stroked-button type="button" [color]="chartViewMode() === '3d' ? 'primary' : undefined" (click)="chartViewMode.set('3d')">
+            3D
+          </button>
+        </div>
+      </div>
+      @if (chartViewMode() === '2d') {
       <app-odontogram
         [teethState]="chart()"
         [selected]="selectedTeeth()"
         [highlight]="highlightTooth()"
+        [toolCursorClass]="toolCursorClass()"
+        [selectedSurfaces]="selectedSurfaces()"
+        [surfaceSelectEnabled]="surfaceSelectEnabled()"
+        [treatmentHints]="treatmentHints()"
+        (toothSelect)="selectedTeeth.set($event)"
+        (surfaceSelect)="onSurfacePick($event)"
+      />
+      } @else {
+      @defer {
+      <app-oral-3d-viewer
+        [teethState]="chart()"
+        [selected]="selectedTeeth()"
+        [hint]="'oral.view3dHint' | translate"
         (toothSelect)="selectedTeeth.set($event)"
       />
+      }
+      }
       @if (activeTooth()) {
       <div class="selected-tooth-banner">
         <mat-icon color="primary">dentistry</mat-icon>
         <strong>{{ 'oral.selectedTooth' | translate }}: {{ activeTooth() }}</strong>
+        @if (selectedSurfaces().length) {
+        <span> · {{ 'oral.selectedSurfaces' | translate }}: {{ selectedSurfaces().join(', ') }}</span>
+        }
       </div>
+      @if (isTreatmentCategory() && canWrite()) {
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        @for (s of toothSurfaces; track s) {
+        <button mat-stroked-button type="button" [color]="selectedSurfaces().includes(s) ? 'primary' : undefined" (click)="toggleSurface(s)">{{ s }}</button>
+        }
+      </div>
+      }
       } @else {
       <p style="margin-top:12px;font-size:13px;opacity:0.7">{{ 'oral.selectToothFirst' | translate }}</p>
       }
@@ -137,7 +173,7 @@
         @for (p of frequentProcedures(); track p.id) {
         @if (isTreatmentCategory()) {
         <div class="catalog-item" style="padding:0">
-          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()" style="flex:1">
+          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" (mouseenter)="hoverProcedure(p)" (mouseleave)="hoverProcedure(null)" [disabled]="!canWrite()" style="flex:1">
             <span>{{ p.name }}</span>
             <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
           </button>
@@ -158,7 +194,7 @@
         @for (p of filteredProcedures(); track p.id) {
         @if (isTreatmentCategory()) {
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
-          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" [disabled]="!canWrite()" style="flex:1">
+          <button type="button" class="catalog-item" (click)="applyProcedure(p, 'planned')" (mouseenter)="hoverProcedure(p)" (mouseleave)="hoverProcedure(null)" [disabled]="!canWrite()" style="flex:1">
             <span>{{ p.name }}</span>
             <span class="catalog-item__price">{{ formatPrice(p.default_price) }} ₺</span>
           </button>

@@ -83,6 +83,11 @@ export const APP_ROUTES: Routes = [
         data: { module: 'dashboard', permission: 'dashboard.read' },
       },
       {
+        path: 'help/:guide',
+        loadComponent: () =>
+          import('./features/help/help-page.component').then((m) => m.HelpPageComponent),
+      },
+      {
         path: 'products',
         loadComponent: () =>
           import('./features/products/products.component').then(
