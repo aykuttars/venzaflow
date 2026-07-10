@@ -46,14 +46,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # CI minutes: only macOS x64 for now. Re-enable other rows when ready.
+        # CI minutes: only Windows x64 for now. Re-enable other rows when ready.
         include:
-          # - label: Windows x64
-          #   platform: win
-          #   arch: x64
-          #   runner: windows-latest
-          #   min_os_version: "10.0"
-          #   min_os_label: "Windows 10+"
+          - label: Windows x64
+            platform: win
+            arch: x64
+            runner: windows-latest
+            min_os_version: "10.0"
+            min_os_label: "Windows 10+"
 
           # - label: macOS arm64
           #   platform: mac
@@ -63,13 +63,13 @@ jobs:
           #   min_os_label: "macOS 11 (Big Sur)+"
           #   artifact: release/*.dmg
 
-          - label: macOS x64
-            platform: mac
-            arch: x64
-            runner: macos-latest
-            min_os_version: "11.0.0"
-            min_os_label: "macOS 11 (Big Sur)+"
-            artifact: release/*.dmg
+          # - label: macOS x64
+          #   platform: mac
+          #   arch: x64
+          #   runner: macos-latest
+          #   min_os_version: "11.0.0"
+          #   min_os_label: "macOS 11 (Big Sur)+"
+          #   artifact: release/*.dmg
 
           # - label: Windows arm64
           #   platform: win
