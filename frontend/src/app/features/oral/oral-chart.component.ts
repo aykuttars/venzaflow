@@ -63,19 +63,48 @@ import { cursorClassForProcedure, TOOTH_SURFACES, ToothSurface } from './tooth-s
     `
       .page--embedded { padding-top: 0; }
       .patient-header {
-        display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
-        padding: 16px; border-radius: 12px; background: linear-gradient(135deg, #f5f7fa, #eef2ff);
+        display: flex; align-items: center; gap: 16px; margin-bottom: 12px;
+        padding: 12px 16px; border-radius: 12px; background: linear-gradient(135deg, #f5f7fa, #eef2ff);
       }
-      .patient-header__info h2 { margin: 0 0 4px; font-size: 20px; }
+      .patient-header__info h2 { margin: 0 0 4px; font-size: 18px; }
       .patient-header__meta { font-size: 13px; opacity: 0.75; }
-      .patient-photo { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; background: #ddd; }
+      .patient-photo { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: #ddd; }
+      .oral-workspace {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 16px;
+        align-items: start;
+      }
+      .oral-workspace__chart { min-width: 0; }
+      .oral-workspace__panel { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 12px; }
       .oral-stack { display: flex; flex-direction: column; gap: 16px; }
+      .chart-toolbar {
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+      }
+      .chart-toolbar h3 { margin: 0; font-size: 16px; }
+      .view-toggle { display: flex; gap: 6px; }
       .selected-tooth-banner {
         display: flex; align-items: center; gap: 8px; margin-top: 12px;
         padding: 8px 12px; border-radius: 8px; background: rgba(63, 81, 181, 0.08);
         font-size: 14px;
       }
-      .catalog { max-height: 260px; overflow: auto; }
+      .surface-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      .surface-picker button { min-width: 36px; }
+      .catalog { max-height: 220px; overflow: auto; }
+      .catalog--frequent { max-height: 140px; }
+      .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .catalog-grid .catalog-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 8px 10px;
+        min-height: 52px;
+      }
       .catalog-item {
         display: flex; justify-content: space-between; align-items: center; width: 100%;
         text-align: left; padding: 10px 12px; border: none; background: transparent; cursor: pointer;
@@ -101,6 +130,10 @@ import { cursorClassForProcedure, TOOTH_SURFACES, ToothSurface } from './tooth-s
         margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.08);
       }
       .picker-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; max-width: 480px; }
+      @media (max-width: 1100px) {
+        .oral-workspace { grid-template-columns: 1fr; }
+        .oral-workspace__panel { position: static; }
+      }
     `,
   ],
 })
@@ -169,6 +202,26 @@ export class OralChartComponent implements OnInit {
         for (const s of t.surfaces || []) {
           if (!map[key]) map[key] = [];
           if (!map[key].includes(s)) map[key].push(s);
+        }
+      }
+    }
+    return map;
+  });
+
+  /** Per-surface treatment status for odontogram color coding. */
+  surfaceStatusByTooth = computed(() => {
+    const map: Record<string, Record<string, 'planned' | 'completed' | 'in_progress'>> = {};
+    const priority: Record<string, number> = { planned: 1, in_progress: 2, completed: 3 };
+    for (const t of this.treatments()) {
+      if (t.status === 'cancelled') continue;
+      for (const tooth of t.tooth_numbers) {
+        const key = String(tooth);
+        if (!map[key]) map[key] = {};
+        for (const s of t.surfaces || []) {
+          const existing = map[key][s];
+          if (!existing || (priority[t.status] ?? 0) > (priority[existing] ?? 0)) {
+            map[key][s] = t.status as 'planned' | 'completed' | 'in_progress';
+          }
         }
       }
     }

@@ -78,3 +78,4 @@ Thumbs.db
 .env
 !.env.example
 docker/artifacts-registry/cosign/
+.venv-mesh/

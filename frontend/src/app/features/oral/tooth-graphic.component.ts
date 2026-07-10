@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, Input, output } from '@angular/core';
 
 export type ToothKind = 'incisor' | 'canine' | 'premolar' | 'molar';
+export type SurfaceStatus = 'planned' | 'completed' | 'in_progress';
 
 const CONDITION_CROWN: Record<string, string> = {
   healthy: '#fffef8',
@@ -27,8 +28,11 @@ const CONDITION_STROKE: Record<string, string> = {
   extraction_planned: '#ff8a65',
 };
 
-const SURFACE_FILL = '#1976d2';
-const SURFACE_FILL_OPACITY = 0.55;
+const STATUS_SURFACE_COLORS: Record<SurfaceStatus, string> = {
+  planned: '#e53935',
+  completed: '#1e88e5',
+  in_progress: '#fb8c00',
+};
 
 @Component({
   selector: 'app-tooth-graphic',
@@ -66,22 +70,28 @@ const SURFACE_FILL_OPACITY = 0.55;
         }
         @if (condition === 'implant') {
         <rect x="22" y="2" width="4" height="18" rx="2" fill="#78909c" />
-          <circle cx="24" cy="2" r="3" fill="#b2dfdb" stroke="#4db6ac" />
-        }
-        @for (s of surfaceRegions; track s.code) {
-        <path
-          class="tooth-graphic__surface"
-          [class.tooth-graphic__surface--active]="highlightedSurfaces.includes(s.code)"
-          [class.tooth-graphic__surface--treated]="treatedSurfaces.includes(s.code)"
-          [attr.d]="s.path"
-          (click)="onSurfaceClick(s.code, $event)"
-        />
+        <circle cx="24" cy="2" r="3" fill="#b2dfdb" stroke="#4db6ac" />
         }
       </g>
       } @else {
       <rect x="8" y="14" width="32" height="28" rx="4" fill="#ececec" stroke="#bdbdbd" stroke-width="1.5" stroke-dasharray="4 3" />
       }
-      <text [attr.x]="labelX" [attr.y]="labelY" text-anchor="middle" class="tooth-graphic__num">{{ tooth }}</text>
+
+      <g class="tooth-graphic__occlusal" [attr.transform]="occlusalTransform">
+        <rect x="10" y="2" width="28" height="28" rx="2" fill="#faf8f5" stroke="#c8b896" stroke-width="0.8" />
+        @for (s of occlusalRegions; track s.code) {
+        <path
+          class="tooth-graphic__surface"
+          [class.tooth-graphic__surface--active]="highlightedSurfaces.includes(s.code)"
+          [class.tooth-graphic__surface--treated]="!!surfaceStatus[s.code]"
+          [attr.d]="s.path"
+          [attr.fill]="surfaceFill(s.code)"
+          [attr.stroke]="surfaceStroke(s.code)"
+          stroke-width="0.5"
+          (click)="onSurfaceClick(s.code, $event)"
+        />
+        }
+      </g>
     </svg>
   `,
   styles: [
@@ -92,17 +102,14 @@ const SURFACE_FILL_OPACITY = 0.55;
       .tooth-graphic__root { fill: #ddb896; stroke: #c4a078; stroke-width: 0.8; stroke-linejoin: round; }
       .tooth-graphic__crown { stroke-width: 1.2; stroke-linejoin: round; }
       .tooth-graphic__groove { fill: none; stroke: rgba(0, 0, 0, 0.1); stroke-width: 1; }
+      .tooth-graphic__occlusal { pointer-events: all; }
       .tooth-graphic__surface {
-        fill: transparent;
-        stroke: transparent;
         cursor: pointer;
-        transition: fill 0.12s;
+        transition: fill 0.12s, stroke 0.12s;
       }
-      .tooth-graphic__surface:hover { fill: rgba(25, 118, 210, 0.25); }
-      .tooth-graphic__surface--active { fill: rgba(25, 118, 210, 0.55); stroke: #1565c0; stroke-width: 0.6; }
-      .tooth-graphic__surface--treated { fill: rgba(76, 175, 80, 0.45); stroke: #388e3c; stroke-width: 0.5; }
-      .tooth-graphic__num { font-size: 9px; font-weight: 700; fill: rgba(0, 0, 0, 0.72); pointer-events: none; }
-      .tooth-graphic--missing .tooth-graphic__num { fill: rgba(0, 0, 0, 0.45); }
+      .tooth-graphic__surface:hover { fill: rgba(25, 118, 210, 0.25) !important; }
+      .tooth-graphic__surface--active { fill: rgba(25, 118, 210, 0.55) !important; stroke: #1565c0 !important; }
+      .tooth-graphic--missing .tooth-graphic__occlusal { opacity: 0.35; }
     `,
   ],
 })
@@ -113,13 +120,12 @@ export class ToothGraphicComponent {
   @Input() primary = false;
   @Input() highlightedSurfaces: string[] = [];
   @Input() treatedSurfaces: string[] = [];
+  @Input() surfaceStatus: Record<string, SurfaceStatus> = {};
   @Input() surfaceSelectEnabled = false;
 
   surfaceSelect = output<{ tooth: number; surface: string }>();
 
-  viewBox = '0 0 48 72';
-  labelX = 24;
-  labelY = 68;
+  viewBox = '0 0 48 96';
 
   get missing(): boolean {
     return this.condition === 'missing';
@@ -142,7 +148,11 @@ export class ToothGraphicComponent {
   }
 
   get flipTransform(): string | null {
-    return this.upper ? null : 'translate(0, 72) scale(1, -1)';
+    return this.upper ? null : 'translate(0, 56) scale(1, -1)';
+  }
+
+  get occlusalTransform(): string {
+    return this.upper ? 'translate(0, 58)' : 'translate(0, 0)';
   }
 
   get crownPath(): string {
@@ -187,15 +197,31 @@ export class ToothGraphicComponent {
     }
   }
 
-  /** Approximate clickable surface regions on crown (mesial/distal/buccal/lingual/occlusal). */
-  get surfaceRegions(): { code: string; path: string }[] {
+  /** Classic 5-region occlusal diagram (square-in-square). */
+  get occlusalRegions(): { code: string; path: string }[] {
     return [
-      { code: 'M', path: 'M14 28 L18 20 L22 28 L18 38 Z' },
-      { code: 'D', path: 'M34 28 L30 20 L26 28 L30 38 Z' },
-      { code: 'B', path: 'M18 20 L30 20 L30 28 L18 28 Z' },
-      { code: 'L', path: 'M18 38 L30 38 L30 28 L18 28 Z' },
-      { code: 'O', path: 'M20 22 L28 22 L28 30 L20 30 Z' },
+      { code: 'M', path: 'M10 16 L18 16 L18 24 L10 24 Z' },
+      { code: 'D', path: 'M30 16 L38 16 L38 24 L30 24 Z' },
+      { code: 'B', path: 'M18 2 L30 2 L30 16 L18 16 Z' },
+      { code: 'L', path: 'M18 24 L30 24 L30 38 L18 38 Z' },
+      { code: 'O', path: 'M18 16 L30 16 L30 24 L18 24 Z' },
     ];
+  }
+
+  surfaceFill(code: string): string {
+    if (this.highlightedSurfaces.includes(code)) return 'rgba(25, 118, 210, 0.55)';
+    const status = this.surfaceStatus[code];
+    if (status) return STATUS_SURFACE_COLORS[status] + '99';
+    if (this.treatedSurfaces.includes(code)) return 'rgba(76, 175, 80, 0.45)';
+    return 'transparent';
+  }
+
+  surfaceStroke(code: string): string {
+    if (this.highlightedSurfaces.includes(code)) return '#1565c0';
+    const status = this.surfaceStatus[code];
+    if (status) return STATUS_SURFACE_COLORS[status];
+    if (this.treatedSurfaces.includes(code)) return '#388e3c';
+    return 'transparent';
   }
 
   onSurfaceClick(code: string, event: MouseEvent): void {

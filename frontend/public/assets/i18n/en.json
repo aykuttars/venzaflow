@@ -659,7 +659,13 @@
     "eDocAuto": "Automatic",
     "eDocNone": "Do not send",
     "invoiceCreated": "Invoice created",
-    "viewBilling": "Go to billing"
+    "viewBilling": "Go to billing",
+    "selectedSurfaces": "Selected surfaces",
+    "view3dHint": "Drag to rotate · Click tooth or surface · Surfaces: M/D/B/L/O",
+    "legendPlanned": "Planned",
+    "legendCompleted": "Completed",
+    "legendInProgress": "In progress",
+    "dragSelectHint": "Drag to select multiple teeth"
   },
   "prescriptions": {
     "title": "Prescriptions",
